@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { PageWrapper } from "@/components/layout/PageWrapper";
-import { Card } from "@/components/ui/Card";
+import { DashboardHeader, DashboardPanel, DashboardTwoColumn, KpiGrid } from "@/components/layout/shells/DashboardScaffold";
 import { apiGet } from "@/lib/api";
 
 type Kpis = {
@@ -58,53 +57,56 @@ export default function HeadteacherDashboardPage() {
     return Math.max(0, Math.ceil((end - now) / (86400 * 1000)));
   })();
 
-  return (
-    <PageWrapper title="Dashboard" description="School-wide overview">
-      {loading ? (
-        <div className="animate-pulse space-y-4">
-          <div className="h-24 rounded-lg bg-slate-200" />
-          <div className="h-40 rounded-lg bg-slate-200" />
-        </div>
-      ) : null}
-      {err ? (
-        <Card title="Error">
-          <p className="text-red-600">{err}</p>
-        </Card>
-      ) : null}
-      {!loading && !err && kpis ? (
-        <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card title="Active students">
-              <p className="text-3xl font-bold text-brand">{kpis.activeStudents}</p>
-            </Card>
-            <Card title="Fees collected / due">
-              <p className="text-lg font-semibold">{kpis.totalFeesPaid}</p>
-              <p className="text-xs text-slate-500">Due {kpis.totalFeesDue} UGX</p>
-            </Card>
-            <Card title="Current term">
-              <p className="font-medium">{current ? `Term ${current.termNumber ?? "?"}` : "—"}</p>
-              {daysRemaining !== null ? (
-                <p className="text-xs text-slate-500">{daysRemaining} days remaining (approx.)</p>
-              ) : (
-                <p className="text-xs text-slate-500">Set an active term in Academic.</p>
-              )}
-            </Card>
-            <Card title="Flagged invoices">
-              <p className="text-3xl font-bold text-brand">{flagged}</p>
-              <Link className="text-xs text-brand underline" href="/headteacher/reports">
-                Review finances / reports
-              </Link>
-            </Card>
-          </div>
+  const metrics = kpis
+    ? [
+        { label: "Active students", value: kpis.activeStudents },
+        { label: "Fees collected", value: kpis.totalFeesPaid, helper: `Due ${kpis.totalFeesDue} UGX` },
+        {
+          label: "Current term",
+          value: current ? `Term ${current.termNumber ?? "?"}` : "Not set",
+          helper: daysRemaining !== null ? `${daysRemaining} days remaining` : "Set active term",
+        },
+        { label: "Flagged invoices", value: String(flagged) },
+      ]
+    : [];
 
-          <Card title="Report cards pending approval">
-            <p className="text-sm text-slate-600">
-              Requires backend support: <code className="rounded bg-slate-100 px-1">GET /api/reports?status=pending</code>{" "}
-              is not exposed yet. Use Reports → approve by ID once generated.
-            </p>
-          </Card>
-        </div>
+  return (
+    <div className="space-y-6">
+      <DashboardHeader
+        title="Headteacher Dashboard"
+        description="Academic and financial oversight for school leadership."
+      />
+      {loading ? <div className="h-32 animate-pulse rounded-xl bg-slate-200" /> : null}
+      {err ? <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{err}</p> : null}
+      {!loading && !err && kpis ? (
+        <>
+          <KpiGrid metrics={metrics} />
+          <DashboardTwoColumn
+            primary={
+              <DashboardPanel title="Academic approvals">
+                <p className="text-sm text-slate-600">
+                  Pending approvals will appear here once report approval APIs are connected.
+                </p>
+              </DashboardPanel>
+            }
+            secondary={
+              <DashboardPanel title="Leadership actions">
+                <div className="space-y-2 text-sm">
+                  <Link href="/headteacher/reports" className="block text-blue-600 hover:underline">
+                    Review report cards
+                  </Link>
+                  <Link href="/headteacher/assessment/cbc/unlock" className="block text-blue-600 hover:underline">
+                    Unlock CBC assessments
+                  </Link>
+                  <Link href="/headteacher/analytics" className="block text-blue-600 hover:underline">
+                    Open analytics
+                  </Link>
+                </div>
+              </DashboardPanel>
+            }
+          />
+        </>
       ) : null}
-    </PageWrapper>
+    </div>
   );
 }

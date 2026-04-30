@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { PageWrapper } from "@/components/layout/PageWrapper";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import {
+  DashboardHeader,
+  DashboardPanel,
+  DashboardTwoColumn,
+  KpiGrid,
+} from "@/components/layout/shells/DashboardScaffold";
 import { apiGet } from "@/lib/api";
 
 type Kpis = {
@@ -75,68 +79,80 @@ export default function AdminDashboardPage() {
       ? Math.round((Number(kpis.totalFeesPaid) / Number(kpis.totalFeesDue)) * 100)
       : 0;
 
+  const metrics = kpis
+    ? [
+        { label: "Total students", value: kpis.activeStudents },
+        { label: "Active teachers", value: String(teachers) },
+        {
+          label: "Collection rate",
+          value: `${collectionRate}%`,
+          helper: `Paid ${kpis.totalFeesPaid} / Due ${kpis.totalFeesDue} UGX`,
+        },
+      ]
+    : [];
+
   return (
-    <PageWrapper title="Dashboard" description="School overview">
-      {loading ? (
-        <div className="animate-pulse space-y-4">
-          <div className="h-24 rounded-lg bg-slate-200" />
-          <div className="h-40 rounded-lg bg-slate-200" />
-        </div>
-      ) : null}
-      {err ? (
-        <Card title="Error">
-          <p className="text-red-600">{err}</p>
-        </Card>
-      ) : null}
-      {!loading && !err && kpis ? (
-        <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card title="Total students">
-              <p className="text-3xl font-bold text-brand">{kpis.activeStudents}</p>
-            </Card>
-            <Card title="Active teachers">
-              <p className="text-3xl font-bold text-brand">{teachers}</p>
-            </Card>
-            <Card title="Term fee collection rate">
-              <p className="text-3xl font-bold text-brand">{collectionRate}%</p>
-              <p className="text-xs text-slate-500">
-                Paid {kpis.totalFeesPaid} / Due {kpis.totalFeesDue} UGX
-              </p>
-            </Card>
-          </div>
-
-          <Card title="Recent enrolments">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="py-2">Student #</th>
-                  <th className="py-2">Name</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((s) => (
-                  <tr key={s.id} className="border-b border-slate-100">
-                    <td className="py-2 font-mono text-xs">{s.studentNumber}</td>
-                    <td className="py-2">{s.fullName}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-
-          <div className="flex flex-wrap gap-3">
+    <div className="space-y-6">
+      <DashboardHeader
+        title="Admin Dashboard"
+        description="School overview, operational status, and quick actions."
+        actions={
+          <>
             <Link href="/admin/students/enrol">
               <Button>Enrol student</Button>
             </Link>
             <Link href="/admin/users/create">
               <Button variant="secondary">Create user</Button>
             </Link>
-            <Link href="/admin/academic/years">
-              <Button variant="secondary">Manage academic year</Button>
-            </Link>
-          </div>
-        </div>
+          </>
+        }
+      />
+
+      {loading ? <div className="h-32 animate-pulse rounded-xl bg-slate-200" /> : null}
+      {err ? <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{err}</p> : null}
+
+      {!loading && !err && kpis ? (
+        <>
+          <KpiGrid metrics={metrics} />
+          <DashboardTwoColumn
+            primary={
+              <DashboardPanel title="Recent enrolments" subtitle="Latest admitted students">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="py-2">Student #</th>
+                      <th className="py-2">Name</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recent.map((s) => (
+                      <tr key={s.id} className="border-b border-slate-100">
+                        <td className="py-2 font-mono text-xs">{s.studentNumber}</td>
+                        <td className="py-2">{s.fullName}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </DashboardPanel>
+            }
+            secondary={
+              <DashboardPanel title="Quick links">
+                <div className="space-y-2 text-sm">
+                  <Link className="block text-blue-600 hover:underline" href="/admin/academic/years">
+                    Manage academic years
+                  </Link>
+                  <Link className="block text-blue-600 hover:underline" href="/admin/reports">
+                    Open reports center
+                  </Link>
+                  <Link className="block text-blue-600 hover:underline" href="/admin/fees/overview">
+                    View fees overview
+                  </Link>
+                </div>
+              </DashboardPanel>
+            }
+          />
+        </>
       ) : null}
-    </PageWrapper>
+    </div>
   );
 }

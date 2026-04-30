@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { PageWrapper } from "@/components/layout/PageWrapper";
-import { Card } from "@/components/ui/Card";
+import { DashboardHeader, DashboardPanel, DashboardTwoColumn, KpiGrid } from "@/components/layout/shells/DashboardScaffold";
 import { apiGet } from "@/lib/api";
 
 type TermRow = { id: string; isActive?: boolean; termNumber?: number };
@@ -42,54 +41,50 @@ export default function SubjectTeacherDashboardPage() {
   const submitted = cbcRows.filter((r) => r.submitted).length;
   const pending = cbcRows.length - submitted;
 
-  return (
-    <PageWrapper title="Dashboard" description="Assessment focus">
-      {loading ? <p className="animate-pulse text-slate-600">Loading…</p> : null}
-      {err ? (
-        <Card title="Error">
-          <p className="text-red-600">{err}</p>
-        </Card>
-      ) : null}
-      {!loading && !err ? (
-        <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card title="My learners (API scope)">
-              <p className="text-2xl font-bold text-brand">{students.length}</p>
-              <ul className="mt-2 max-h-40 list-inside list-disc overflow-auto text-sm">
-                {students.slice(0, 6).map((s) => (
-                  <li key={s.id}>
-                    <Link className="text-brand underline" href={`/subject-teacher/students/${s.id}`}>
-                      {s.fullName}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-            <Card title={termId ? "CBC scores (this term, all rows)" : "CBC scores"}>
-              {termId ? (
-                <>
-                  <p className="text-sm text-slate-600">
-                    Submitted rows: {submitted}. Not submitted: {pending}. Total rows: {cbcRows.length}.
-                  </p>
-                  <p className="mt-2 text-xs text-slate-500">
-                    Row-level list from <code className="rounded bg-slate-100 px-1">GET /assessments/cbc?termId</code>
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-slate-600">No term found — create an active term in Academic.</p>
-              )}
-            </Card>
-          </div>
+  const metrics = [
+    { label: "Learners in scope", value: String(students.length) },
+    { label: "Submitted rows", value: String(submitted) },
+    { label: "Pending rows", value: String(pending) },
+    { label: "Active term", value: termId ? "Configured" : "Not set" },
+  ];
 
-          <Card title="My assigned subjects">
-            <p className="text-sm text-slate-600">
-              Requires backend support:{" "}
-              <code className="rounded bg-slate-100 px-1">GET /api/academic/class-subjects?teacherId=me</code> (or
-              similar) to list only your subjects. Use Assessment pages with manual subject UUIDs for now.
-            </p>
-          </Card>
-        </div>
+  return (
+    <div className="space-y-6">
+      <DashboardHeader title="Subject Teacher Dashboard" description="Assessment tracking and learner performance workflow." />
+      {loading ? <div className="h-24 animate-pulse rounded-xl bg-slate-200" /> : null}
+      {err ? <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{err}</p> : null}
+      {!loading && !err ? (
+        <>
+          <KpiGrid metrics={metrics} />
+          <DashboardTwoColumn
+            primary={
+              <DashboardPanel title="Learner snapshot">
+                <ul className="max-h-48 space-y-1 overflow-auto text-sm">
+                  {students.slice(0, 8).map((s) => (
+                    <li key={s.id}>
+                      <Link className="text-blue-600 hover:underline" href={`/subject-teacher/students/${s.id}`}>
+                        {s.fullName} ({s.studentNumber})
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </DashboardPanel>
+            }
+            secondary={
+              <DashboardPanel title="Assessment actions">
+                <div className="space-y-2 text-sm">
+                  <Link href="/subject-teacher/assessment/cbc" className="block text-blue-600 hover:underline">
+                    Open CBC assessment
+                  </Link>
+                  <Link href="/subject-teacher/assessment/alevel" className="block text-blue-600 hover:underline">
+                    Open A-Level assessment
+                  </Link>
+                </div>
+              </DashboardPanel>
+            }
+          />
+        </>
       ) : null}
-    </PageWrapper>
+    </div>
   );
 }

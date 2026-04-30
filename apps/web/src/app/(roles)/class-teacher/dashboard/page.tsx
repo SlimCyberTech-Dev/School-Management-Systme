@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { PageWrapper } from "@/components/layout/PageWrapper";
-import { Card } from "@/components/ui/Card";
+import { DashboardHeader, DashboardPanel, DashboardTwoColumn, KpiGrid } from "@/components/layout/shells/DashboardScaffold";
 import { apiGet } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 
@@ -56,82 +55,64 @@ export default function ClassTeacherDashboardPage() {
 
   const absentees = att.filter((a) => a.status === "absent");
 
+  const metrics = [
+    { label: "Assigned class", value: myClass ? `${myClass.name}${myClass.stream ? ` · ${myClass.stream}` : ""}` : "Unassigned" },
+    { label: "Learners", value: String(students.length) },
+    { label: "Attendance rows", value: String(att.length) },
+    { label: "Absentees today", value: String(absentees.length) },
+  ];
+
   return (
-    <PageWrapper title="Dashboard" description="Your class at a glance">
-      {loading ? <p className="animate-pulse text-slate-600">Loading…</p> : null}
-      {err ? (
-        <Card title="Error">
-          <p className="text-red-600">{err}</p>
-        </Card>
-      ) : null}
+    <div className="space-y-6">
+      <DashboardHeader title="Class Teacher Dashboard" description="Class operations, attendance, and student follow-up." />
+      {loading ? <div className="h-24 animate-pulse rounded-xl bg-slate-200" /> : null}
+      {err ? <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{err}</p> : null}
       {!loading && !err ? (
-        <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card title="My class">
-              {myClass ? (
-                <>
-                  <p className="text-lg font-semibold">
-                    {myClass.name} {myClass.stream ? `· ${myClass.stream}` : ""}
-                  </p>
-                  <p className="text-sm text-slate-600">Class ID: {myClass.id}</p>
-                </>
-              ) : (
-                <p className="text-sm text-slate-600">No class assigned as class teacher yet.</p>
-              )}
-            </Card>
-            <Card title={`Students (${students.length})`}>
-              <ul className="max-h-40 list-inside list-disc overflow-auto text-sm">
-                {students.slice(0, 8).map((s) => (
-                  <li key={s.id}>
-                    <Link className="text-brand underline" href={`/class-teacher/students/${s.id}`}>
-                      {s.fullName}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              {students.length > 8 ? (
-                <Link className="text-xs text-brand underline" href="/class-teacher/students">
-                  View all
-                </Link>
-              ) : null}
-            </Card>
-          </div>
-
-          <Card title={`Attendance today (${today})`}>
-            {myClass ? (
-              <>
-                <p className="text-sm text-slate-600">
-                  Register rows: {att.length}. Absent: {absentees.length}.
-                </p>
-                {absentees.length ? (
-                  <ul className="mt-2 text-sm text-red-700">
-                    {absentees.map((a, i) => (
-                      <li key={i}>
-                        {a.student_name} ({a.student_number})
-                      </li>
-                    ))}
-                  </ul>
+        <>
+          <KpiGrid metrics={metrics} />
+          <DashboardTwoColumn
+            primary={
+              <DashboardPanel title={`Attendance today (${today})`}>
+                {myClass ? (
+                  <>
+                    <p className="text-sm text-slate-600">
+                      Register rows: {att.length}. Absent: {absentees.length}.
+                    </p>
+                    {absentees.length ? (
+                      <ul className="mt-2 space-y-1 text-sm text-red-700">
+                        {absentees.map((a, i) => (
+                          <li key={i}>
+                            {a.student_name} ({a.student_number})
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-slate-600">No absentees recorded for this date.</p>
+                    )}
+                  </>
                 ) : (
-                  <p className="text-sm text-slate-600">No absentees recorded for this date.</p>
+                  <p className="text-sm text-slate-600">Assign a class to use attendance.</p>
                 )}
-                <Link className="mt-2 inline-block text-sm text-brand underline" href="/class-teacher/attendance">
-                  Open attendance
-                </Link>
-              </>
-            ) : (
-              <p className="text-sm text-slate-600">Assign a class to use attendance.</p>
-            )}
-          </Card>
-
-          <Card title="Comments pending on report cards">
-            <p className="text-sm text-slate-600">
-              Requires backend support:{" "}
-              <code className="rounded bg-slate-100 px-1">GET /api/cbc-report-cards?missingComment=true</code> (or
-              similar) is not exposed yet. Use the Comments page when workflow is available.
-            </p>
-          </Card>
-        </div>
+              </DashboardPanel>
+            }
+            secondary={
+              <DashboardPanel title="Quick links">
+                <div className="space-y-2 text-sm">
+                  <Link className="block text-blue-600 hover:underline" href="/class-teacher/attendance">
+                    Open attendance register
+                  </Link>
+                  <Link className="block text-blue-600 hover:underline" href="/class-teacher/students">
+                    View class list
+                  </Link>
+                  <Link className="block text-blue-600 hover:underline" href="/class-teacher/comments">
+                    Complete report comments
+                  </Link>
+                </div>
+              </DashboardPanel>
+            }
+          />
+        </>
       ) : null}
-    </PageWrapper>
+    </div>
   );
 }

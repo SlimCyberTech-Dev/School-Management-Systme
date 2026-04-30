@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PageWrapper } from "@/components/layout/PageWrapper";
-import { Card } from "@/components/ui/Card";
+import { DashboardHeader, DashboardPanel, DashboardTwoColumn, KpiGrid } from "@/components/layout/shells/DashboardScaffold";
 import { apiGet } from "@/lib/api";
 
 type Kpis = {
@@ -40,38 +39,38 @@ export default function BursarDashboardPage() {
     })();
   }, []);
 
-  return (
-    <PageWrapper title="Dashboard" description="Finance overview">
-      {loading ? (
-        <div className="animate-pulse space-y-4">
-          <div className="h-24 rounded-lg bg-slate-200" />
-          <div className="h-40 rounded-lg bg-slate-200" />
-        </div>
-      ) : null}
-      {err ? (
-        <Card title="Error">
-          <p className="text-red-600">{err}</p>
-        </Card>
-      ) : null}
-      {!loading && !err && kpis ? (
-        <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card title="Fees due (UGX)">
-              <p className="text-2xl font-bold text-brand">{kpis.totalFeesDue}</p>
-            </Card>
-            <Card title="Fees collected (UGX)">
-              <p className="text-2xl font-bold text-brand">{kpis.totalFeesPaid}</p>
-            </Card>
-            <Card title="Flagged invoices">
-              <p className="text-2xl font-bold text-brand">{flagged}</p>
-            </Card>
-          </div>
+  const metrics = kpis
+    ? [
+        { label: "Fees due (UGX)", value: kpis.totalFeesDue },
+        { label: "Fees collected (UGX)", value: kpis.totalFeesPaid },
+        { label: "Flagged invoices", value: String(flagged) },
+      ]
+    : [];
 
-          <Card title="Recent payments (latest 5)">
-            <pre className="max-h-64 overflow-auto text-xs">{JSON.stringify(recent, null, 2)}</pre>
-          </Card>
-        </div>
+  return (
+    <div className="space-y-6">
+      <DashboardHeader title="Bursar Dashboard" description="Financial health, collections, and payment operations." />
+      {loading ? <div className="h-24 animate-pulse rounded-xl bg-slate-200" /> : null}
+      {err ? <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{err}</p> : null}
+      {!loading && !err && kpis ? (
+        <>
+          <KpiGrid metrics={metrics} />
+          <DashboardTwoColumn
+            primary={
+              <DashboardPanel title="Recent payments (latest 5)">
+                <pre className="max-h-64 overflow-auto text-xs">{JSON.stringify(recent, null, 2)}</pre>
+              </DashboardPanel>
+            }
+            secondary={
+              <DashboardPanel title="Finance actions">
+                <div className="space-y-2 text-sm text-slate-700">
+                  <p>Record new payments and track invoice exceptions from the fees module.</p>
+                </div>
+              </DashboardPanel>
+            }
+          />
+        </>
       ) : null}
-    </PageWrapper>
+    </div>
   );
 }
