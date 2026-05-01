@@ -33,6 +33,18 @@ export const createUserSchema = z.object({
   role: z.enum(ROLES),
 });
 
+export const updateUserSchema = z
+  .object({
+    fullName: z.string().min(1).optional(),
+    email: z.string().email().optional(),
+    role: z.enum(ROLES).optional(),
+    isActive: z.boolean().optional(),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0, {
+    message: "At least one field is required",
+  });
+
 export const resetPasswordSchema = z.object({
   newPassword: z.string().min(8),
 });
@@ -43,4 +55,5 @@ export type RequestOtpInput = z.infer<typeof requestOtpSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type ResetPasswordWithOtpInput = z.infer<typeof resetPasswordWithOtpSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

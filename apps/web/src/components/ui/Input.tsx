@@ -10,13 +10,13 @@ export function Input({ label, error, className = "", id, ...rest }: Props) {
   return (
     <div className="w-full">
       {label ? (
-        <label htmlFor={inputId} className="mb-1 block text-sm font-medium text-slate-700">
+        <label htmlFor={inputId} className="mb-1 block text-sm font-medium text-foreground">
           {label}
         </label>
       ) : null}
       <input
         id={inputId}
-        className={`w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand ${
+        className={`w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-ui placeholder:text-muted-foreground focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand ${
           error ? "border-red-500" : ""
         } ${className}`}
         {...rest}

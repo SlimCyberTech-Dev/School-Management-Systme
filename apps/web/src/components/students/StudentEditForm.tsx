@@ -108,13 +108,13 @@ export function StudentEditForm({ studentId, initial }: { studentId: string; ini
       <Input label="Guardian contact" {...form.register("guardianContact", { required: true })} />
       <Input label="Guardian email (optional)" type="email" {...form.register("guardianEmail")} />
       <div className="w-full">
-        <label htmlFor="address" className="mb-1 block text-sm font-medium text-slate-700">
+        <label htmlFor="address" className="mb-1 block text-sm font-medium text-foreground">
           Address (optional)
         </label>
         <textarea
           id="address"
           rows={3}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-ui placeholder:text-muted-foreground focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
           {...form.register("address")}
         />
       </div>
@@ -148,13 +148,13 @@ export function StudentEditForm({ studentId, initial }: { studentId: string; ini
         {...form.register("status", { required: true })}
       />
       <div className="w-full">
-        <label htmlFor="transferReason" className="mb-1 block text-sm font-medium text-slate-700">
+        <label htmlFor="transferReason" className="mb-1 block text-sm font-medium text-foreground">
           Transfer / withdrawal notes (optional)
         </label>
         <textarea
           id="transferReason"
           rows={2}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-ui placeholder:text-muted-foreground focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
           {...form.register("transferReason")}
         />
       </div>

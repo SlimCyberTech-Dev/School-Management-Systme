@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import * as sharedSchemas from "@uganda-cbc-sms/shared";
 import * as svc from "./users.service";
 
-const { createUserSchema, resetPasswordSchema } = sharedSchemas;
+const { createUserSchema, resetPasswordSchema, updateUserSchema } = sharedSchemas;
 
 export async function create(req: Request, res: Response): Promise<void> {
   const body = createUserSchema.parse(req.body);
@@ -33,4 +33,24 @@ export async function me(req: Request, res: Response): Promise<void> {
   }
   const user = await svc.getUserById(req.user.id);
   res.json({ success: true, data: user });
+}
+
+export async function getOne(req: Request, res: Response): Promise<void> {
+  const user = await svc.getUserById(req.params.id!);
+  res.json({ success: true, data: user });
+}
+
+export async function update(req: Request, res: Response): Promise<void> {
+  const body = updateUserSchema.parse(req.body);
+  const user = await svc.updateUser(req.params.id!, body);
+  res.json({ success: true, data: user });
+}
+
+export async function destroy(req: Request, res: Response): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ success: false, error: "Unauthorized" });
+    return;
+  }
+  await svc.deleteUser(req.params.id!, req.user.id);
+  res.json({ success: true, data: { deleted: true } });
 }

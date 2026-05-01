@@ -12,8 +12,8 @@ export function PageWrapper({
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
-        {description ? <p className="text-slate-600">{description}</p> : null}
+        <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+        {description ? <p className="text-muted-foreground">{description}</p> : null}
       </div>
       {children}
     </div>

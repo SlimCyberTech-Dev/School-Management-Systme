@@ -118,13 +118,13 @@ export function EnrolmentForm({ onCreated }: { onCreated?: (id: string) => void 
         error={form.formState.errors.guardianEmail?.message}
       />
       <div className="w-full">
-        <label htmlFor="enrol-address" className="mb-1 block text-sm font-medium text-slate-700">
+        <label htmlFor="enrol-address" className="mb-1 block text-sm font-medium text-foreground">
           Address (optional)
         </label>
         <textarea
           id="enrol-address"
           rows={3}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-ui placeholder:text-muted-foreground focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
           {...form.register("address")}
         />
       </div>

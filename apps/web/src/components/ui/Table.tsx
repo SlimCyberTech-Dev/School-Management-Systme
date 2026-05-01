@@ -53,38 +53,38 @@ export function Table<T extends Record<string, unknown>>({
           />
         </div>
       ) : null}
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-brand-light">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card">
+        <table className="min-w-full divide-y divide-border text-sm">
+          <thead className="bg-muted">
             <tr>
               {columns.map((c) => (
                 <th
                   key={String(c.key)}
-                  className="px-3 py-2 text-left font-semibold text-slate-700"
+                  className="px-3 py-2 text-left font-semibold text-muted-foreground"
                 >
                   {c.header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 bg-white">
+          <tbody className="divide-y divide-border bg-card">
             {loading ? (
               <tr>
-                <td colSpan={columns.length} className="px-3 py-6 text-center text-slate-500">
+                <td colSpan={columns.length} className="px-3 py-6 text-center text-muted-foreground">
                   Loading…
                 </td>
               </tr>
             ) : slice.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-3 py-6 text-center text-slate-500">
+                <td colSpan={columns.length} className="px-3 py-6 text-center text-muted-foreground">
                   No rows
                 </td>
               </tr>
             ) : (
               slice.map((row, i) => (
-                <tr key={i} className="hover:bg-slate-50">
+                <tr key={i} className="transition-ui hover:bg-accent">
                   {columns.map((c) => (
-                    <td key={String(c.key)} className="px-3 py-2 text-slate-800">
+                    <td key={String(c.key)} className="px-3 py-2 text-foreground">
                       {c.render
                         ? c.render(row)
                         : String(row[c.key as keyof T] ?? "")}
@@ -97,14 +97,14 @@ export function Table<T extends Record<string, unknown>>({
         </table>
       </div>
       {filtered.length > pageSize ? (
-        <div className="flex items-center justify-between text-sm text-slate-600">
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
             Page {page + 1} of {pageCount} ({filtered.length} rows)
           </span>
           <div className="flex gap-2">
             <button
               type="button"
-              className="rounded border px-2 py-1 disabled:opacity-40"
+              className="rounded border border-border bg-card px-2 py-1 text-foreground transition-ui hover:bg-accent disabled:opacity-40"
               disabled={page <= 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
             >
@@ -112,7 +112,7 @@ export function Table<T extends Record<string, unknown>>({
             </button>
             <button
               type="button"
-              className="rounded border px-2 py-1 disabled:opacity-40"
+              className="rounded border border-border bg-card px-2 py-1 text-foreground transition-ui hover:bg-accent disabled:opacity-40"
               disabled={page >= pageCount - 1}
               onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
             >
