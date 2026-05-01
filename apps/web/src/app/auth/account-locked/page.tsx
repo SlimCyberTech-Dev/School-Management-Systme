@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Info, Lock } from "lucide-react";
@@ -9,7 +9,7 @@ import { AuthLayout } from "@/components/auth/AuthLayout";
 import { PrimaryButton } from "@/components/auth/PrimaryButton";
 import { useCountdown } from "@/hooks/useCountdown";
 
-export default function AccountLockedPage() {
+function AccountLockedPageInner() {
   const router = useRouter();
   const unlockAt = Number(useSearchParams().get("unlockAt") ?? "");
   const nowUnix = Math.floor(Date.now() / 1000);
@@ -80,5 +80,19 @@ export default function AccountLockedPage() {
         </div>
       </AuthCard>
     </AuthLayout>
+  );
+}
+
+export default function AccountLockedPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+          Loading…
+        </div>
+      }
+    >
+      <AccountLockedPageInner />
+    </Suspense>
   );
 }

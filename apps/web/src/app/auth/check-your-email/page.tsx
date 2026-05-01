@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -11,7 +12,7 @@ import { CountdownTimer } from "@/components/auth/CountdownTimer";
 import { AUTH_COPY } from "@/components/auth/constants";
 import { useCountdown } from "@/hooks/useCountdown";
 
-export default function CheckYourEmailPage() {
+function CheckYourEmailPageInner() {
   const email = useSearchParams().get("email") ?? "user@example.com";
   const resend = useCountdown(60, false);
   const [sent, setSent] = useState(false);
@@ -99,5 +100,19 @@ export default function CheckYourEmailPage() {
         </div>
       </AuthCard>
     </AuthLayout>
+  );
+}
+
+export default function CheckYourEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+          Loading…
+        </div>
+      }
+    >
+      <CheckYourEmailPageInner />
+    </Suspense>
   );
 }

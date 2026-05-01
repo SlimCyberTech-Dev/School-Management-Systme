@@ -65,8 +65,12 @@ export default function ClassTeacherDashboardPage() {
   return (
     <div className="space-y-6">
       <DashboardHeader title="Class Teacher Dashboard" description="Class operations, attendance, and student follow-up." />
-      {loading ? <div className="h-24 animate-pulse rounded-xl bg-slate-200" /> : null}
-      {err ? <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{err}</p> : null}
+      {loading ? <div className="h-24 animate-pulse rounded-xl bg-muted" /> : null}
+      {err ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+          {err}
+        </p>
+      ) : null}
       {!loading && !err ? (
         <>
           <KpiGrid metrics={metrics} />
@@ -75,11 +79,11 @@ export default function ClassTeacherDashboardPage() {
               <DashboardPanel title={`Attendance today (${today})`}>
                 {myClass ? (
                   <>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-muted-foreground">
                       Register rows: {att.length}. Absent: {absentees.length}.
                     </p>
                     {absentees.length ? (
-                      <ul className="mt-2 space-y-1 text-sm text-red-700">
+                      <ul className="mt-2 space-y-1 text-sm text-red-700 dark:text-red-400">
                         {absentees.map((a, i) => (
                           <li key={i}>
                             {a.student_name} ({a.student_number})
@@ -87,11 +91,11 @@ export default function ClassTeacherDashboardPage() {
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-sm text-slate-600">No absentees recorded for this date.</p>
+                      <p className="text-sm text-muted-foreground">No absentees recorded for this date.</p>
                     )}
                   </>
                 ) : (
-                  <p className="text-sm text-slate-600">Assign a class to use attendance.</p>
+                  <p className="text-sm text-muted-foreground">Assign a class to use attendance.</p>
                 )}
               </DashboardPanel>
             }

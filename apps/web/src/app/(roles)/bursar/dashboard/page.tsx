@@ -50,8 +50,12 @@ export default function BursarDashboardPage() {
   return (
     <div className="space-y-6">
       <DashboardHeader title="Bursar Dashboard" description="Financial health, collections, and payment operations." />
-      {loading ? <div className="h-24 animate-pulse rounded-xl bg-slate-200" /> : null}
-      {err ? <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{err}</p> : null}
+      {loading ? <div className="h-24 animate-pulse rounded-xl bg-muted" /> : null}
+      {err ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+          {err}
+        </p>
+      ) : null}
       {!loading && !err && kpis ? (
         <>
           <KpiGrid metrics={metrics} />
@@ -63,7 +67,7 @@ export default function BursarDashboardPage() {
             }
             secondary={
               <DashboardPanel title="Finance actions">
-                <div className="space-y-2 text-sm text-slate-700">
+                <div className="space-y-2 text-sm text-muted-foreground">
                   <p>Record new payments and track invoice exceptions from the fees module.</p>
                 </div>
               </DashboardPanel>

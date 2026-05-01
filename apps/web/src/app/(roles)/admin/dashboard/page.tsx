@@ -108,8 +108,12 @@ export default function AdminDashboardPage() {
         }
       />
 
-      {loading ? <div className="h-32 animate-pulse rounded-xl bg-slate-200" /> : null}
-      {err ? <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{err}</p> : null}
+      {loading ? <div className="h-32 animate-pulse rounded-xl bg-muted" /> : null}
+      {err ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+          {err}
+        </p>
+      ) : null}
 
       {!loading && !err && kpis ? (
         <>
@@ -126,7 +130,7 @@ export default function AdminDashboardPage() {
                   </thead>
                   <tbody>
                     {recent.map((s) => (
-                      <tr key={s.id} className="border-b border-slate-100">
+                      <tr key={s.id} className="border-b border-border">
                         <td className="py-2 font-mono text-xs">{s.studentNumber}</td>
                         <td className="py-2">{s.fullName}</td>
                       </tr>
@@ -138,13 +142,13 @@ export default function AdminDashboardPage() {
             secondary={
               <DashboardPanel title="Quick links">
                 <div className="space-y-2 text-sm">
-                  <Link className="block text-blue-600 hover:underline" href="/admin/academic/years">
+                  <Link className="block text-blue-600 hover:underline dark:text-blue-400" href="/admin/academic/years">
                     Manage academic years
                   </Link>
-                  <Link className="block text-blue-600 hover:underline" href="/admin/reports">
+                  <Link className="block text-blue-600 hover:underline dark:text-blue-400" href="/admin/reports">
                     Open reports center
                   </Link>
-                  <Link className="block text-blue-600 hover:underline" href="/admin/fees/overview">
+                  <Link className="block text-blue-600 hover:underline dark:text-blue-400" href="/admin/fees/overview">
                     View fees overview
                   </Link>
                 </div>

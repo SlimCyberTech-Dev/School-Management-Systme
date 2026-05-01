@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, CheckIcon, Eye, EyeOff, Lock, Mail } from "lucide-react";
@@ -17,7 +18,7 @@ import { AUTH_COPY } from "@/components/auth/constants";
 import { useCountdown } from "@/hooks/useCountdown";
 import { usePasswordStrength } from "@/hooks/usePasswordStrength";
 
-export default function ResetPasswordPage() {
+function ResetPasswordPageInner() {
   const params = useSearchParams();
   const email = params.get("email") ?? "";
   const router = useRouter();
@@ -221,5 +222,19 @@ export default function ResetPasswordPage() {
         </AnimatePresence>
       </AuthCard>
     </AuthLayout>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+          Loading…
+        </div>
+      }
+    >
+      <ResetPasswordPageInner />
+    </Suspense>
   );
 }

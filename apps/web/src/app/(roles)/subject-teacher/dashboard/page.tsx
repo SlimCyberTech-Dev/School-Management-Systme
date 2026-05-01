@@ -51,8 +51,12 @@ export default function SubjectTeacherDashboardPage() {
   return (
     <div className="space-y-6">
       <DashboardHeader title="Subject Teacher Dashboard" description="Assessment tracking and learner performance workflow." />
-      {loading ? <div className="h-24 animate-pulse rounded-xl bg-slate-200" /> : null}
-      {err ? <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{err}</p> : null}
+      {loading ? <div className="h-24 animate-pulse rounded-xl bg-muted" /> : null}
+      {err ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+          {err}
+        </p>
+      ) : null}
       {!loading && !err ? (
         <>
           <KpiGrid metrics={metrics} />

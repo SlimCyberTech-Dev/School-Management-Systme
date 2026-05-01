@@ -5,13 +5,47 @@
 @tailwind utilities;
 
 :root {
-  --foreground: #0f172a;
   --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --border: #e2e8f0;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --nav-active: #2563eb;
+  --nav-active-foreground: #ffffff;
+  --ring: #1b6b3a;
+  --ring-offset: #f8fafc;
+}
+
+.dark {
+  --background: #020617;
+  --foreground: #f8fafc;
+  --card: #0f172a;
+  --card-foreground: #f8fafc;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --border: #334155;
+  --sidebar: #0f172a;
+  --sidebar-foreground: #f1f5f9;
+  --sidebar-border: #334155;
+  --accent: #1e293b;
+  --accent-foreground: #f8fafc;
+  --nav-active: #3b82f6;
+  --nav-active-foreground: #ffffff;
+  --ring: #4ade80;
+  --ring-offset: #020617;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .font-heading {

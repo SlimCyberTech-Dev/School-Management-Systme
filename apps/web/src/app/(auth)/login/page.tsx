@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   User,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { apiPost } from "@/lib/api";
 import type { AuthUser } from "@/store/authStore";
 import { useAuthStore } from "@/store/authStore";
@@ -213,7 +214,7 @@ export default function LoginPage() {
   };
 
   const inputBase =
-    "font-body w-full rounded-xl border border-slate-200 bg-white/90 px-11 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition duration-200 placeholder:text-slate-400 focus:border-[#2563EB] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.15)]";
+    "font-body w-full rounded-xl border border-border bg-card/90 px-11 py-2.5 text-sm text-foreground shadow-sm outline-none transition duration-200 placeholder:text-muted-foreground focus:border-[#2563EB] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.15)] dark:bg-card/70";
 
   const renderFormCard = () => {
     const isLogin = view === "login";
@@ -235,19 +236,19 @@ export default function LoginPage() {
               variants={fieldContainer}
               initial="hidden"
               animate="visible"
-              className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-[0_30px_80px_-40px_rgba(37,99,235,0.5)] backdrop-blur-xl sm:p-6"
+              className="rounded-3xl border border-border bg-card/90 p-5 shadow-lg backdrop-blur-xl dark:bg-card/95 sm:p-6"
             >
               <motion.div variants={fieldItem} className="mb-5">
-                <p className="font-heading text-2xl font-semibold text-slate-900">Welcome back</p>
-                <p className="font-body mt-1.5 text-sm text-slate-500">
+                <p className="font-heading text-2xl font-semibold text-foreground">Welcome back</p>
+                <p className="font-body mt-1.5 text-sm text-muted-foreground">
                   Sign in to access your school management dashboard.
                 </p>
               </motion.div>
 
               <motion.div variants={fieldItem} className="mb-3">
-                <label className="font-body mb-2 block text-sm font-medium text-slate-700">Email</label>
+                <label className="font-body mb-2 block text-sm font-medium text-foreground">Email</label>
                 <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="email"
                     value={loginState.email}
@@ -263,9 +264,9 @@ export default function LoginPage() {
               </motion.div>
 
               <motion.div variants={fieldItem} className="mb-2.5">
-                <label className="font-body mb-2 block text-sm font-medium text-slate-700">Password</label>
+                <label className="font-body mb-2 block text-sm font-medium text-foreground">Password</label>
                 <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type={showLoginPassword ? "text" : "password"}
                     value={loginState.password}
@@ -280,7 +281,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowLoginPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
                     aria-label="Toggle password visibility"
                   >
                     {showLoginPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -292,12 +293,12 @@ export default function LoginPage() {
               </motion.div>
 
               <motion.div variants={fieldItem} className="mb-4 flex items-center justify-between">
-                <label className="font-body flex items-center gap-2 text-sm text-slate-600">
+                <label className="font-body flex items-center gap-2 text-sm text-muted-foreground">
                   <input
                     type="checkbox"
                     checked={loginState.remember}
                     onChange={(e) => setLoginState((s) => ({ ...s, remember: e.target.checked }))}
-                    className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
+                    className="h-4 w-4 rounded border-border text-[#2563EB] focus:ring-[#2563EB]"
                   />
                   Remember me
                 </label>
@@ -324,23 +325,23 @@ export default function LoginPage() {
               ) : null}
 
               <motion.div variants={fieldItem} className="my-3.5 flex items-center gap-3">
-                <div className="h-px flex-1 bg-slate-200" />
-                <span className="font-body text-xs uppercase tracking-[0.12em] text-slate-400">
+                <div className="h-px flex-1 bg-border" />
+                <span className="font-body text-xs uppercase tracking-[0.12em] text-muted-foreground">
                   or continue with Google
                 </span>
-                <div className="h-px flex-1 bg-slate-200" />
+                <div className="h-px flex-1 bg-border" />
               </motion.div>
 
               <motion.div variants={fieldItem}>
                 <button
                   type="button"
-                  className="font-body w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                  className="font-body w-full rounded-xl border border-border bg-card py-2.5 text-sm font-medium text-foreground transition hover:bg-accent"
                 >
                   Google
                 </button>
               </motion.div>
 
-              <motion.p variants={fieldItem} className="font-body mt-4 text-center text-sm text-slate-500">
+              <motion.p variants={fieldItem} className="font-body mt-4 text-center text-sm text-muted-foreground">
                 {"Don't have an account? "}
                 <button
                   type="button"
@@ -367,19 +368,19 @@ export default function LoginPage() {
               variants={fieldContainer}
               initial="hidden"
               animate="visible"
-              className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-[0_30px_80px_-40px_rgba(37,99,235,0.5)] backdrop-blur-xl sm:p-6"
+              className="rounded-3xl border border-border bg-card/90 p-5 shadow-lg backdrop-blur-xl dark:bg-card/95 sm:p-6"
             >
               <motion.div variants={fieldItem} className="mb-5">
-                <p className="font-heading text-2xl font-semibold text-slate-900">Create account</p>
-                <p className="font-body mt-1.5 text-sm text-slate-500">
+                <p className="font-heading text-2xl font-semibold text-foreground">Create account</p>
+                <p className="font-body mt-1.5 text-sm text-muted-foreground">
                   Start managing academics, fees, and performance in one place.
                 </p>
               </motion.div>
 
               <motion.div variants={fieldItem} className="mb-3">
-                <label className="font-body mb-2 block text-sm font-medium text-slate-700">Full Name</label>
+                <label className="font-body mb-2 block text-sm font-medium text-foreground">Full Name</label>
                 <div className="relative">
-                  <User className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <User className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="text"
                     value={registerState.name}
@@ -398,9 +399,9 @@ export default function LoginPage() {
               </motion.div>
 
               <motion.div variants={fieldItem} className="mb-3">
-                <label className="font-body mb-2 block text-sm font-medium text-slate-700">Email</label>
+                <label className="font-body mb-2 block text-sm font-medium text-foreground">Email</label>
                 <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="email"
                     value={registerState.email}
@@ -419,9 +420,9 @@ export default function LoginPage() {
               </motion.div>
 
               <motion.div variants={fieldItem} className="mb-3">
-                <label className="font-body mb-2 block text-sm font-medium text-slate-700">Password</label>
+                <label className="font-body mb-2 block text-sm font-medium text-foreground">Password</label>
                 <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type={showRegisterPassword ? "text" : "password"}
                     value={registerState.password}
@@ -436,21 +437,21 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowRegisterPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
                     aria-label="Toggle password visibility"
                   >
                     {showRegisterPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
                 <div className="mt-2">
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                     <motion.div
                       className="h-full rounded-full"
                       animate={{ width: passwordStrength.width, backgroundColor: passwordStrength.color }}
                       transition={{ duration: 0.3 }}
                     />
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Strength: <span className="font-semibold">{passwordStrength.label}</span>
                   </p>
                 </div>
@@ -460,11 +461,11 @@ export default function LoginPage() {
               </motion.div>
 
               <motion.div variants={fieldItem} className="mb-3">
-                <label className="font-body mb-2 block text-sm font-medium text-slate-700">
+                <label className="font-body mb-2 block text-sm font-medium text-foreground">
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <ShieldCheck className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <ShieldCheck className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     value={registerState.confirmPassword}
@@ -483,7 +484,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-slate-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
                     aria-label="Toggle confirm password visibility"
                   >
                     {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -494,13 +495,13 @@ export default function LoginPage() {
                 ) : null}
               </motion.div>
 
-              <motion.label variants={fieldItem} className="mb-4 flex items-start gap-2 text-sm text-slate-600">
+              <motion.label variants={fieldItem} className="mb-4 flex items-start gap-2 text-sm text-muted-foreground">
                 <input
                   type="checkbox"
                   checked={registerState.agree}
                   onChange={(e) => setRegisterState((s) => ({ ...s, agree: e.target.checked }))}
                   onBlur={() => setRegisterTouched((s) => ({ ...s, agree: true }))}
-                  className="mt-[3px] h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
+                  className="mt-[3px] h-4 w-4 rounded border-border text-[#2563EB] focus:ring-[#2563EB]"
                 />
                 <span className="font-body">
                   I agree to the{" "}
@@ -529,23 +530,23 @@ export default function LoginPage() {
               </motion.div>
 
               <motion.div variants={fieldItem} className="my-3.5 flex items-center gap-3">
-                <div className="h-px flex-1 bg-slate-200" />
-                <span className="font-body text-xs uppercase tracking-[0.12em] text-slate-400">
+                <div className="h-px flex-1 bg-border" />
+                <span className="font-body text-xs uppercase tracking-[0.12em] text-muted-foreground">
                   or continue with Google
                 </span>
-                <div className="h-px flex-1 bg-slate-200" />
+                <div className="h-px flex-1 bg-border" />
               </motion.div>
 
               <motion.div variants={fieldItem}>
                 <button
                   type="button"
-                  className="font-body w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                  className="font-body w-full rounded-xl border border-border bg-card py-2.5 text-sm font-medium text-foreground transition hover:bg-accent"
                 >
                   Google
                 </button>
               </motion.div>
 
-              <motion.p variants={fieldItem} className="font-body mt-4 text-center text-sm text-slate-500">
+              <motion.p variants={fieldItem} className="font-body mt-4 text-center text-sm text-muted-foreground">
                 Already have an account?{" "}
                 <button
                   type="button"
@@ -563,7 +564,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#EFF6FF]">
+    <div className="min-h-screen bg-background transition-colors">
       <div className="mx-auto hidden min-h-screen max-w-[1600px] lg:flex">
         <aside className="relative flex w-2/5 flex-col justify-between overflow-hidden bg-gradient-to-br from-[#1E3A8A] to-[#1D4ED8] p-8 text-white xl:p-10">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,rgba(255,255,255,0.16),transparent_38%),radial-gradient(circle_at_85%_15%,rgba(219,234,254,0.18),transparent_35%)]" />
@@ -605,13 +606,16 @@ export default function LoginPage() {
           </div>
         </aside>
 
-        <section className="flex w-3/5 items-center justify-center bg-[#EFF6FF] px-8 py-6 xl:px-10 xl:py-8">
+        <section className="relative flex w-3/5 items-center justify-center bg-background px-8 py-6 xl:px-10 xl:py-8">
+          <div className="absolute right-6 top-6 z-10 xl:right-10 xl:top-8">
+            <ThemeToggle />
+          </div>
           <div className="w-full max-w-xl">{renderFormCard()}</div>
         </section>
       </div>
 
       <div className="lg:hidden">
-        <div className="bg-[#1E3A8A] px-5 py-4">
+        <div className="flex items-center justify-between bg-[#1E3A8A] px-5 py-4">
           <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-2 text-white backdrop-blur-sm">
             <Image
               src="/images/Logo.jpeg"
@@ -622,8 +626,9 @@ export default function LoginPage() {
             />
             <span className="font-heading ml-2 text-sm font-semibold">SlimCyberTech</span>
           </div>
+          <ThemeToggle buttonClassName="border-white/40 bg-white/15 text-white hover:bg-white/25 focus-visible:ring-offset-[#1E3A8A]" />
         </div>
-        <div className="px-4 py-6">
+        <div className="bg-background px-4 py-6">
           <div className="mx-auto w-full max-w-xl">{renderFormCard()}</div>
         </div>
       </div>

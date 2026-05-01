@@ -15,11 +15,18 @@ export function AppShell({ config, children }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-screen overflow-hidden bg-background transition-colors">
       <ShellSidebar config={config} />
       {mobileOpen ? (
-        <div className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden" onClick={() => setMobileOpen(false)}>
-          <div className="h-full w-72 bg-white" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden
+        >
+          <div
+            className="h-full w-72 border-r border-sidebar-border bg-sidebar shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <ShellSidebar config={config} mobile />
           </div>
         </div>

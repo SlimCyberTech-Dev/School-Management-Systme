@@ -76,15 +76,19 @@ export default function HeadteacherDashboardPage() {
         title="Headteacher Dashboard"
         description="Academic and financial oversight for school leadership."
       />
-      {loading ? <div className="h-32 animate-pulse rounded-xl bg-slate-200" /> : null}
-      {err ? <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{err}</p> : null}
+      {loading ? <div className="h-32 animate-pulse rounded-xl bg-muted" /> : null}
+      {err ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+          {err}
+        </p>
+      ) : null}
       {!loading && !err && kpis ? (
         <>
           <KpiGrid metrics={metrics} />
           <DashboardTwoColumn
             primary={
               <DashboardPanel title="Academic approvals">
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-muted-foreground">
                   Pending approvals will appear here once report approval APIs are connected.
                 </p>
               </DashboardPanel>

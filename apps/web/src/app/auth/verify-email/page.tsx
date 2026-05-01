@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, XCircle } from "lucide-react";
@@ -14,7 +15,7 @@ import { AUTH_BRAND, AUTH_COPY } from "@/components/auth/constants";
 import { SixDigitCodeInput } from "@/components/auth/SixDigitCodeInput";
 import { useCountdown } from "@/hooks/useCountdown";
 
-export default function VerifyEmailPage() {
+function VerifyEmailPageInner() {
   const email = useSearchParams().get("email") ?? "";
   const redirect = useCountdown(4, false);
   const resend = useCountdown(60, false);
@@ -163,5 +164,19 @@ export default function VerifyEmailPage() {
         </AnimatePresence>
       </AuthCard>
     </AuthLayout>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+          Loading…
+        </div>
+      }
+    >
+      <VerifyEmailPageInner />
+    </Suspense>
   );
 }

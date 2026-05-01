@@ -1,5 +1,6 @@
 "use client";
 
+import { ThemeProvider } from "next-themes";
 import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 
@@ -8,5 +9,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
-  return <>{children}</>;
+  return (
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      storageKey="uganda-cbc-sms-theme"
+    >
+      {children}
+    </ThemeProvider>
+  );
 }
