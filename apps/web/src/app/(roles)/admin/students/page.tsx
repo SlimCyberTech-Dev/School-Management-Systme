@@ -34,7 +34,12 @@ export default function AdminStudentsPage() {
         </Link>
       </div>
       {err ? <p className="mb-4 text-red-600">{err}</p> : null}
-      <StudentTable students={rows} loading={loading} profileBasePath="/admin/students" />
+      <StudentTable
+        students={rows}
+        loading={loading}
+        profileBasePath="/admin/students"
+        showEnrollmentActions
+      />
     </PageWrapper>
   );
 }

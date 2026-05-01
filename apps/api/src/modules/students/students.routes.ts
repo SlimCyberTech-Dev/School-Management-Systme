@@ -17,6 +17,8 @@ studentsRouter.post("/", admin, asyncHandler(c.create));
 studentsRouter.get("/", staffReader, asyncHandler(c.list));
 studentsRouter.post("/promote", admin, asyncHandler(c.promote));
 studentsRouter.get("/:id", staffReader, asyncHandler(c.getOne));
+studentsRouter.patch("/:id", admin, asyncHandler(c.update));
+studentsRouter.delete("/:id", admin, asyncHandler(c.destroy));
 studentsRouter.post(
   "/:id/photo",
   admin,

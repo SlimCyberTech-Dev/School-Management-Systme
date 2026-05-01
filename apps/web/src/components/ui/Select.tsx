@@ -24,8 +24,8 @@ export function Select({ label, error, options, className = "", id, ...rest }: P
         } ${className}`}
         {...rest}
       >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
+        {options.map((o, idx) => (
+          <option key={`${idx}-${o.label}`} value={o.value}>
             {o.label}
           </option>
         ))}

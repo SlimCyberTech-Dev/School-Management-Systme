@@ -4,6 +4,24 @@ export const genderSchema = z.enum(["male", "female"]);
 
 export const studentStatusSchema = z.enum(["active", "transferred", "withdrawn"]);
 
+const optionalEnrollmentText = z
+  .string()
+  .max(2000)
+  .optional()
+  .nullable()
+  .transform((v) => (v === "" || v === undefined ? null : v));
+
+const optionalGuardianEmail = z
+  .string()
+  .max(255)
+  .optional()
+  .nullable()
+  .transform((v) => (v === "" || v === undefined ? null : v));
+
+const optionalUuidSelect = z
+  .union([z.string().uuid(), z.literal(""), z.null(), z.undefined()])
+  .transform((v) => (v === "" || v === undefined ? null : v));
+
 export const createStudentSchema = z.object({
   fullName: z.string().min(1),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -11,8 +29,44 @@ export const createStudentSchema = z.object({
   guardianName: z.string().min(1),
   guardianContact: z.string().min(5).max(20),
   classId: z.string().uuid(),
-  combinationId: z.string().uuid().optional().nullable(),
+  combinationId: optionalUuidSelect,
+  guardianEmail: optionalGuardianEmail,
+  address: optionalEnrollmentText,
+  previousSchool: z
+    .string()
+    .max(500)
+    .optional()
+    .nullable()
+    .transform((v) => (v === "" || v === undefined ? null : v)),
 });
+
+export const updateStudentSchema = z
+  .object({
+    fullName: z.string().min(1).optional(),
+    dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    gender: genderSchema.optional(),
+    guardianName: z.string().min(1).optional(),
+    guardianContact: z.string().min(5).max(20).optional(),
+    classId: optionalUuidSelect,
+    combinationId: optionalUuidSelect,
+    status: studentStatusSchema.optional(),
+    transferReason: z
+      .string()
+      .max(2000)
+      .optional()
+      .nullable()
+      .transform((v) => (v === "" || v === undefined ? null : v)),
+    guardianEmail: optionalGuardianEmail,
+    address: optionalEnrollmentText,
+    previousSchool: z
+      .string()
+      .max(500)
+      .optional()
+      .nullable()
+      .transform((v) => (v === "" || v === undefined ? null : v)),
+  })
+  .strict()
+  .refine((body) => Object.keys(body).length > 0, { message: "At least one field is required" });
 
 export const promoteStudentsSchema = z.object({
   studentIds: z.array(z.string().uuid()).min(1),
@@ -31,6 +85,7 @@ export const attendanceSchema = z.object({
 });
 
 export type CreateStudentInput = z.infer<typeof createStudentSchema>;
+export type UpdateStudentInput = z.infer<typeof updateStudentSchema>;
 export type PromoteStudentsInput = z.infer<typeof promoteStudentsSchema>;
 export type WithdrawStudentInput = z.infer<typeof withdrawStudentSchema>;
 export type AttendanceInput = z.infer<typeof attendanceSchema>;

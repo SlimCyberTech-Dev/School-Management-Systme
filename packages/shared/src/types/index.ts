@@ -21,6 +21,9 @@ export interface Student {
   gender: "male" | "female";
   guardianName: string;
   guardianContact: string;
+  guardianEmail: string | null;
+  address: string | null;
+  previousSchool: string | null;
   classId: string | null;
   combinationId: string | null;
   photoUrl: string | null;

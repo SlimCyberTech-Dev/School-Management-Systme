@@ -4,7 +4,12 @@ import path from "path";
 import * as svc from "./students.service";
 import { getUploadRoot } from "./students.upload";
 
-const { createStudentSchema, promoteStudentsSchema, withdrawStudentSchema } = sharedSchemas;
+const {
+  createStudentSchema,
+  promoteStudentsSchema,
+  updateStudentSchema,
+  withdrawStudentSchema,
+} = sharedSchemas;
 
 export async function create(req: Request, res: Response): Promise<void> {
   const body = createStudentSchema.parse(req.body);
@@ -65,6 +70,25 @@ export async function withdraw(req: Request, res: Response): Promise<void> {
   const body = withdrawStudentSchema.parse(req.body);
   await svc.withdrawStudent(req.params["id"]!, body);
   res.json({ success: true, data: { message: "Student withdrawn" } });
+}
+
+export async function update(req: Request, res: Response): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ success: false, error: "Unauthorized" });
+    return;
+  }
+  const body = updateStudentSchema.parse(req.body);
+  const row = await svc.updateStudent(req.params["id"]!, req.user.role, req.user.id, body);
+  res.json({ success: true, data: row });
+}
+
+export async function destroy(req: Request, res: Response): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ success: false, error: "Unauthorized" });
+    return;
+  }
+  await svc.deleteStudent(req.params["id"]!, req.user.role, req.user.id);
+  res.json({ success: true, data: { deleted: true } });
 }
 
 export function publicUploadsPath(): string {

@@ -11,11 +11,14 @@ export function StudentTable({
   students,
   loading,
   profileBasePath,
+  showEnrollmentActions,
 }: {
   students: Student[];
   loading?: boolean;
   /** e.g. `/admin/students` — links become `{profileBasePath}/{id}` */
   profileBasePath: string;
+  /** When true, admin-only routes get an Edit enrollment link alongside View. */
+  showEnrollmentActions?: boolean;
 }) {
   const columns: Column<Row>[] = [
     { key: "studentNumber", header: "Student #" },
@@ -29,9 +32,16 @@ export function StudentTable({
       key: "id",
       header: "",
       render: (r) => (
-        <Link className="text-brand underline" href={`${profileBasePath.replace(/\/$/, "")}/${r.id}`}>
-          View
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link className="text-brand underline" href={`${profileBasePath.replace(/\/$/, "")}/${r.id}`}>
+            View
+          </Link>
+          {showEnrollmentActions ? (
+            <Link className="text-brand underline" href={`${profileBasePath.replace(/\/$/, "")}/${r.id}/edit`}>
+              Edit
+            </Link>
+          ) : null}
+        </div>
       ),
     },
   ];

@@ -26,6 +26,9 @@ export function EnrolmentForm({ onCreated }: { onCreated?: (id: string) => void 
     defaultValues: {
       gender: "male",
       combinationId: null,
+      guardianEmail: "",
+      address: "",
+      previousSchool: "",
     },
   });
 
@@ -53,6 +56,9 @@ export function EnrolmentForm({ onCreated }: { onCreated?: (id: string) => void 
     try {
       const payload = {
         ...values,
+        guardianEmail: values.guardianEmail?.trim() || null,
+        address: values.address?.trim() || null,
+        previousSchool: values.previousSchool?.trim() || null,
         combinationId:
           values.combinationId && String(values.combinationId).length > 0
             ? values.combinationId
@@ -66,6 +72,9 @@ export function EnrolmentForm({ onCreated }: { onCreated?: (id: string) => void 
         gender: "male",
         guardianName: "",
         guardianContact: "",
+        guardianEmail: "",
+        address: "",
+        previousSchool: "",
         classId: values.classId,
         combinationId: null,
       });
@@ -101,6 +110,28 @@ export function EnrolmentForm({ onCreated }: { onCreated?: (id: string) => void 
         label="Guardian contact"
         {...form.register("guardianContact")}
         error={form.formState.errors.guardianContact?.message}
+      />
+      <Input
+        label="Guardian email (optional)"
+        type="email"
+        {...form.register("guardianEmail")}
+        error={form.formState.errors.guardianEmail?.message}
+      />
+      <div className="w-full">
+        <label htmlFor="enrol-address" className="mb-1 block text-sm font-medium text-slate-700">
+          Address (optional)
+        </label>
+        <textarea
+          id="enrol-address"
+          rows={3}
+          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+          {...form.register("address")}
+        />
+      </div>
+      <Input
+        label="Previous school (optional)"
+        {...form.register("previousSchool")}
+        error={form.formState.errors.previousSchool?.message}
       />
       <Select
         label="Class"
