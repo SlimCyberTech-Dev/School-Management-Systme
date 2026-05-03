@@ -10,6 +10,10 @@ const {
   cbcStrandSchema,
   subjectSchema,
   termSchema,
+  updateAcademicYearSchema,
+  updateClassSchema,
+  updateSubjectSchema,
+  updateTermSchema,
 } = sharedSchemas;
 
 export async function postYear(req: Request, res: Response): Promise<void> {
@@ -23,6 +27,17 @@ export async function getYears(_req: Request, res: Response): Promise<void> {
   res.json({ success: true, data: rows });
 }
 
+export async function patchYear(req: Request, res: Response): Promise<void> {
+  const body = updateAcademicYearSchema.parse(req.body);
+  const row = await svc.updateAcademicYear(req.params["id"]!, body);
+  res.json({ success: true, data: row });
+}
+
+export async function deleteYear(req: Request, res: Response): Promise<void> {
+  await svc.deleteAcademicYear(req.params["id"]!);
+  res.json({ success: true, data: { deleted: true } });
+}
+
 export async function postTerm(req: Request, res: Response): Promise<void> {
   const body = termSchema.parse(req.body);
   const row = await svc.createTerm(body);
@@ -32,6 +47,17 @@ export async function postTerm(req: Request, res: Response): Promise<void> {
 export async function getTerms(_req: Request, res: Response): Promise<void> {
   const rows = await svc.listTerms();
   res.json({ success: true, data: rows });
+}
+
+export async function patchTerm(req: Request, res: Response): Promise<void> {
+  const body = updateTermSchema.parse(req.body);
+  const row = await svc.updateTerm(req.params["id"]!, body);
+  res.json({ success: true, data: row });
+}
+
+export async function deleteTerm(req: Request, res: Response): Promise<void> {
+  await svc.deleteTerm(req.params["id"]!);
+  res.json({ success: true, data: { deleted: true } });
 }
 
 export async function postClass(req: Request, res: Response): Promise<void> {
@@ -45,6 +71,17 @@ export async function getClasses(_req: Request, res: Response): Promise<void> {
   res.json({ success: true, data: rows });
 }
 
+export async function patchClass(req: Request, res: Response): Promise<void> {
+  const body = updateClassSchema.parse(req.body);
+  const row = await svc.updateClass(req.params["id"]!, body);
+  res.json({ success: true, data: row });
+}
+
+export async function deleteClass(req: Request, res: Response): Promise<void> {
+  await svc.deleteClass(req.params["id"]!);
+  res.json({ success: true, data: { deleted: true } });
+}
+
 export async function postSubject(req: Request, res: Response): Promise<void> {
   const body = subjectSchema.parse(req.body);
   const row = await svc.createSubject(body);
@@ -54,6 +91,17 @@ export async function postSubject(req: Request, res: Response): Promise<void> {
 export async function getSubjects(_req: Request, res: Response): Promise<void> {
   const rows = await svc.listSubjects();
   res.json({ success: true, data: rows });
+}
+
+export async function patchSubject(req: Request, res: Response): Promise<void> {
+  const body = updateSubjectSchema.parse(req.body);
+  const row = await svc.updateSubject(req.params["id"]!, body);
+  res.json({ success: true, data: row });
+}
+
+export async function deleteSubject(req: Request, res: Response): Promise<void> {
+  await svc.deleteSubject(req.params["id"]!);
+  res.json({ success: true, data: { deleted: true } });
 }
 
 export async function postClassSubject(req: Request, res: Response): Promise<void> {

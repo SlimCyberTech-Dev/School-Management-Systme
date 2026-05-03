@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CbcScoreGrid } from "@/components/assessment/CbcScoreGrid";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { apiGet } from "@/lib/api";
@@ -71,7 +72,7 @@ export default function AdminCbcAssessmentPage() {
       <Button onClick={() => void load()} loading={loading}>
         Reload data
       </Button>
-      {err ? <p className="mt-4 text-red-600">{err}</p> : null}
+      {err ? <div className="mt-4"><Alert tone="error">{err}</Alert></div> : null}
       {strand && termId && subjectId ? (
         <div className="mt-8">
           <CbcScoreGrid
@@ -83,7 +84,7 @@ export default function AdminCbcAssessmentPage() {
           />
         </div>
       ) : (
-        <p className="mt-6 text-sm text-slate-600">
+        <p className="mt-6 text-sm text-muted-foreground">
           Enter Class, Term, Subject, and Strand UUIDs from Academic structure, then reload.
         </p>
       )}

@@ -4,12 +4,18 @@ import path from "path";
 import * as svc from "./students.service";
 import { getUploadRoot } from "./students.upload";
 
+const schemaExports = (
+  "default" in sharedSchemas && typeof sharedSchemas.default === "object"
+    ? sharedSchemas.default
+    : sharedSchemas
+) as typeof sharedSchemas;
+
 const {
   createStudentSchema,
   promoteStudentsSchema,
   updateStudentSchema,
   withdrawStudentSchema,
-} = sharedSchemas;
+} = schemaExports;
 
 export async function create(req: Request, res: Response): Promise<void> {
   const body = createStudentSchema.parse(req.body);

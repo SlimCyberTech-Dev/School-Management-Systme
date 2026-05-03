@@ -4,18 +4,24 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { UserPublic } from "@uganda-cbc-sms/shared";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Modal } from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Table, type Column } from "@/components/ui/Table";
 import { apiDelete, apiGet, apiPatch } from "@/lib/api";
 
 type UserTableRow = UserPublic & Record<string, unknown>;
+const ACTION_BTN =
+  "inline-flex items-center rounded-md border border-border bg-card px-2 py-1 text-xs font-medium text-foreground transition-ui hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50";
+const ACTION_DANGER_BTN =
+  "inline-flex items-center rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs font-medium text-red-700 transition-ui hover:bg-red-500/20 dark:text-red-300 disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function AdminUsersListPage() {
   const [users, setUsers] = useState<UserPublic[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<UserPublic | null>(null);
@@ -38,10 +44,12 @@ export default function AdminUsersListPage() {
 
   const toggleActive = async (user: UserPublic) => {
     setErr(null);
+    setOk(null);
     setBusyUserId(user.id);
     try {
       await apiPatch(`/users/${encodeURIComponent(user.id)}`, { isActive: !user.isActive });
       await loadUsers();
+      setOk(`User ${user.isActive ? "deactivated" : "activated"} successfully.`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to update user");
     } finally {
@@ -51,11 +59,13 @@ export default function AdminUsersListPage() {
 
   const deleteUser = async (user: UserPublic) => {
     setErr(null);
+    setOk(null);
     setBusyUserId(user.id);
     try {
       await apiDelete(`/users/${encodeURIComponent(user.id)}`);
       setConfirmDelete(null);
       await loadUsers();
+      setOk("User deleted successfully.");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to delete user");
     } finally {
@@ -83,12 +93,12 @@ export default function AdminUsersListPage() {
       header: "",
       render: (r) => (
         <div className="flex flex-wrap gap-3">
-          <Link className="text-brand underline" href={`/admin/users/${r.id}/edit`}>
+          <Link className={ACTION_BTN} href={`/admin/users/${r.id}/edit`}>
             Edit
           </Link>
           <button
             type="button"
-            className="text-brand underline disabled:opacity-50"
+            className={ACTION_BTN}
             disabled={busyUserId === r.id}
             onClick={() => void toggleActive(r)}
           >
@@ -96,7 +106,7 @@ export default function AdminUsersListPage() {
           </button>
           <button
             type="button"
-            className="text-red-600 underline disabled:opacity-50"
+            className={ACTION_DANGER_BTN}
             disabled={busyUserId === r.id}
             onClick={() => setConfirmDelete(r)}
           >
@@ -114,7 +124,10 @@ export default function AdminUsersListPage() {
           <Button>Create user</Button>
         </Link>
       </div>
-      {err ? <p className="text-red-600">{err}</p> : null}
+      <div className="mb-4 space-y-2">
+        {ok ? <Alert tone="success">{ok}</Alert> : null}
+        {err ? <Alert tone="error">{err}</Alert> : null}
+      </div>
       <Card title={`Accounts (${users.length})`}>
         <Table
           columns={columns}
@@ -123,39 +136,24 @@ export default function AdminUsersListPage() {
           searchKeys={["fullName", "email"]}
         />
       </Card>
-      <Modal
+      <ConfirmDialog
         open={Boolean(confirmDelete)}
         title="Delete user account?"
-        onClose={() => {
+        description={
+          confirmDelete
+            ? `This will remove ${confirmDelete.fullName} from active staff accounts.`
+            : "This will remove the user from active staff accounts."
+        }
+        confirmLabel="Delete"
+        danger
+        loading={Boolean(confirmDelete && busyUserId === confirmDelete.id)}
+        onCancel={() => {
           if (!busyUserId) setConfirmDelete(null);
         }}
-      >
-        <p className="mb-4 text-sm text-muted-foreground">
-          {confirmDelete
-            ? `This will remove ${confirmDelete.fullName} from active staff accounts.`
-            : "This will remove the user from active staff accounts."}
-        </p>
-        <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={Boolean(busyUserId)}
-            onClick={() => setConfirmDelete(null)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            className="bg-red-600 hover:bg-red-700 focus-visible:ring-red-600"
-            loading={Boolean(confirmDelete && busyUserId === confirmDelete.id)}
-            onClick={() => {
-              if (confirmDelete) void deleteUser(confirmDelete);
-            }}
-          >
-            Delete
-          </Button>
-        </div>
-      </Modal>
+        onConfirm={() => {
+          if (confirmDelete) void deleteUser(confirmDelete);
+        }}
+      />
     </PageWrapper>
   );
 }

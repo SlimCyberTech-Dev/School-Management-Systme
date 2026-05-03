@@ -4,27 +4,48 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { classSchema } from "@uganda-cbc-sms/shared";
+import type { AcademicYear, SchoolClass, UserPublic } from "@uganda-cbc-sms/shared";
 import type { z } from "zod";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { apiGet, apiPost } from "@/lib/api";
+import { Table, type Column } from "@/components/ui/Table";
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 
 type Form = z.infer<typeof classSchema>;
 
-type YearRow = { id: string; name: string };
-type UserRow = { id: string; fullName: string; email: string; role: string };
+type Row = SchoolClass & Record<string, unknown>;
+const ACTION_BTN =
+  "inline-flex items-center rounded-md border border-border bg-card px-2 py-1 text-xs font-medium text-foreground transition-ui hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50";
+const ACTION_DANGER_BTN =
+  "inline-flex items-center rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs font-medium text-red-700 transition-ui hover:bg-red-500/20 dark:text-red-300 disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function AdminAcademicClassesPage() {
-  const [classes, setClasses] = useState<unknown[]>([]);
-  const [years, setYears] = useState<YearRow[]>([]);
-  const [users, setUsers] = useState<UserRow[]>([]);
+  const [classes, setClasses] = useState<SchoolClass[]>([]);
+  const [years, setYears] = useState<AcademicYear[]>([]);
+  const [users, setUsers] = useState<UserPublic[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<SchoolClass | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<SchoolClass | null>(null);
 
   const form = useForm<Form>({
+    resolver: zodResolver(classSchema),
+    defaultValues: {
+      name: "",
+      stream: "",
+      level: "o_level",
+      academicYearId: "",
+      classTeacherId: null,
+    },
+  });
+  const editForm = useForm<Form>({
     resolver: zodResolver(classSchema),
     defaultValues: {
       name: "",
@@ -38,9 +59,9 @@ export default function AdminAcademicClassesPage() {
   const load = async () => {
     try {
       const [c, y, u] = await Promise.all([
-        apiGet<unknown[]>("/academic/classes"),
-        apiGet<YearRow[]>("/academic/years"),
-        apiGet<UserRow[]>("/users"),
+        apiGet<SchoolClass[]>("/academic/classes"),
+        apiGet<AcademicYear[]>("/academic/years"),
+        apiGet<UserPublic[]>("/users"),
       ]);
       setClasses(c);
       setYears(y);
@@ -62,9 +83,11 @@ export default function AdminAcademicClassesPage() {
 
   const onSubmit = async (v: Form) => {
     setErr(null);
+    setOk(null);
     try {
       await apiPost("/academic/classes", v);
       await load();
+      setOk("Class created.");
       form.reset({
         name: "",
         stream: "",
@@ -77,6 +100,51 @@ export default function AdminAcademicClassesPage() {
     }
   };
 
+  const startEdit = (row: SchoolClass) => {
+    setEditing(row);
+    editForm.reset({
+      name: row.name,
+      stream: row.stream,
+      level: row.level,
+      academicYearId: row.academicYearId,
+      classTeacherId: row.classTeacherId,
+    });
+  };
+
+  const onEdit = async (v: Form) => {
+    if (!editing) return;
+    setErr(null);
+    setOk(null);
+    setBusyId(editing.id);
+    try {
+      await apiPatch(`/academic/classes/${encodeURIComponent(editing.id)}`, v);
+      await load();
+      setEditing(null);
+      setOk("Class updated.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to update");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const remove = async () => {
+    if (!confirmDelete) return;
+    setErr(null);
+    setOk(null);
+    setBusyId(confirmDelete.id);
+    try {
+      await apiDelete(`/academic/classes/${encodeURIComponent(confirmDelete.id)}`);
+      await load();
+      setConfirmDelete(null);
+      setOk("Class deleted.");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to delete");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const teacherOpts = [
     { value: "", label: "— None —" },
     ...users
@@ -84,8 +152,52 @@ export default function AdminAcademicClassesPage() {
       .map((x) => ({ value: x.id, label: `${x.fullName} (${x.role})` })),
   ];
 
+  const columns: Column<Row>[] = [
+    { key: "name", header: "Class" },
+    { key: "stream", header: "Stream" },
+    { key: "level", header: "Level" },
+    {
+      key: "academicYearId",
+      header: "Year",
+      render: (r) => years.find((y) => y.id === r.academicYearId)?.name ?? "—",
+    },
+    {
+      key: "classTeacherId",
+      header: "Teacher",
+      render: (r) => users.find((u) => u.id === r.classTeacherId)?.fullName ?? "—",
+    },
+    {
+      key: "actions",
+      header: "",
+      render: (r) => (
+        <div className="flex gap-3">
+          <button
+            type="button"
+            className={ACTION_BTN}
+            disabled={busyId === r.id}
+            onClick={() => startEdit(r)}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className={ACTION_DANGER_BTN}
+            disabled={busyId === r.id}
+            onClick={() => setConfirmDelete(r)}
+          >
+            Delete
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <PageWrapper title="Classes" description="Create classes for an academic year">
+      <div className="mb-4 space-y-2">
+        {ok ? <Alert tone="success">{ok}</Alert> : null}
+        {err ? <Alert tone="error">{err}</Alert> : null}
+      </div>
       <div className="grid gap-8 lg:grid-cols-2">
         <Card title="New class">
           <form className="space-y-3" onSubmit={form.handleSubmit(onSubmit)}>
@@ -115,11 +227,55 @@ export default function AdminAcademicClassesPage() {
           </form>
         </Card>
         <Card title={`Classes (${classes.length})`}>
-          {err ? <p className="text-red-600">{err}</p> : null}
-          {loading ? <p>Loading…</p> : null}
-          <pre className="max-h-[480px] overflow-auto text-xs">{JSON.stringify(classes, null, 2)}</pre>
+          <Table columns={columns} rows={classes as Row[]} loading={loading} searchKeys={["name", "stream"]} />
         </Card>
       </div>
+      {editing ? (
+        <Card title={`Edit class: ${editing.name} ${editing.stream}`}>
+          <form className="mt-4 max-w-lg space-y-3" onSubmit={editForm.handleSubmit(onEdit)}>
+            <Input label="Name" {...editForm.register("name")} error={editForm.formState.errors.name?.message} />
+            <Input label="Stream" {...editForm.register("stream")} error={editForm.formState.errors.stream?.message} />
+            <Select
+              label="Level"
+              options={[
+                { value: "o_level", label: "O-Level / CBC" },
+                { value: "a_level", label: "A-Level" },
+              ]}
+              {...editForm.register("level")}
+            />
+            <Select
+              label="Academic year"
+              options={years.map((y) => ({ value: y.id, label: y.name }))}
+              {...editForm.register("academicYearId")}
+            />
+            <Select
+              label="Class teacher (optional)"
+              options={teacherOpts}
+              {...editForm.register("classTeacherId", {
+                setValueAs: (v: string) => (v === "" ? null : v),
+              })}
+            />
+            <div className="flex gap-2">
+              <Button type="submit" loading={busyId === editing.id}>
+                Save changes
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </Card>
+      ) : null}
+      <ConfirmDialog
+        open={Boolean(confirmDelete)}
+        title="Delete class?"
+        description="This cannot be undone. If linked students/records exist, deletion will be blocked."
+        confirmLabel="Delete"
+        danger
+        loading={Boolean(confirmDelete && busyId === confirmDelete.id)}
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={() => void remove()}
+      />
     </PageWrapper>
   );
 }

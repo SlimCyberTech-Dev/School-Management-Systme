@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { createStudentSchema } from "@uganda-cbc-sms/shared";
 import type { z } from "zod";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -20,6 +21,7 @@ export function EnrolmentForm({ onCreated }: { onCreated?: (id: string) => void 
   const [combos, setCombos] = useState<ComboOpt[]>([]);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
+  const [submitOk, setSubmitOk] = useState<string | null>(null);
 
   const form = useForm<Form>({
     resolver: zodResolver(createStudentSchema),
@@ -53,6 +55,7 @@ export function EnrolmentForm({ onCreated }: { onCreated?: (id: string) => void 
 
   const onSubmit = async (values: Form) => {
     setSubmitErr(null);
+    setSubmitOk(null);
     try {
       const payload = {
         ...values,
@@ -66,6 +69,9 @@ export function EnrolmentForm({ onCreated }: { onCreated?: (id: string) => void 
       };
       const row = await apiPost<{ id: string }>("/students", payload);
       onCreated?.(row.id);
+      if (!onCreated) {
+        setSubmitOk("Student enrolled successfully.");
+      }
       form.reset({
         fullName: "",
         dateOfBirth: "",
@@ -85,7 +91,8 @@ export function EnrolmentForm({ onCreated }: { onCreated?: (id: string) => void 
 
   return (
     <form className="max-w-xl space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-      {loadErr ? <p className="text-sm text-red-600">{loadErr}</p> : null}
+      {submitOk ? <Alert tone="success">{submitOk}</Alert> : null}
+      {loadErr ? <Alert tone="error">{loadErr}</Alert> : null}
       <Input label="Full name" {...form.register("fullName")} error={form.formState.errors.fullName?.message} />
       <Input
         label="Date of birth"
@@ -146,7 +153,7 @@ export function EnrolmentForm({ onCreated }: { onCreated?: (id: string) => void 
         options={[{ value: "", label: "—" }, ...combos.map((x) => ({ value: x.id, label: `${x.code} — ${x.name}` }))]}
         {...form.register("combinationId")}
       />
-      {submitErr ? <p className="text-sm text-red-600">{submitErr}</p> : null}
+      {submitErr ? <Alert tone="error">{submitErr}</Alert> : null}
       <Button type="submit">Enrol student</Button>
     </form>
   );

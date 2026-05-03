@@ -10,7 +10,7 @@ export default function AdminEnrolPage() {
     <PageWrapper title="Enrol student" description="Create a new student record">
       <EnrolmentForm
         onCreated={(id) => {
-          router.push(`/admin/students/${id}`);
+          router.push(`/admin/students/${id}?created=1`);
         }}
       />
     </PageWrapper>

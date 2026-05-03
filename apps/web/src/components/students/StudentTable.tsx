@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Table, type Column } from "@/components/ui/Table";
 
 type Row = Student & Record<string, unknown>;
+const ACTION_LINK =
+  "inline-flex items-center rounded-md border border-border bg-card px-2 py-1 text-xs font-medium text-foreground transition-ui hover:bg-accent";
 
 export function StudentTable({
   students,
@@ -33,11 +35,11 @@ export function StudentTable({
       header: "",
       render: (r) => (
         <div className="flex flex-wrap gap-3">
-          <Link className="text-brand underline" href={`${profileBasePath.replace(/\/$/, "")}/${r.id}`}>
+          <Link className={ACTION_LINK} href={`${profileBasePath.replace(/\/$/, "")}/${r.id}`}>
             View
           </Link>
           {showEnrollmentActions ? (
-            <Link className="text-brand underline" href={`${profileBasePath.replace(/\/$/, "")}/${r.id}/edit`}>
+            <Link className={ACTION_LINK} href={`${profileBasePath.replace(/\/$/, "")}/${r.id}/edit`}>
               Edit
             </Link>
           ) : null}

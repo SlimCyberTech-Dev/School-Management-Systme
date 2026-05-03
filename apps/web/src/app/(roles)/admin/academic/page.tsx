@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { Alert } from "@/components/ui/Alert";
 import { Card } from "@/components/ui/Card";
 import { apiGet } from "@/lib/api";
 
@@ -38,24 +39,28 @@ export default function AdminAcademicHubPage() {
 
   return (
     <PageWrapper title="Academic" description="Structure, years, terms, classes, subjects">
-      {loading ? <p className="animate-pulse text-slate-600">Loading summary…</p> : null}
-      {err ? <p className="text-red-600">{err}</p> : null}
+      {loading ? <p className="animate-pulse text-muted-foreground">Loading summary…</p> : null}
+      {err ? <Alert tone="error">{err}</Alert> : null}
       {counts ? (
-        <p className="mb-6 text-sm text-slate-600">
+        <p className="mb-6 mt-3 text-sm text-muted-foreground">
           {counts.y} years · {counts.t} terms · {counts.c} classes · {counts.s} subjects
         </p>
       ) : null}
       <div className="grid gap-4 md:grid-cols-2">
         {LINKS.map((l) => (
-          <Link key={l.href} href={l.href} className="block rounded-lg border border-slate-200 p-4 hover:bg-slate-50">
+          <Link
+            key={l.href}
+            href={l.href}
+            className="block rounded-lg border border-border bg-card p-4 transition-ui hover:bg-accent"
+          >
             <div className="font-semibold text-brand">{l.title}</div>
-            <p className="text-sm text-slate-600">{l.desc}</p>
+            <p className="text-sm text-muted-foreground">{l.desc}</p>
           </Link>
         ))}
       </div>
       <div className="mt-8">
         <Card title="Raw overview (all entities)">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             For a combined JSON dump of combinations & strands, use the API directly or extend this view.
           </p>
         </Card>

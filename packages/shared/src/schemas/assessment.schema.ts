@@ -39,12 +39,20 @@ export const academicYearSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+export const updateAcademicYearSchema = academicYearSchema.partial().refine((v) => Object.keys(v).length > 0, {
+  message: "At least one field is required",
+});
+
 export const termSchema = z.object({
   academicYearId: z.string().uuid(),
   termNumber: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   isActive: z.boolean().optional(),
+});
+
+export const updateTermSchema = termSchema.partial().refine((v) => Object.keys(v).length > 0, {
+  message: "At least one field is required",
 });
 
 export const classSchema = z.object({
@@ -55,10 +63,18 @@ export const classSchema = z.object({
   classTeacherId: z.string().uuid().optional().nullable(),
 });
 
+export const updateClassSchema = classSchema.partial().refine((v) => Object.keys(v).length > 0, {
+  message: "At least one field is required",
+});
+
 export const subjectSchema = z.object({
   name: z.string().min(1).max(100),
   code: z.string().min(1).max(20),
   level: z.enum(["o_level", "a_level"]),
+});
+
+export const updateSubjectSchema = subjectSchema.partial().refine((v) => Object.keys(v).length > 0, {
+  message: "At least one field is required",
 });
 
 export const classSubjectSchema = z.object({
@@ -82,3 +98,7 @@ export const cbcStrandSchema = z.object({
 
 export type CbcScoreUpsertInput = z.infer<typeof cbcScoreUpsertSchema>;
 export type AlevelScoreUpsertInput = z.infer<typeof alevelScoreUpsertSchema>;
+export type UpdateAcademicYearInput = z.infer<typeof updateAcademicYearSchema>;
+export type UpdateTermInput = z.infer<typeof updateTermSchema>;
+export type UpdateClassInput = z.infer<typeof updateClassSchema>;
+export type UpdateSubjectInput = z.infer<typeof updateSubjectSchema>;

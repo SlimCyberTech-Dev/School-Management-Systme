@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Student } from "@uganda-cbc-sms/shared";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { StudentEditForm } from "@/components/students/StudentEditForm";
+import { Alert } from "@/components/ui/Alert";
+import { Card } from "@/components/ui/Card";
 import { apiGet } from "@/lib/api";
 
 export default function AdminStudentEditPage() {
@@ -29,9 +32,38 @@ export default function AdminStudentEditPage() {
 
   return (
     <PageWrapper title="Edit enrollment" description="Update student record and placement">
-      {loading ? <p className="text-slate-600">Loading…</p> : null}
-      {err ? <p className="text-red-600">{err}</p> : null}
-      {st ? <StudentEditForm key={id} studentId={id} initial={st} /> : null}
+      <div className="mx-auto max-w-6xl space-y-6">
+        <Link
+          href={`/admin/students/${encodeURIComponent(id)}`}
+          className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-ui hover:text-foreground"
+        >
+          <span aria-hidden>←</span>
+          Back to profile
+        </Link>
+
+        {loading ? (
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 w-48 rounded bg-muted" />
+            <div className="h-80 rounded-xl bg-muted" />
+          </div>
+        ) : null}
+
+        {err ? <Alert tone="error">{err}</Alert> : null}
+
+        {st ? (
+          <>
+            <Card>
+              <div className="flex flex-col gap-1">
+                <h2 className="font-heading text-xl font-semibold text-foreground sm:text-2xl">Edit {st.fullName}</h2>
+                <p className="text-sm text-muted-foreground">
+                  Student no: <span className="font-mono">{st.studentNumber}</span>
+                </p>
+              </div>
+            </Card>
+            <StudentEditForm key={id} studentId={id} initial={st} />
+          </>
+        ) : null}
+      </div>
     </PageWrapper>
   );
 }

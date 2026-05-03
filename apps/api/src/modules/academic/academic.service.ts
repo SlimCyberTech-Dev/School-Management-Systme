@@ -11,6 +11,10 @@ const {
   classSubjectSchema,
   combinationSchema,
   cbcStrandSchema,
+  updateAcademicYearSchema,
+  updateTermSchema,
+  updateClassSchema,
+  updateSubjectSchema,
 } = sharedSchemas;
 
 type YearIn = z.infer<typeof academicYearSchema>;
@@ -20,6 +24,14 @@ type SubjectIn = z.infer<typeof subjectSchema>;
 type ClassSubjectIn = z.infer<typeof classSubjectSchema>;
 type ComboIn = z.infer<typeof combinationSchema>;
 type CbcStrandIn = z.infer<typeof cbcStrandSchema>;
+type YearUpdateIn = z.infer<typeof updateAcademicYearSchema>;
+type TermUpdateIn = z.infer<typeof updateTermSchema>;
+type ClassUpdateIn = z.infer<typeof updateClassSchema>;
+type SubjectUpdateIn = z.infer<typeof updateSubjectSchema>;
+
+function conflictDeleteMessage(entity: string): string {
+  return `Cannot delete ${entity} because it is referenced by other records`;
+}
 
 function mapYear(r: {
   id: string;
@@ -104,6 +116,48 @@ export async function listAcademicYears() {
   }
 }
 
+export async function updateAcademicYear(id: string, input: YearUpdateIn) {
+  const sets: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+  if (input.name !== undefined) {
+    sets.push(`name = $${i++}`);
+    values.push(input.name);
+  }
+  if (input.startDate !== undefined) {
+    sets.push(`start_date = $${i++}`);
+    values.push(input.startDate);
+  }
+  if (input.endDate !== undefined) {
+    sets.push(`end_date = $${i++}`);
+    values.push(input.endDate);
+  }
+  if (input.isActive !== undefined) {
+    if (input.isActive) await query(`UPDATE academic_years SET is_active = false`);
+    sets.push(`is_active = $${i++}`);
+    values.push(input.isActive);
+  }
+  values.push(id);
+  const { rows } = await query(
+    `UPDATE academic_years SET ${sets.join(", ")} WHERE id = $${i} RETURNING *`,
+    values,
+  );
+  if (!rows[0]) throw new HttpError(404, "Academic year not found");
+  return mapYear(rows[0] as never);
+}
+
+export async function deleteAcademicYear(id: string) {
+  try {
+    const r = await query(`DELETE FROM academic_years WHERE id = $1`, [id]);
+    if (r.rowCount === 0) throw new HttpError(404, "Academic year not found");
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err.code === "23503") throw new HttpError(400, conflictDeleteMessage("academic year"));
+    if (e instanceof HttpError) throw e;
+    throw new Error(e instanceof Error ? e.message : "Could not delete academic year");
+  }
+}
+
 export async function createTerm(input: TermIn) {
   try {
     if (input.isActive) {
@@ -137,6 +191,58 @@ export async function listTerms() {
   }
 }
 
+export async function updateTerm(id: string, input: TermUpdateIn) {
+  const sets: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+  if (input.academicYearId !== undefined) {
+    sets.push(`academic_year_id = $${i++}`);
+    values.push(input.academicYearId);
+  }
+  if (input.termNumber !== undefined) {
+    sets.push(`term_number = $${i++}`);
+    values.push(input.termNumber);
+  }
+  if (input.startDate !== undefined) {
+    sets.push(`start_date = $${i++}`);
+    values.push(input.startDate);
+  }
+  if (input.endDate !== undefined) {
+    sets.push(`end_date = $${i++}`);
+    values.push(input.endDate);
+  }
+  if (input.isActive !== undefined) {
+    if (input.isActive) {
+      const targetYearId =
+        input.academicYearId ??
+        (
+          await query<{ academic_year_id: string }>(`SELECT academic_year_id FROM terms WHERE id = $1`, [id])
+        ).rows[0]?.academic_year_id;
+      if (targetYearId) {
+        await query(`UPDATE terms SET is_active = false WHERE academic_year_id = $1`, [targetYearId]);
+      }
+    }
+    sets.push(`is_active = $${i++}`);
+    values.push(input.isActive);
+  }
+  values.push(id);
+  const { rows } = await query(`UPDATE terms SET ${sets.join(", ")} WHERE id = $${i} RETURNING *`, values);
+  if (!rows[0]) throw new HttpError(404, "Term not found");
+  return mapTerm(rows[0] as never);
+}
+
+export async function deleteTerm(id: string) {
+  try {
+    const r = await query(`DELETE FROM terms WHERE id = $1`, [id]);
+    if (r.rowCount === 0) throw new HttpError(404, "Term not found");
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err.code === "23503") throw new HttpError(400, conflictDeleteMessage("term"));
+    if (e instanceof HttpError) throw e;
+    throw new Error(e instanceof Error ? e.message : "Could not delete term");
+  }
+}
+
 export async function createClass(input: ClassIn) {
   try {
     const { rows } = await query(
@@ -156,6 +262,48 @@ export async function listClasses() {
     return (rows as never[]).map((r) => mapClass(r as never));
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : "Could not list classes");
+  }
+}
+
+export async function updateClass(id: string, input: ClassUpdateIn) {
+  const sets: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+  if (input.name !== undefined) {
+    sets.push(`name = $${i++}`);
+    values.push(input.name);
+  }
+  if (input.stream !== undefined) {
+    sets.push(`stream = $${i++}`);
+    values.push(input.stream);
+  }
+  if (input.level !== undefined) {
+    sets.push(`level = $${i++}`);
+    values.push(input.level);
+  }
+  if (input.academicYearId !== undefined) {
+    sets.push(`academic_year_id = $${i++}`);
+    values.push(input.academicYearId);
+  }
+  if (input.classTeacherId !== undefined) {
+    sets.push(`class_teacher_id = $${i++}`);
+    values.push(input.classTeacherId);
+  }
+  values.push(id);
+  const { rows } = await query(`UPDATE classes SET ${sets.join(", ")} WHERE id = $${i} RETURNING *`, values);
+  if (!rows[0]) throw new HttpError(404, "Class not found");
+  return mapClass(rows[0] as never);
+}
+
+export async function deleteClass(id: string) {
+  try {
+    const r = await query(`DELETE FROM classes WHERE id = $1`, [id]);
+    if (r.rowCount === 0) throw new HttpError(404, "Class not found");
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err.code === "23503") throw new HttpError(400, conflictDeleteMessage("class"));
+    if (e instanceof HttpError) throw e;
+    throw new Error(e instanceof Error ? e.message : "Could not delete class");
   }
 }
 
@@ -179,6 +327,50 @@ export async function listSubjects() {
     return (rows as never[]).map((r) => mapSubject(r as never));
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : "Could not list subjects");
+  }
+}
+
+export async function updateSubject(id: string, input: SubjectUpdateIn) {
+  const sets: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+  if (input.name !== undefined) {
+    sets.push(`name = $${i++}`);
+    values.push(input.name);
+  }
+  if (input.code !== undefined) {
+    sets.push(`code = $${i++}`);
+    values.push(input.code);
+  }
+  if (input.level !== undefined) {
+    sets.push(`level = $${i++}`);
+    values.push(input.level);
+  }
+  values.push(id);
+  try {
+    const { rows } = await query(
+      `UPDATE subjects SET ${sets.join(", ")} WHERE id = $${i} RETURNING *`,
+      values,
+    );
+    if (!rows[0]) throw new HttpError(404, "Subject not found");
+    return mapSubject(rows[0] as never);
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err.code === "23505") throw new HttpError(400, "Subject code already exists");
+    if (e instanceof HttpError) throw e;
+    throw new Error(e instanceof Error ? e.message : "Could not update subject");
+  }
+}
+
+export async function deleteSubject(id: string) {
+  try {
+    const r = await query(`DELETE FROM subjects WHERE id = $1`, [id]);
+    if (r.rowCount === 0) throw new HttpError(404, "Subject not found");
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err.code === "23503") throw new HttpError(400, conflictDeleteMessage("subject"));
+    if (e instanceof HttpError) throw e;
+    throw new Error(e instanceof Error ? e.message : "Could not delete subject");
   }
 }
 

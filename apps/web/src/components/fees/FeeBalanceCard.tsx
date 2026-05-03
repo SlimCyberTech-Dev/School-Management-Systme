@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Alert } from "@/components/ui/Alert";
 import { Card } from "@/components/ui/Card";
 import { apiGet } from "@/lib/api";
 
@@ -17,6 +18,7 @@ export function FeeBalanceCard({ studentId }: { studentId: string }) {
           `/fees/balance/${encodeURIComponent(studentId)}`,
         );
         setBalance(r.totalBalance);
+        setErr(null);
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Failed to load balance");
       } finally {
@@ -27,10 +29,13 @@ export function FeeBalanceCard({ studentId }: { studentId: string }) {
 
   return (
     <Card title="Fee balance">
-      {loading ? <p className="text-slate-600">Loading…</p> : null}
-      {err ? <p className="text-red-600">{err}</p> : null}
+      {loading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
+      {err ? <Alert tone="error">{err}</Alert> : null}
       {!loading && !err ? (
-        <p className="text-2xl font-semibold text-brand">{balance} UGX</p>
+        <div className="space-y-1">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Current balance</p>
+          <p className="text-2xl font-semibold text-brand">{balance} UGX</p>
+        </div>
       ) : null}
     </Card>
   );

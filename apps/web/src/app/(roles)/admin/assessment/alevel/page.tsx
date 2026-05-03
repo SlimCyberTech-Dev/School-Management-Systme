@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ALevelScoreTable } from "@/components/assessment/ALevelScoreTable";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { apiGet } from "@/lib/api";
@@ -54,13 +55,13 @@ export default function AdminAlevelAssessmentPage() {
       <Button onClick={() => void load()} loading={loading}>
         Reload students
       </Button>
-      {err ? <p className="mt-4 text-red-600">{err}</p> : null}
+      {err ? <div className="mt-4"><Alert tone="error">{err}</Alert></div> : null}
       {termId && subjectId ? (
         <div className="mt-8">
           <ALevelScoreTable students={students} subjectId={subjectId} termId={termId} />
         </div>
       ) : (
-        <p className="mt-6 text-sm text-slate-600">Enter Term and Subject UUIDs to enable entry.</p>
+        <p className="mt-6 text-sm text-muted-foreground">Enter Term and Subject UUIDs to enable entry.</p>
       )}
     </PageWrapper>
   );

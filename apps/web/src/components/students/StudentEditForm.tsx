@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { Student } from "@uganda-cbc-sms/shared";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { apiGet, apiPatch } from "@/lib/api";
@@ -92,78 +94,94 @@ export function StudentEditForm({ studentId, initial }: { studentId: string; ini
   };
 
   return (
-    <form className="max-w-xl space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-      {loadErr ? <p className="text-sm text-red-600">{loadErr}</p> : null}
-      <Input label="Full name" {...form.register("fullName", { required: true })} />
-      <Input label="Date of birth" type="date" {...form.register("dateOfBirth", { required: true })} />
-      <Select
-        label="Gender"
-        options={[
-          { value: "male", label: "Male" },
-          { value: "female", label: "Female" },
-        ]}
-        {...form.register("gender", { required: true })}
-      />
-      <Input label="Guardian name" {...form.register("guardianName", { required: true })} />
-      <Input label="Guardian contact" {...form.register("guardianContact", { required: true })} />
-      <Input label="Guardian email (optional)" type="email" {...form.register("guardianEmail")} />
-      <div className="w-full">
-        <label htmlFor="address" className="mb-1 block text-sm font-medium text-foreground">
-          Address (optional)
-        </label>
-        <textarea
-          id="address"
-          rows={3}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-ui placeholder:text-muted-foreground focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-          {...form.register("address")}
-        />
-      </div>
-      <Input label="Previous school (optional)" {...form.register("previousSchool")} />
-      <Select
-        label="Class"
-        options={[
-          { value: "", label: "Select class…" },
-          ...classes.map((x) => ({
-            value: x.id,
-            label: `${x.name} ${x.stream}`,
-          })),
-        ]}
-        {...form.register("classId", {
-          validate: (v) => (v?.trim() ? true : "Choose a class"),
-        })}
-        error={form.formState.errors.classId?.message}
-      />
-      <Select
-        label="A-Level combination (optional)"
-        options={[{ value: "", label: "—" }, ...combos.map((x) => ({ value: x.id, label: `${x.code} — ${x.name}` }))]}
-        {...form.register("combinationId")}
-      />
-      <Select
-        label="Enrollment status"
-        options={[
-          { value: "active", label: "Active" },
-          { value: "transferred", label: "Transferred" },
-          { value: "withdrawn", label: "Withdrawn" },
-        ]}
-        {...form.register("status", { required: true })}
-      />
-      <div className="w-full">
-        <label htmlFor="transferReason" className="mb-1 block text-sm font-medium text-foreground">
-          Transfer / withdrawal notes (optional)
-        </label>
-        <textarea
-          id="transferReason"
-          rows={2}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-ui placeholder:text-muted-foreground focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-          {...form.register("transferReason")}
-        />
-      </div>
-      {submitErr ? <p className="text-sm text-red-600">{submitErr}</p> : null}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit">Save changes</Button>
+    <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
+      {loadErr ? <Alert tone="error">{loadErr}</Alert> : null}
+      {submitErr ? <Alert tone="error">{submitErr}</Alert> : null}
+
+      <Card title="Student details">
+        <div className="grid gap-4 md:grid-cols-2">
+          <Input label="Full name" {...form.register("fullName", { required: true })} />
+          <Input label="Date of birth" type="date" {...form.register("dateOfBirth", { required: true })} />
+          <Select
+            label="Gender"
+            options={[
+              { value: "male", label: "Male" },
+              { value: "female", label: "Female" },
+            ]}
+            {...form.register("gender", { required: true })}
+          />
+          <Select
+            label="Enrollment status"
+            options={[
+              { value: "active", label: "Active" },
+              { value: "transferred", label: "Transferred" },
+              { value: "withdrawn", label: "Withdrawn" },
+            ]}
+            {...form.register("status", { required: true })}
+          />
+        </div>
+      </Card>
+
+      <Card title="Guardian & contact">
+        <div className="grid gap-4 md:grid-cols-2">
+          <Input label="Guardian name" {...form.register("guardianName", { required: true })} />
+          <Input label="Guardian contact" {...form.register("guardianContact", { required: true })} />
+          <Input label="Guardian email (optional)" type="email" {...form.register("guardianEmail")} />
+          <Input label="Previous school (optional)" {...form.register("previousSchool")} />
+          <div className="md:col-span-2">
+            <label htmlFor="address" className="mb-1 block text-sm font-medium text-foreground">
+              Address (optional)
+            </label>
+            <textarea
+              id="address"
+              rows={3}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-ui placeholder:text-muted-foreground focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              {...form.register("address")}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card title="Academic placement">
+        <div className="grid gap-4 md:grid-cols-2">
+          <Select
+            label="Class"
+            options={[
+              { value: "", label: "Select class…" },
+              ...classes.map((x) => ({
+                value: x.id,
+                label: `${x.name} ${x.stream}`,
+              })),
+            ]}
+            {...form.register("classId", {
+              validate: (v) => (v?.trim() ? true : "Choose a class"),
+            })}
+            error={form.formState.errors.classId?.message}
+          />
+          <Select
+            label="A-Level combination (optional)"
+            options={[{ value: "", label: "—" }, ...combos.map((x) => ({ value: x.id, label: `${x.code} — ${x.name}` }))]}
+            {...form.register("combinationId")}
+          />
+          <div className="md:col-span-2">
+            <label htmlFor="transferReason" className="mb-1 block text-sm font-medium text-foreground">
+              Transfer / withdrawal notes (optional)
+            </label>
+            <textarea
+              id="transferReason"
+              rows={3}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm transition-ui placeholder:text-muted-foreground focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              {...form.register("transferReason")}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="secondary" onClick={() => router.push(`/admin/students/${studentId}`)}>
           Cancel
         </Button>
+        <Button type="submit">Save changes</Button>
       </div>
     </form>
   );
