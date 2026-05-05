@@ -27,6 +27,11 @@ type UserRow = {
   role: string;
   isActive: boolean;
 };
+type UsersListResponse =
+  | UserRow[]
+  | {
+      items: UserRow[];
+    };
 
 type StudentRow = {
   id: string;
@@ -39,17 +44,20 @@ export default function AdminDashboardPage() {
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [teachers, setTeachers] = useState(0);
   const [recent, setRecent] = useState<StudentRow[]>([]);
+  const [recentPage, setRecentPage] = useState(1);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const recentPageSize = 5;
 
   useEffect(() => {
     void (async () => {
       try {
-        const [k, users, students] = await Promise.all([
+        const [k, usersResponse, students] = await Promise.all([
           apiGet<Kpis>("/analytics/dashboard"),
-          apiGet<UserRow[]>("/users"),
+          apiGet<UsersListResponse>("/users"),
           apiGet<StudentRow[]>("/students"),
         ]);
+        const users = Array.isArray(usersResponse) ? usersResponse : (usersResponse.items ?? []);
         setKpis(k);
         const teacherRoles = new Set([
           "class_teacher",
@@ -64,7 +72,8 @@ export default function AdminDashboardPage() {
           const tb = b.enrolledAt ? new Date(b.enrolledAt).getTime() : 0;
           return tb - ta;
         });
-        setRecent(sorted.slice(0, 5));
+        setRecent(sorted);
+        setRecentPage(1);
         const due = Number(k.totalFeesDue ?? 0);
         const paid = Number(k.totalFeesPaid ?? 0);
         void due;
@@ -81,6 +90,9 @@ export default function AdminDashboardPage() {
     kpis && Number(kpis.totalFeesDue) > 0
       ? Math.round((Number(kpis.totalFeesPaid) / Number(kpis.totalFeesDue)) * 100)
       : 0;
+  const recentTotalPages = Math.max(1, Math.ceil(recent.length / recentPageSize));
+  const recentStart = (recentPage - 1) * recentPageSize;
+  const recentRows = recent.slice(recentStart, recentStart + recentPageSize);
 
   const metrics = kpis
     ? [
@@ -133,19 +145,19 @@ export default function AdminDashboardPage() {
                     Export
                   </button>
                 </div>
-                <div className="overflow-x-auto rounded-lg border border-border/50">
+                <div className="overflow-x-auto rounded-xl border border-border/60 bg-card shadow-sm">
                   <table className="w-full border-collapse text-sm">
                   <thead>
-                    <tr className="bg-muted/50">
+                    <tr className="bg-muted/60">
                       <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Student #</th>
                       <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Name</th>
                       <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">Enrolled</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {recent.length ? (
-                      recent.map((s) => (
-                        <tr key={s.id} className="transition-ui border-t border-border/50 hover:bg-muted/40 dark:hover:bg-muted/30">
+                    {recentRows.length ? (
+                      recentRows.map((s) => (
+                        <tr key={s.id} className="transition-ui border-t border-border/50 odd:bg-background even:bg-muted/20 hover:bg-muted/40 dark:hover:bg-muted/30">
                           <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground">{s.studentNumber}</td>
                           <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{s.fullName}</td>
                           <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-muted-foreground">
@@ -162,6 +174,29 @@ export default function AdminDashboardPage() {
                     )}
                   </tbody>
                 </table>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    Page {recentPage} of {recentTotalPages} • Showing {recentRows.length} of {recent.length}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="secondary"
+                      className="h-8 px-3"
+                      disabled={recentPage <= 1}
+                      onClick={() => setRecentPage((p) => Math.max(1, p - 1))}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      className="h-8 px-3"
+                      disabled={recentPage >= recentTotalPages}
+                      onClick={() => setRecentPage((p) => Math.min(recentTotalPages, p + 1))}
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
               </DashboardPanel>
             }

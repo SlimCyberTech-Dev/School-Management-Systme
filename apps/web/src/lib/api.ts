@@ -20,8 +20,16 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401 && typeof window !== "undefined") {
-      useAuthStore.getState().logout();
-      window.location.href = "/login";
+      const auth = useAuthStore.getState();
+      // During initial app boot, protected queries can run before auth hydrate completes.
+      // Avoid false logout/redirect loops from these transient 401s.
+      if (!auth.hydrated && !auth.token) {
+        return Promise.reject(err);
+      }
+      auth.logout();
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(err);
   },

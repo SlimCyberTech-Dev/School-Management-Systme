@@ -12,6 +12,7 @@ import { query, withTransaction } from "../../config/db";
 import { HttpError } from "../../utils/httpError";
 import { signToken } from "../../utils/jwt";
 import { toUserPublic } from "../../utils/userMapper";
+import { logUserAction } from "../users/audit.service";
 
 type LoginMeta = {
   ipAddress?: string | null;
@@ -53,7 +54,10 @@ export async function login(
       created_at: Date;
       password_hash: string;
       failed_login_attempts: number;
+      login_attempts: number | null;
       locked_at: Date | null;
+      locked_until: Date | null;
+      force_password_change: boolean | null;
     }>(
       `SELECT * FROM users WHERE email = $1`,
       [normalizeEmail(input.email)],
@@ -66,28 +70,62 @@ export async function login(
     if (!user.is_active) {
       throw new HttpError(403, "Account deactivated — contact administrator.");
     }
-    if (user.locked_at) {
-      throw new HttpError(403, "Account locked — contact administrator.");
+    if (user.locked_until && user.locked_until.getTime() > Date.now()) {
+      throw new HttpError(403, "Account locked. Try again after 30 minutes or contact administrator.");
+    }
+    if (user.locked_until && user.locked_until.getTime() <= Date.now()) {
+      await query(
+        `UPDATE users
+         SET locked_at = NULL, locked_until = NULL, locked_reason = NULL, failed_login_attempts = 0, login_attempts = 0, updated_at = NOW()
+         WHERE id = $1`,
+        [user.id],
+      );
     }
 
     const ok = await bcrypt.compare(input.password, user.password_hash);
     if (!ok) {
-      const attempts = (user.failed_login_attempts ?? 0) + 1;
+      const attempts = Math.max(user.failed_login_attempts ?? 0, user.login_attempts ?? 0) + 1;
       const lock = attempts >= 5;
       await query(
-        `UPDATE users SET failed_login_attempts = $1, locked_at = CASE WHEN $2 THEN NOW() ELSE locked_at END, updated_at = NOW()
+        `UPDATE users
+         SET failed_login_attempts = $1,
+             login_attempts = $1,
+             locked_at = CASE WHEN $2 THEN NOW() ELSE locked_at END,
+             locked_until = CASE WHEN $2 THEN NOW() + interval '30 minutes' ELSE locked_until END,
+             locked_reason = CASE WHEN $2 THEN 'Too many failed login attempts' ELSE locked_reason END,
+             updated_at = NOW()
          WHERE id = $3`,
         [attempts, lock, user.id],
       );
+      await logUserAction({
+        userId: user.id,
+        action: "LOGIN_FAILED",
+        ipAddress: meta.ipAddress,
+        userAgent: meta.userAgent,
+        metadata: { failedAttempts: attempts, locked: lock },
+      });
       throw generic();
     }
 
     await query(
       `UPDATE users
-       SET failed_login_attempts = 0, locked_at = NULL, last_login_at = NOW(), updated_at = NOW()
+       SET failed_login_attempts = 0,
+           login_attempts = 0,
+           locked_at = NULL,
+           locked_until = NULL,
+           locked_reason = NULL,
+           last_login_at = NOW(),
+           updated_at = NOW()
        WHERE id = $1`,
       [user.id],
     );
+    await logUserAction({
+      userId: user.id,
+      actorId: user.id,
+      action: "LOGIN_SUCCESS",
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    });
 
     const sessionId = crypto.randomUUID();
     const token = signToken(user.id, user.role as Parameters<typeof signToken>[1], sessionId);
@@ -126,7 +164,21 @@ export async function login(
 }
 
 export async function logout(sessionId: string): Promise<void> {
-  await query(`UPDATE auth_sessions SET revoked_at = NOW() WHERE id = $1 AND revoked_at IS NULL`, [sessionId]);
+  const { rows } = await query<{ user_id: string }>(
+    `UPDATE auth_sessions
+     SET revoked_at = NOW()
+     WHERE id = $1 AND revoked_at IS NULL
+     RETURNING user_id`,
+    [sessionId],
+  );
+  const userId = rows[0]?.user_id;
+  if (userId) {
+    await logUserAction({
+      userId,
+      actorId: userId,
+      action: "LOGOUT",
+    });
+  }
 }
 
 export async function changePassword(
@@ -145,7 +197,11 @@ export async function changePassword(
     const hash = await bcrypt.hash(input.newPassword, rounds);
     await query(
       `UPDATE users
-       SET password_hash = $1, last_password_reset_at = NOW(), updated_at = NOW()
+       SET password_hash = $1,
+           last_password_reset_at = NOW(),
+           password_changed_at = NOW(),
+           force_password_change = false,
+           updated_at = NOW()
        WHERE id = $2`,
       [
         hash,
@@ -235,8 +291,13 @@ export async function resetPasswordWithCode(input: ResetPasswordWithOtpInput): P
       `UPDATE users
        SET password_hash = $1,
            failed_login_attempts = 0,
+           login_attempts = 0,
            locked_at = NULL,
+           locked_until = NULL,
+           locked_reason = NULL,
            last_password_reset_at = NOW(),
+           password_changed_at = NOW(),
+           force_password_change = false,
            updated_at = NOW()
        WHERE id = $2`,
       [passwordHash, codeRow.user_id],
