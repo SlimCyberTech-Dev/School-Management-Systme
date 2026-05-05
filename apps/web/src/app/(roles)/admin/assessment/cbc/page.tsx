@@ -5,7 +5,7 @@ import { CbcScoreGrid } from "@/components/assessment/CbcScoreGrid";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { apiGet } from "@/lib/api";
 
 type IdName = {
@@ -15,13 +15,23 @@ type IdName = {
   fullName?: string;
   classId?: string | null;
 };
-type Strand = { id: string; competencies: string[] };
+type Year = { id: string; name: string };
+type Term = { id: string; academicYearId: string; termNumber: number };
+type ClassRow = { id: string; name: string; stream: string; academicYearId: string };
+type SubjectAssignment = { subjectId: string; subjectName: string; subjectCode: string };
+type Strand = { id: string; name: string; subStrands: { id: string; name: string }[] };
 
 export default function AdminCbcAssessmentPage() {
+  const [academicYearId, setAcademicYearId] = useState("");
   const [classId, setClassId] = useState("");
   const [termId, setTermId] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [strandId, setStrandId] = useState("");
+  const [years, setYears] = useState<Year[]>([]);
+  const [terms, setTerms] = useState<Term[]>([]);
+  const [classes, setClasses] = useState<ClassRow[]>([]);
+  const [subjects, setSubjects] = useState<SubjectAssignment[]>([]);
+  const [strands, setStrands] = useState<Strand[]>([]);
   const [students, setStudents] = useState<{ id: string; fullName: string; studentNumber: string }[]>(
     [],
   );
@@ -33,13 +43,43 @@ export default function AdminCbcAssessmentPage() {
     setErr(null);
     setLoading(true);
     try {
-      const [stu, strands] = await Promise.all([
+      const [y, t, c, stu] = await Promise.all([
+        apiGet<Year[]>("/academic/years"),
+        apiGet<Term[]>("/academic/terms"),
+        apiGet<ClassRow[]>("/academic/classes"),
         apiGet<IdName[]>(`/students`),
-        apiGet<Strand[]>(
-          subjectId ? `/academic/cbc-strands?subjectId=${encodeURIComponent(subjectId)}` : `/academic/cbc-strands`,
-        ),
       ]);
-      const filtered = stu.filter((s) => !classId || s.classId === classId);
+      setYears(y);
+      setTerms(t);
+      setClasses(c);
+      const nextYearId = academicYearId || y[0]?.id || "";
+      setAcademicYearId(nextYearId);
+      const classOpts = c.filter((x) => x.academicYearId === nextYearId);
+      const nextClassId = classOpts.some((x) => x.id === classId) ? classId : classOpts[0]?.id || "";
+      setClassId(nextClassId);
+      const termOpts = t.filter((x) => x.academicYearId === nextYearId);
+      const nextTermId = termOpts.some((x) => x.id === termId) ? termId : termOpts[0]?.id || "";
+      setTermId(nextTermId);
+      const classSubjects = nextClassId
+        ? await apiGet<SubjectAssignment[]>(
+            `/academic/class-subjects?classId=${encodeURIComponent(nextClassId)}&academicYearId=${encodeURIComponent(nextYearId)}`,
+          )
+        : [];
+      const uniqueSubjects = classSubjects.filter(
+        (x, idx, arr) => arr.findIndex((k) => k.subjectId === x.subjectId) === idx,
+      );
+      setSubjects(uniqueSubjects);
+      const nextSubjectId = uniqueSubjects.some((x) => x.subjectId === subjectId)
+        ? subjectId
+        : uniqueSubjects[0]?.subjectId || "";
+      setSubjectId(nextSubjectId);
+      const strandRows = nextSubjectId
+        ? await apiGet<Strand[]>(`/academic/cbc-strands?subjectId=${encodeURIComponent(nextSubjectId)}`)
+        : [];
+      setStrands(strandRows);
+      const nextStrandId = strandRows.some((x) => x.id === strandId) ? strandId : strandRows[0]?.id || "";
+      setStrandId(nextStrandId);
+      const filtered = stu.filter((s) => !nextClassId || s.classId === nextClassId);
       setStudents(
         filtered.map((s) => ({
           id: s.id,
@@ -47,7 +87,7 @@ export default function AdminCbcAssessmentPage() {
           studentNumber: String((s as { studentNumber?: string }).studentNumber ?? ""),
         })),
       );
-      const picked = strands.find((x) => x.id === strandId) ?? null;
+      const picked = strandRows.find((x) => x.id === nextStrandId) ?? null;
       setStrand(picked);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to load");
@@ -63,11 +103,37 @@ export default function AdminCbcAssessmentPage() {
 
   return (
     <PageWrapper title="CBC assessment" description="Enter A–D ratings per competency">
-      <div className="mb-6 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-        <Input label="Class ID (UUID)" value={classId} onChange={(e) => setClassId(e.target.value)} />
-        <Input label="Term ID (UUID)" value={termId} onChange={(e) => setTermId(e.target.value)} />
-        <Input label="Subject ID (UUID)" value={subjectId} onChange={(e) => setSubjectId(e.target.value)} />
-        <Input label="Strand ID (UUID)" value={strandId} onChange={(e) => setStrandId(e.target.value)} />
+      <div className="mb-6 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+        <Select
+          label="Academic year"
+          options={years.map((y) => ({ value: y.id, label: y.name }))}
+          value={academicYearId}
+          onChange={(e) => setAcademicYearId(e.target.value)}
+        />
+        <Select
+          label="Class"
+          options={classes.filter((x) => x.academicYearId === academicYearId).map((x) => ({ value: x.id, label: `${x.name} ${x.stream}` }))}
+          value={classId}
+          onChange={(e) => setClassId(e.target.value)}
+        />
+        <Select
+          label="Term"
+          options={terms.filter((x) => x.academicYearId === academicYearId).map((x) => ({ value: x.id, label: `Term ${x.termNumber}` }))}
+          value={termId}
+          onChange={(e) => setTermId(e.target.value)}
+        />
+        <Select
+          label="Subject"
+          options={subjects.map((x) => ({ value: x.subjectId, label: `${x.subjectCode} - ${x.subjectName}` }))}
+          value={subjectId}
+          onChange={(e) => setSubjectId(e.target.value)}
+        />
+        <Select
+          label="Strand"
+          options={strands.map((x) => ({ value: x.id, label: x.name }))}
+          value={strandId}
+          onChange={(e) => setStrandId(e.target.value)}
+        />
       </div>
       <Button onClick={() => void load()} loading={loading}>
         Reload data
@@ -77,7 +143,7 @@ export default function AdminCbcAssessmentPage() {
         <div className="mt-8">
           <CbcScoreGrid
             students={students}
-            competencies={strand.competencies}
+            competencies={strand.subStrands.map((s) => s.name)}
             subjectId={subjectId}
             strandId={strand.id}
             termId={termId}
@@ -85,7 +151,7 @@ export default function AdminCbcAssessmentPage() {
         </div>
       ) : (
         <p className="mt-6 text-sm text-muted-foreground">
-          Enter Class, Term, Subject, and Strand UUIDs from Academic structure, then reload.
+          Select year, class, term, subject, and strand to enable CBC score entry.
         </p>
       )}
     </PageWrapper>

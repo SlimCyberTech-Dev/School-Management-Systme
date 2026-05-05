@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
 import { Table, type Column } from "@/components/ui/Table";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 
@@ -30,6 +32,7 @@ export default function AdminAcademicYearsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editing, setEditing] = useState<AcademicYear | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AcademicYear | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const form = useForm<Form>({
     resolver: zodResolver(academicYearSchema),
@@ -63,6 +66,7 @@ export default function AdminAcademicYearsPage() {
       await apiPost("/academic/years", v);
       await load();
       setOk("Academic year created.");
+      setCreateOpen(false);
       form.reset({ name: "", startDate: "", endDate: "", isActive: true });
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to create");
@@ -146,40 +150,25 @@ export default function AdminAcademicYearsPage() {
 
   return (
     <PageWrapper title="Academic years" description="Create school years">
+      <div className="mb-3">
+        <Link href="/admin/academic" className="text-sm font-medium text-brand hover:underline">
+          ← Back to Academic
+        </Link>
+      </div>
       <div className="mb-4 space-y-2">
         {ok ? <Alert tone="success">{ok}</Alert> : null}
         {err ? <Alert tone="error">{err}</Alert> : null}
       </div>
-      <div className="grid gap-8 lg:grid-cols-2">
-        <Card title="New year">
-          <form className="space-y-3" onSubmit={form.handleSubmit(onSubmit)}>
-            <Input label="Name" {...form.register("name")} error={form.formState.errors.name?.message} />
-            <Input
-              label="Start date"
-              type="date"
-              {...form.register("startDate")}
-              error={form.formState.errors.startDate?.message}
-            />
-            <Input
-              label="End date"
-              type="date"
-              {...form.register("endDate")}
-              error={form.formState.errors.endDate?.message}
-            />
-            <label className="flex items-center gap-2 text-sm text-foreground">
-              <input className="h-4 w-4 rounded border-border bg-background" type="checkbox" {...form.register("isActive")} />
-              Active
-            </label>
-            <Button type="submit">Create year</Button>
-          </form>
-        </Card>
-        <Card title={`Years (${rows.length})`}>
-          <Table columns={columns} rows={rows as Row[]} loading={loading} searchKeys={["name"]} />
-        </Card>
-      </div>
-      {editing ? (
-        <Card title={`Edit year: ${editing.name}`}>
-          <form className="mt-4 max-w-lg space-y-3" onSubmit={editForm.handleSubmit(onEdit)}>
+      <Card title={`Years (${rows.length})`}>
+        <div className="mb-3 flex justify-end">
+          <Button type="button" onClick={() => setCreateOpen(true)}>
+            Add new record
+          </Button>
+        </div>
+        <Table columns={columns} rows={rows as Row[]} loading={loading} searchKeys={["name"]} />
+      </Card>
+      <Modal open={Boolean(editing)} title={`Edit year${editing ? `: ${editing.name}` : ""}`} onClose={() => setEditing(null)}>
+        <form className="mt-1 space-y-3" onSubmit={editForm.handleSubmit(onEdit)}>
             <Input label="Name" {...editForm.register("name")} error={editForm.formState.errors.name?.message} />
             <Input
               label="Start date"
@@ -198,16 +187,15 @@ export default function AdminAcademicYearsPage() {
               Active
             </label>
             <div className="flex gap-2">
-              <Button type="submit" loading={busyId === editing.id}>
+              <Button type="submit" loading={Boolean(editing && busyId === editing.id)}>
                 Save changes
               </Button>
               <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
                 Cancel
               </Button>
             </div>
-          </form>
-        </Card>
-      ) : null}
+        </form>
+      </Modal>
       <ConfirmDialog
         open={Boolean(confirmDelete)}
         title="Delete academic year?"
@@ -218,6 +206,33 @@ export default function AdminAcademicYearsPage() {
         onCancel={() => setConfirmDelete(null)}
         onConfirm={() => void remove()}
       />
+      <Modal open={createOpen} title="New year" onClose={() => setCreateOpen(false)}>
+        <form className="space-y-3" onSubmit={form.handleSubmit(onSubmit)}>
+          <Input label="Name" {...form.register("name")} error={form.formState.errors.name?.message} />
+          <Input
+            label="Start date"
+            type="date"
+            {...form.register("startDate")}
+            error={form.formState.errors.startDate?.message}
+          />
+          <Input
+            label="End date"
+            type="date"
+            {...form.register("endDate")}
+            error={form.formState.errors.endDate?.message}
+          />
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input className="h-4 w-4 rounded border-border bg-background" type="checkbox" {...form.register("isActive")} />
+            Active
+          </label>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit">Create year</Button>
+          </div>
+        </form>
+      </Modal>
     </PageWrapper>
   );
 }

@@ -53,7 +53,7 @@ export interface SchoolClass {
   id: string;
   name: string;
   stream: string;
-  level: "o_level" | "a_level";
+  level: "O_LEVEL" | "A_LEVEL";
   academicYearId: string;
   classTeacherId: string | null;
 }
@@ -62,7 +62,7 @@ export interface Subject {
   id: string;
   name: string;
   code: string;
-  level: "o_level" | "a_level";
+  level: "O_LEVEL" | "A_LEVEL";
 }
 
 export interface CbcScoreRow {

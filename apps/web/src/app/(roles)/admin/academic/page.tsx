@@ -12,23 +12,29 @@ const LINKS = [
   { href: "/admin/academic/terms", title: "Terms", desc: "Terms within a year" },
   { href: "/admin/academic/classes", title: "Classes", desc: "Streams, levels, class teachers" },
   { href: "/admin/academic/subjects", title: "Subjects", desc: "Subject catalogue" },
+  { href: "/admin/academic/class-subjects", title: "Class-subject assignments", desc: "Assign subjects to classes" },
+  { href: "/admin/academic/combinations", title: "Subject combinations", desc: "Manage O-Level and A-Level combinations" },
+  { href: "/admin/academic/cbc-strands", title: "CBC strands", desc: "Manage strands and sub-strands" },
 ];
 
 export default function AdminAcademicHubPage() {
-  const [counts, setCounts] = useState<{ y: number; t: number; c: number; s: number } | null>(null);
+  const [counts, setCounts] = useState<{ y: number; t: number; c: number; s: number; cs: number; k: number; st: number } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void (async () => {
       try {
-        const [y, t, c, s] = await Promise.all([
+        const [y, t, c, s, cs, k, st] = await Promise.all([
           apiGet<unknown[]>("/academic/years"),
           apiGet<unknown[]>("/academic/terms"),
           apiGet<unknown[]>("/academic/classes"),
           apiGet<unknown[]>("/academic/subjects"),
+          apiGet<unknown[]>("/academic/class-subjects"),
+          apiGet<unknown[]>("/academic/combinations"),
+          apiGet<unknown[]>("/academic/cbc-strands"),
         ]);
-        setCounts({ y: y.length, t: t.length, c: c.length, s: s.length });
+        setCounts({ y: y.length, t: t.length, c: c.length, s: s.length, cs: cs.length, k: k.length, st: st.length });
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Failed to load");
       } finally {
@@ -43,7 +49,7 @@ export default function AdminAcademicHubPage() {
       {err ? <Alert tone="error">{err}</Alert> : null}
       {counts ? (
         <p className="mb-6 mt-3 text-sm text-muted-foreground">
-          {counts.y} years · {counts.t} terms · {counts.c} classes · {counts.s} subjects
+          {counts.y} years · {counts.t} terms · {counts.c} classes · {counts.s} subjects · {counts.cs} assignments · {counts.k} combinations · {counts.st} strands
         </p>
       ) : null}
       <div className="grid gap-4 md:grid-cols-2">
@@ -59,9 +65,9 @@ export default function AdminAcademicHubPage() {
         ))}
       </div>
       <div className="mt-8">
-        <Card title="Raw overview (all entities)">
+        <Card title="Instructional structure">
           <p className="text-xs text-muted-foreground">
-            For a combined JSON dump of combinations & strands, use the API directly or extend this view.
+            Manage class-subject assignments, combinations, and CBC learning structure from the links above.
           </p>
         </Card>
       </div>

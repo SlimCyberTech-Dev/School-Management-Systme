@@ -47,6 +47,12 @@ export async function apiPatch<T>(url: string, body?: unknown): Promise<T> {
   return data.data as T;
 }
 
+export async function apiPut<T>(url: string, body?: unknown): Promise<T> {
+  const { data } = await api.put<ApiEnvelope<T>>(url, body);
+  if (!data.success) throw new Error(data.error ?? "Request failed");
+  return data.data as T;
+}
+
 export async function apiDelete<T>(url: string): Promise<T> {
   const { data } = await api.delete<ApiEnvelope<T>>(url);
   if (!data.success) throw new Error(data.error ?? "Request failed");

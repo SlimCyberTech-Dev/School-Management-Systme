@@ -2,19 +2,49 @@ import type { Request, Response } from "express";
 import * as sharedSchemas from "@uganda-cbc-sms/shared";
 import * as svc from "./academic.service";
 
+const schemas = (sharedSchemas as Record<string, unknown>).default
+  ? ((sharedSchemas as Record<string, unknown>).default as Record<string, unknown>)
+  : (sharedSchemas as Record<string, unknown>);
+
 const {
   academicYearSchema,
   classSchema,
   classSubjectSchema,
+  classSubjectBulkSchema,
+  updateClassSubjectSchema,
   combinationSchema,
+  updateCombinationSchema,
+  combinationSubjectSchema,
   cbcStrandSchema,
+  updateCbcStrandSchema,
+  cbcSubStrandSchema,
+  updateCbcSubStrandSchema,
   subjectSchema,
   termSchema,
   updateAcademicYearSchema,
   updateClassSchema,
   updateSubjectSchema,
   updateTermSchema,
-} = sharedSchemas;
+} = schemas as {
+  academicYearSchema: { parse: (v: unknown) => unknown };
+  classSchema: { parse: (v: unknown) => unknown };
+  classSubjectSchema: { parse: (v: unknown) => unknown };
+  classSubjectBulkSchema: { parse: (v: unknown) => unknown };
+  updateClassSubjectSchema: { parse: (v: unknown) => unknown };
+  combinationSchema: { parse: (v: unknown) => unknown };
+  updateCombinationSchema: { parse: (v: unknown) => unknown };
+  combinationSubjectSchema: { parse: (v: unknown) => unknown };
+  cbcStrandSchema: { parse: (v: unknown) => unknown };
+  updateCbcStrandSchema: { parse: (v: unknown) => unknown };
+  cbcSubStrandSchema: { parse: (v: unknown) => unknown };
+  updateCbcSubStrandSchema: { parse: (v: unknown) => unknown };
+  subjectSchema: { parse: (v: unknown) => unknown };
+  termSchema: { parse: (v: unknown) => unknown };
+  updateAcademicYearSchema: { parse: (v: unknown) => unknown };
+  updateClassSchema: { parse: (v: unknown) => unknown };
+  updateSubjectSchema: { parse: (v: unknown) => unknown };
+  updateTermSchema: { parse: (v: unknown) => unknown };
+};
 
 export async function postYear(req: Request, res: Response): Promise<void> {
   const body = academicYearSchema.parse(req.body);
@@ -107,28 +137,119 @@ export async function deleteSubject(req: Request, res: Response): Promise<void> 
 export async function postClassSubject(req: Request, res: Response): Promise<void> {
   const body = classSubjectSchema.parse(req.body);
   const row = await svc.createClassSubject(body);
-  res.status(201).json({ success: true, data: row });
+  res.status(201).json({ success: true, data: row, message: "Class subject assigned." });
+}
+
+export async function getClassSubjects(req: Request, res: Response): Promise<void> {
+  const rows = await svc.getClassSubjects({
+    classId: req.query["classId"] as string | undefined,
+    academicYearId: req.query["academicYearId"] as string | undefined,
+    teacherId: req.query["teacherId"] as string | undefined,
+  });
+  res.json({ success: true, data: rows, message: "Class subject assignments loaded." });
+}
+
+export async function getClassSubjectById(req: Request, res: Response): Promise<void> {
+  const row = await svc.getClassSubjectById(req.params["id"]!);
+  res.json({ success: true, data: row, message: "Class subject assignment loaded." });
+}
+
+export async function putClassSubject(req: Request, res: Response): Promise<void> {
+  const body = updateClassSubjectSchema.parse(req.body);
+  const row = await svc.updateClassSubject(req.params["id"]!, body);
+  res.json({ success: true, data: row, message: "Class subject assignment updated." });
+}
+
+export async function deleteClassSubject(req: Request, res: Response): Promise<void> {
+  await svc.deleteClassSubject(req.params["id"]!);
+  res.json({ success: true, data: { deleted: true }, message: "Class subject assignment deleted." });
+}
+
+export async function postClassSubjectsBulk(req: Request, res: Response): Promise<void> {
+  const body = classSubjectBulkSchema.parse(req.body);
+  const rows = await svc.bulkAssignSubjectsToClass(body);
+  res.status(201).json({ success: true, data: rows, message: "Subjects assigned to class." });
 }
 
 export async function postCombination(req: Request, res: Response): Promise<void> {
   const body = combinationSchema.parse(req.body);
   const row = await svc.createCombination(body);
-  res.status(201).json({ success: true, data: row });
+  res.status(201).json({ success: true, data: row, message: "Combination created." });
 }
 
-export async function getCombinations(_req: Request, res: Response): Promise<void> {
-  const rows = await svc.listCombinations();
-  res.json({ success: true, data: rows });
+export async function getCombinations(req: Request, res: Response): Promise<void> {
+  const rows = await svc.getCombinations({ level: req.query["level"] as string | undefined });
+  res.json({ success: true, data: rows, message: "Combinations loaded." });
+}
+
+export async function getCombinationById(req: Request, res: Response): Promise<void> {
+  const row = await svc.getCombinationById(req.params["id"]!);
+  res.json({ success: true, data: row, message: "Combination loaded." });
+}
+
+export async function putCombination(req: Request, res: Response): Promise<void> {
+  const body = updateCombinationSchema.parse(req.body);
+  const row = await svc.updateCombination(req.params["id"]!, body);
+  res.json({ success: true, data: row, message: "Combination updated." });
+}
+
+export async function deleteCombination(req: Request, res: Response): Promise<void> {
+  await svc.deleteCombination(req.params["id"]!);
+  res.json({ success: true, data: { deleted: true }, message: "Combination deleted." });
+}
+
+export async function postCombinationSubject(req: Request, res: Response): Promise<void> {
+  const body = combinationSubjectSchema.parse(req.body);
+  const row = await svc.addSubjectToCombination(req.params["id"]!, body);
+  res.status(201).json({ success: true, data: row, message: "Subject added to combination." });
+}
+
+export async function deleteCombinationSubject(req: Request, res: Response): Promise<void> {
+  const row = await svc.removeSubjectFromCombination(req.params["id"]!, req.params["subjectId"]!);
+  res.json({ success: true, data: row, message: "Subject removed from combination." });
 }
 
 export async function postCbcStrand(req: Request, res: Response): Promise<void> {
   const body = cbcStrandSchema.parse(req.body);
   const row = await svc.createCbcStrand(body);
-  res.status(201).json({ success: true, data: row });
+  res.status(201).json({ success: true, data: row, message: "CBC strand created." });
 }
 
 export async function getCbcStrands(req: Request, res: Response): Promise<void> {
   const subjectId = req.query.subjectId as string | undefined;
-  const rows = await svc.listCbcStrands(subjectId);
-  res.json({ success: true, data: rows });
+  const rows = await svc.getStrands({ subjectId });
+  res.json({ success: true, data: rows, message: "CBC strands loaded." });
+}
+
+export async function getCbcStrandById(req: Request, res: Response): Promise<void> {
+  const row = await svc.getStrandById(req.params["id"]!);
+  res.json({ success: true, data: row, message: "CBC strand loaded." });
+}
+
+export async function putCbcStrand(req: Request, res: Response): Promise<void> {
+  const body = updateCbcStrandSchema.parse(req.body);
+  const row = await svc.updateStrand(req.params["id"]!, body);
+  res.json({ success: true, data: row, message: "CBC strand updated." });
+}
+
+export async function deleteCbcStrand(req: Request, res: Response): Promise<void> {
+  await svc.deleteStrand(req.params["id"]!);
+  res.json({ success: true, data: { deleted: true }, message: "CBC strand deleted." });
+}
+
+export async function postCbcSubStrand(req: Request, res: Response): Promise<void> {
+  const body = cbcSubStrandSchema.parse(req.body);
+  const row = await svc.createSubStrand(req.params["id"]!, body);
+  res.status(201).json({ success: true, data: row, message: "CBC sub-strand created." });
+}
+
+export async function putCbcSubStrand(req: Request, res: Response): Promise<void> {
+  const body = updateCbcSubStrandSchema.parse(req.body);
+  const row = await svc.updateSubStrand(req.params["subStrandId"]!, body);
+  res.json({ success: true, data: row, message: "CBC sub-strand updated." });
+}
+
+export async function deleteCbcSubStrand(req: Request, res: Response): Promise<void> {
+  await svc.deleteSubStrand(req.params["subStrandId"]!);
+  res.json({ success: true, data: { deleted: true }, message: "CBC sub-strand deleted." });
 }

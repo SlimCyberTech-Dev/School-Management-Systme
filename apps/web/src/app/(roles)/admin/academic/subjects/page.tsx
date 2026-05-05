@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
 import { Select } from "@/components/ui/Select";
 import { Table, type Column } from "@/components/ui/Table";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
@@ -31,14 +33,15 @@ export default function AdminAcademicSubjectsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Subject | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Subject | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const form = useForm<Form>({
     resolver: zodResolver(subjectSchema),
-    defaultValues: { name: "", code: "", level: "o_level" },
+    defaultValues: { name: "", code: "", level: "O_LEVEL" },
   });
   const editForm = useForm<Form>({
     resolver: zodResolver(subjectSchema),
-    defaultValues: { name: "", code: "", level: "o_level" },
+    defaultValues: { name: "", code: "", level: "O_LEVEL" },
   });
 
   const load = async () => {
@@ -63,7 +66,8 @@ export default function AdminAcademicSubjectsPage() {
       await apiPost("/academic/subjects", v);
       await load();
       setOk("Subject created.");
-      form.reset({ name: "", code: "", level: "o_level" });
+      setCreateOpen(false);
+      form.reset({ name: "", code: "", level: "O_LEVEL" });
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to create");
     }
@@ -140,45 +144,37 @@ export default function AdminAcademicSubjectsPage() {
 
   return (
     <PageWrapper title="Subjects" description="Subject catalogue">
+      <div className="mb-3">
+        <Link href="/admin/academic" className="text-sm font-medium text-brand hover:underline">
+          ← Back to Academic
+        </Link>
+      </div>
       <div className="mb-4 space-y-2">
         {ok ? <Alert tone="success">{ok}</Alert> : null}
         {err ? <Alert tone="error">{err}</Alert> : null}
       </div>
-      <div className="grid gap-8 lg:grid-cols-2">
-        <Card title="New subject">
-          <form className="space-y-3" onSubmit={form.handleSubmit(onSubmit)}>
-            <Input label="Name" {...form.register("name")} error={form.formState.errors.name?.message} />
-            <Input label="Code" {...form.register("code")} error={form.formState.errors.code?.message} />
-            <Select
-              label="Level"
-              options={[
-                { value: "o_level", label: "O-Level / CBC" },
-                { value: "a_level", label: "A-Level" },
-              ]}
-              {...form.register("level")}
-            />
-            <Button type="submit">Create subject</Button>
-          </form>
-        </Card>
-        <Card title={`Subjects (${subjects.length})`}>
-          <Table columns={columns} rows={subjects as Row[]} loading={loading} searchKeys={["name", "code"]} />
-        </Card>
-      </div>
-      {editing ? (
-        <Card title={`Edit subject: ${editing.code}`}>
-          <form className="mt-4 max-w-lg space-y-3" onSubmit={editForm.handleSubmit(onEdit)}>
+      <Card title={`Subjects (${subjects.length})`}>
+        <div className="mb-3 flex justify-end">
+          <Button type="button" onClick={() => setCreateOpen(true)}>
+            Add new record
+          </Button>
+        </div>
+        <Table columns={columns} rows={subjects as Row[]} loading={loading} searchKeys={["name", "code"]} />
+      </Card>
+      <Modal open={Boolean(editing)} title={`Edit subject${editing ? `: ${editing.code}` : ""}`} onClose={() => setEditing(null)}>
+          <form className="mt-1 space-y-3" onSubmit={editForm.handleSubmit(onEdit)}>
             <Input label="Name" {...editForm.register("name")} error={editForm.formState.errors.name?.message} />
             <Input label="Code" {...editForm.register("code")} error={editForm.formState.errors.code?.message} />
             <Select
               label="Level"
               options={[
-                { value: "o_level", label: "O-Level / CBC" },
-                { value: "a_level", label: "A-Level" },
+                { value: "O_LEVEL", label: "O-Level / CBC" },
+                { value: "A_LEVEL", label: "A-Level" },
               ]}
               {...editForm.register("level")}
             />
             <div className="flex gap-2">
-              <Button type="submit" loading={busyId === editing.id}>
+              <Button type="submit" loading={Boolean(editing && busyId === editing.id)}>
                 Save changes
               </Button>
               <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
@@ -186,8 +182,7 @@ export default function AdminAcademicSubjectsPage() {
               </Button>
             </div>
           </form>
-        </Card>
-      ) : null}
+      </Modal>
       <ConfirmDialog
         open={Boolean(confirmDelete)}
         title="Delete subject?"
@@ -198,6 +193,26 @@ export default function AdminAcademicSubjectsPage() {
         onCancel={() => setConfirmDelete(null)}
         onConfirm={() => void remove()}
       />
+      <Modal open={createOpen} title="New subject" onClose={() => setCreateOpen(false)}>
+        <form className="space-y-3" onSubmit={form.handleSubmit(onSubmit)}>
+          <Input label="Name" {...form.register("name")} error={form.formState.errors.name?.message} />
+          <Input label="Code" {...form.register("code")} error={form.formState.errors.code?.message} />
+          <Select
+            label="Level"
+            options={[
+              { value: "O_LEVEL", label: "O-Level / CBC" },
+              { value: "A_LEVEL", label: "A-Level" },
+            ]}
+            {...form.register("level")}
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit">Create subject</Button>
+          </div>
+        </form>
+      </Modal>
     </PageWrapper>
   );
 }
