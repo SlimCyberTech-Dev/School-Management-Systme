@@ -17,6 +17,7 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
         icon: "clipboardCheck",
         activePrefix: "/admin/assessment",
       },
+      { href: "/admin/exams", label: "Exams", icon: "fileText", activePrefix: "/admin/exams" },
       { href: "/admin/reports", label: "Reports", icon: "fileBarChart2", activePrefix: "/admin/reports" },
       { href: "/admin/fees/overview", label: "Fees", icon: "creditCard", activePrefix: "/admin/fees" },
       { href: "/admin/users", label: "Users", icon: "graduationCap", activePrefix: "/admin/users" },
@@ -90,6 +91,7 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
         icon: "graduationCap",
         activePrefix: "/class-teacher/assessment/alevel",
       },
+      { href: "/class-teacher/exams", label: "Exams", icon: "fileText", activePrefix: "/class-teacher/exams" },
       {
         href: "/class-teacher/comments",
         label: "Report comments",
@@ -128,6 +130,7 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
         icon: "bookOpen",
         activePrefix: "/subject-teacher/assessment/alevel",
       },
+      { href: "/subject-teacher/exams", label: "Exams", icon: "fileText", activePrefix: "/subject-teacher/exams" },
     ],
   },
   bursar: {

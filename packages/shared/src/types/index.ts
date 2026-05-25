@@ -1,4 +1,5 @@
 import type { Role } from "../constants/roles";
+import type { ExamStatus } from "../schemas/exam.schema";
 
 export type ApiSuccess<T> = { success: true; data: T };
 export type ApiError = { success: false; error: string };
@@ -12,6 +13,34 @@ export interface UserPublic {
   isActive: boolean;
   photoUrl?: string | null;
   createdAt?: string;
+}
+
+export type { ExamStatus };
+
+export interface ExamSummary {
+  id: string;
+  name: string;
+  academicYearId: string;
+  termId: string;
+  classId: string;
+  className?: string;
+  classStream?: string | null;
+  classLevel?: string;
+  examDate: string | null;
+  maxScore: number;
+  status: ExamStatus;
+  subjectCount?: number;
+  createdAt?: string;
+  openedAt?: string | null;
+  closedAt?: string | null;
+}
+
+export interface ExamSubject {
+  id: string;
+  subjectId: string;
+  subjectName: string;
+  subjectCode: string;
+  isSubmitted?: boolean;
 }
 
 export interface Student {

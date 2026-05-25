@@ -1,0 +1,550 @@
+import type { CreateExamInput, ExamMarksBulkInput, UpdateExamInput } from "@uganda-cbc-sms/shared";
+import { query } from "../../config/db";
+import { HttpError } from "../../utils/httpError";
+import { resolveConfiguredGrade } from "../../utils/gradingScales";
+import { teacherCanTeachClassSubject } from "../../utils/teacherTeachingAccess";
+
+type ExamRow = {
+  id: string;
+  name: string;
+  academic_year_id: string;
+  term_id: string;
+  class_id: string;
+  exam_date: string | null;
+  max_score: string;
+  status: string;
+  created_by: string | null;
+  opened_at: Date | null;
+  closed_at: Date | null;
+  created_at: Date;
+  class_name?: string;
+  class_stream?: string | null;
+  class_level?: string;
+  subject_count?: string;
+};
+
+function mapExam(row: ExamRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    academicYearId: row.academic_year_id,
+    termId: row.term_id,
+    classId: row.class_id,
+    className: row.class_name,
+    classStream: row.class_stream ?? null,
+    classLevel: row.class_level as "O_LEVEL" | "A_LEVEL" | undefined,
+    examDate: row.exam_date,
+    maxScore: Number(row.max_score),
+    status: row.status as "draft" | "open" | "closed",
+    createdBy: row.created_by,
+    openedAt: row.opened_at ? new Date(row.opened_at).toISOString() : null,
+    closedAt: row.closed_at ? new Date(row.closed_at).toISOString() : null,
+    createdAt: new Date(row.created_at).toISOString(),
+    subjectCount: row.subject_count != null ? Number(row.subject_count) : undefined,
+  };
+}
+
+async function getExamRow(id: string) {
+  const { rows } = await query<ExamRow>(
+    `SELECT e.*, c.name AS class_name, c.stream AS class_stream, c.level AS class_level,
+            (SELECT COUNT(*)::text FROM exam_subjects es WHERE es.exam_id = e.id) AS subject_count
+     FROM exams e
+     JOIN classes c ON c.id = e.class_id
+     WHERE e.id = $1`,
+    [id],
+  );
+  if (rows.length === 0) throw new HttpError(404, "We could not find that exam. It may have been removed.");
+  return rows[0]!;
+}
+
+async function assertSubjectsBelongToClass(classId: string, academicYearId: string, subjectIds: string[]) {
+  const { rows } = await query<{ subject_id: string }>(
+    `SELECT subject_id FROM class_subjects
+     WHERE class_id = $1 AND academic_year_id = $2 AND subject_id = ANY($3::uuid[])`,
+    [classId, academicYearId, subjectIds],
+  );
+  if (rows.length !== subjectIds.length) {
+    throw new HttpError(
+      400,
+      "One or more subjects are not assigned to this class for the selected academic year. Choose subjects from the class timetable.",
+    );
+  }
+}
+
+async function gradingLevelForClass(classId: string): Promise<"O_LEVEL" | "A_LEVEL"> {
+  const { rows } = await query<{ level: string }>(`SELECT level FROM classes WHERE id = $1`, [classId]);
+  if (rows.length === 0) return "O_LEVEL";
+  return rows[0]!.level === "A_LEVEL" ? "A_LEVEL" : "O_LEVEL";
+}
+
+export async function createExam(input: CreateExamInput, createdBy: string) {
+  const term = await query<{ academic_year_id: string }>(`SELECT academic_year_id FROM terms WHERE id = $1`, [
+    input.termId,
+  ]);
+  if (term.rows.length === 0) throw new HttpError(400, "The selected term is not valid. Refresh the page and try again.");
+  if (term.rows[0]!.academic_year_id !== input.academicYearId) {
+    throw new HttpError(400, "The term you selected does not belong to the chosen academic year.");
+  }
+
+  await assertSubjectsBelongToClass(input.classId, input.academicYearId, input.subjectIds);
+
+  const ins = await query<{ id: string }>(
+    `INSERT INTO exams (name, academic_year_id, term_id, class_id, exam_date, max_score, status, created_by)
+     VALUES ($1, $2, $3, $4, $5::date, $6, 'draft', $7)
+     RETURNING id`,
+    [
+      input.name.trim(),
+      input.academicYearId,
+      input.termId,
+      input.classId,
+      input.examDate?.trim() || null,
+      input.maxScore,
+      createdBy,
+    ],
+  );
+  const examId = ins.rows[0]!.id;
+  for (const subjectId of input.subjectIds) {
+    await query(`INSERT INTO exam_subjects (exam_id, subject_id) VALUES ($1, $2)`, [examId, subjectId]);
+  }
+  return getExamById(examId);
+}
+
+export async function updateExam(id: string, input: UpdateExamInput) {
+  const exam = await getExamRow(id);
+  if (exam.status !== "draft") {
+    throw new HttpError(400, "Only draft exams can be edited. Close the exam first if you need to make changes after opening.");
+  }
+
+  if (input.subjectIds?.length) {
+    await assertSubjectsBelongToClass(exam.class_id, exam.academic_year_id, input.subjectIds);
+    await query(`DELETE FROM exam_subjects WHERE exam_id = $1`, [id]);
+    for (const subjectId of input.subjectIds) {
+      await query(`INSERT INTO exam_subjects (exam_id, subject_id) VALUES ($1, $2)`, [id, subjectId]);
+    }
+  }
+
+  const sets: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+  if (input.name !== undefined) {
+    sets.push(`name = $${i++}`);
+    values.push(input.name.trim());
+  }
+  if (input.examDate !== undefined) {
+    sets.push(`exam_date = $${i++}`);
+    values.push(input.examDate || null);
+  }
+  if (input.maxScore !== undefined) {
+    sets.push(`max_score = $${i++}`);
+    values.push(input.maxScore);
+  }
+  if (sets.length) {
+    sets.push("updated_at = NOW()");
+    values.push(id);
+    await query(`UPDATE exams SET ${sets.join(", ")} WHERE id = $${i}`, values);
+  }
+
+  return getExamById(id);
+}
+
+export async function deleteExam(id: string) {
+  const exam = await getExamRow(id);
+  if (exam.status !== "draft") {
+    throw new HttpError(400, "Only draft exams can be deleted. Close the exam instead if marking is finished.");
+  }
+  await query(`DELETE FROM exams WHERE id = $1`, [id]);
+}
+
+export async function openExam(id: string) {
+  const exam = await getExamRow(id);
+  if (exam.status !== "draft") {
+    throw new HttpError(400, "This exam is already open or closed. Only draft exams can be opened for marking.");
+  }
+  if (Number(exam.subject_count ?? 0) < 1) {
+    throw new HttpError(400, "Add at least one subject before opening the exam for teachers.");
+  }
+  await query(
+    `UPDATE exams SET status = 'open', opened_at = NOW(), updated_at = NOW() WHERE id = $1`,
+    [id],
+  );
+  return getExamById(id);
+}
+
+export async function closeExam(id: string) {
+  const exam = await getExamRow(id);
+  if (exam.status !== "open") {
+    throw new HttpError(400, "Only open exams can be closed. Open the exam first so teachers can enter marks.");
+  }
+  await query(
+    `UPDATE exams SET status = 'closed', closed_at = NOW(), updated_at = NOW() WHERE id = $1`,
+    [id],
+  );
+  return getExamById(id);
+}
+
+export async function reopenExam(id: string) {
+  const exam = await getExamRow(id);
+  if (exam.status !== "closed") {
+    throw new HttpError(400, "Only closed exams can be reopened. Draft exams should be opened instead.");
+  }
+  await query(
+    `UPDATE exams SET status = 'open', closed_at = NULL, updated_at = NOW() WHERE id = $1`,
+    [id],
+  );
+  return getExamById(id);
+}
+
+export async function listExams(filters: {
+  academicYearId?: string;
+  termId?: string;
+  classId?: string;
+  status?: string;
+}) {
+  const where: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+  if (filters.academicYearId) {
+    where.push(`e.academic_year_id = $${i++}`);
+    values.push(filters.academicYearId);
+  }
+  if (filters.termId) {
+    where.push(`e.term_id = $${i++}`);
+    values.push(filters.termId);
+  }
+  if (filters.classId) {
+    where.push(`e.class_id = $${i++}`);
+    values.push(filters.classId);
+  }
+  if (filters.status) {
+    where.push(`e.status = $${i++}`);
+    values.push(filters.status);
+  }
+  const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const { rows } = await query<ExamRow>(
+    `SELECT e.*, c.name AS class_name, c.stream AS class_stream, c.level AS class_level,
+            (SELECT COUNT(*)::text FROM exam_subjects es WHERE es.exam_id = e.id) AS subject_count
+     FROM exams e
+     JOIN classes c ON c.id = e.class_id
+     ${clause}
+     ORDER BY e.exam_date DESC NULLS LAST, e.created_at DESC`,
+    values,
+  );
+  return rows.map(mapExam);
+}
+
+export async function getExamById(id: string) {
+  const exam = mapExam(await getExamRow(id));
+  const { rows: subjects } = await query<{
+    id: string;
+    subject_id: string;
+    subject_name: string;
+    subject_code: string;
+    is_submitted: boolean;
+  }>(
+    `SELECT es.id, es.subject_id, s.name AS subject_name, s.code AS subject_code,
+            COALESCE(ess.is_submitted, false) AS is_submitted
+     FROM exam_subjects es
+     JOIN subjects s ON s.id = es.subject_id
+     LEFT JOIN exam_subject_submissions ess
+       ON ess.exam_id = es.exam_id AND ess.subject_id = es.subject_id
+     WHERE es.exam_id = $1
+     ORDER BY s.code`,
+    [id],
+  );
+  return {
+    ...exam,
+    subjects: subjects.map((s) => ({
+      id: s.id,
+      subjectId: s.subject_id,
+      subjectName: s.subject_name,
+      subjectCode: s.subject_code,
+      isSubmitted: Boolean(s.is_submitted),
+    })),
+  };
+}
+
+export async function listOpenExamsForTeacher(teacherId: string, role: string) {
+  if (role === "admin" || role === "headteacher") {
+    return listExams({ status: "open" });
+  }
+
+  const { rows } = await query<ExamRow>(
+    `SELECT DISTINCT e.*, c.name AS class_name, c.stream AS class_stream, c.level AS class_level,
+            (SELECT COUNT(*)::text FROM exam_subjects es2 WHERE es2.exam_id = e.id) AS subject_count
+     FROM exams e
+     JOIN classes c ON c.id = e.class_id
+     JOIN exam_subjects es ON es.exam_id = e.id
+     JOIN class_subjects cs
+       ON cs.class_id = e.class_id
+      AND cs.subject_id = es.subject_id
+      AND cs.academic_year_id = e.academic_year_id
+     WHERE e.status = 'open'
+       AND (
+         cs.teacher_id = $1
+         OR c.class_teacher_id = $1
+         OR EXISTS (
+           SELECT 1 FROM class_teacher_assignments cta
+           WHERE cta.class_id = e.class_id
+             AND cta.teacher_id = $1
+             AND cta.academic_year_id = e.academic_year_id
+         )
+       )
+     ORDER BY e.exam_date DESC NULLS LAST, e.name`,
+    [teacherId],
+  );
+  return rows.map(mapExam);
+}
+
+export async function listTeacherSubjectsForExam(examId: string, teacherId: string, role: string) {
+  const exam = await getExamRow(examId);
+  if (exam.status !== "open" && role !== "admin" && role !== "headteacher") {
+    throw new HttpError(403, "This exam is not open for marking. Contact the administrator if you believe this is a mistake.");
+  }
+
+  const { rows } = await query<{
+    subject_id: string;
+    subject_name: string;
+    subject_code: string;
+    is_submitted: boolean;
+  }>(
+    `SELECT es.subject_id, s.name AS subject_name, s.code AS subject_code,
+            COALESCE(ess.is_submitted, false) AS is_submitted
+     FROM exam_subjects es
+     JOIN subjects s ON s.id = es.subject_id
+     LEFT JOIN exam_subject_submissions ess
+       ON ess.exam_id = es.exam_id AND ess.subject_id = es.subject_id
+     WHERE es.exam_id = $1
+     ORDER BY s.code`,
+    [examId],
+  );
+
+  if (role === "admin" || role === "headteacher") {
+    return rows.map((r) => ({
+      subjectId: r.subject_id,
+      subjectName: r.subject_name,
+      subjectCode: r.subject_code,
+      isSubmitted: Boolean(r.is_submitted),
+      canEdit: exam.status === "open" && !r.is_submitted,
+    }));
+  }
+
+  const allowed = [];
+  for (const r of rows) {
+    const ok = await teacherCanTeachClassSubject(teacherId, exam.class_id, r.subject_id, exam.academic_year_id);
+    if (ok) {
+      allowed.push({
+        subjectId: r.subject_id,
+        subjectName: r.subject_name,
+        subjectCode: r.subject_code,
+        isSubmitted: Boolean(r.is_submitted),
+        canEdit: exam.status === "open" && !r.is_submitted,
+      });
+    }
+  }
+  return allowed;
+}
+
+async function assertSubjectSubmitted(examId: string, subjectId: string) {
+  const { rows } = await query<{ is_submitted: boolean }>(
+    `SELECT is_submitted FROM exam_subject_submissions WHERE exam_id = $1 AND subject_id = $2`,
+    [examId, subjectId],
+  );
+  if (rows[0]?.is_submitted) {
+    throw new HttpError(
+      400,
+      "Marks for this subject have been submitted and locked. Ask the headteacher or admin to reopen if corrections are needed.",
+    );
+  }
+}
+
+export async function listExamMarks(examId: string, subjectId: string) {
+  const exam = await getExamRow(examId);
+  const maxScore = Number(exam.max_score);
+
+  const { rows: students } = await query<{
+    id: string;
+    full_name: string;
+    student_number: string;
+    score: string | null;
+    grade: string | null;
+    points: number | null;
+    is_locked: boolean;
+  }>(
+    `SELECT st.id, st.full_name, st.student_number,
+            em.score::text, em.grade, em.points, COALESCE(em.is_locked, false) AS is_locked
+     FROM students st
+     LEFT JOIN exam_marks em
+       ON em.student_id = st.id AND em.exam_id = $1 AND em.subject_id = $2
+     WHERE st.class_id = $3 AND st.status = 'active'
+     ORDER BY st.full_name`,
+    [examId, subjectId, exam.class_id],
+  );
+
+  const { rows: sub } = await query<{ is_submitted: boolean }>(
+    `SELECT is_submitted FROM exam_subject_submissions WHERE exam_id = $1 AND subject_id = $2`,
+    [examId, subjectId],
+  );
+
+  return {
+    exam: mapExam(exam),
+    maxScore,
+    subjectSubmitted: Boolean(sub[0]?.is_submitted),
+    students: students.map((s) => ({
+      id: s.id,
+      fullName: s.full_name,
+      studentNumber: s.student_number,
+      score: s.score != null ? Number(s.score) : null,
+      grade: s.grade,
+      points: s.points,
+      isLocked: Boolean(s.is_locked),
+    })),
+  };
+}
+
+export async function upsertExamMarks(
+  examId: string,
+  input: ExamMarksBulkInput,
+  teacherId: string,
+  role: string,
+) {
+  const exam = await getExamRow(examId);
+  if (exam.status !== "open") {
+    throw new HttpError(
+      403,
+      exam.status === "draft"
+        ? "This exam has not been opened yet. An administrator must open it before you can enter marks."
+        : "This exam is closed. Marks can no longer be changed.",
+    );
+  }
+
+  const subjectOnExam = await query(
+    `SELECT 1 FROM exam_subjects WHERE exam_id = $1 AND subject_id = $2`,
+    [examId, input.subjectId],
+  );
+  if (subjectOnExam.rows.length === 0) {
+    throw new HttpError(400, "That subject is not part of this exam. Choose a subject from the exam list.");
+  }
+
+  if (role !== "admin" && role !== "headteacher") {
+    const ok = await teacherCanTeachClassSubject(
+      teacherId,
+      exam.class_id,
+      input.subjectId,
+      exam.academic_year_id,
+    );
+    if (!ok) {
+      throw new HttpError(403, "You are not assigned to teach this subject for this class. Contact the administrator.");
+    }
+  }
+
+  await assertSubjectSubmitted(examId, input.subjectId);
+
+  const maxScore = Number(exam.max_score);
+  const level = await gradingLevelForClass(exam.class_id);
+  let saved = 0;
+
+  for (const item of input.marks) {
+    if (item.score > maxScore) {
+      throw new HttpError(400, `Scores cannot be higher than ${maxScore} for this exam.`);
+    }
+
+    const st = await query(`SELECT id FROM students WHERE id = $1 AND class_id = $2 AND status = 'active'`, [
+      item.studentId,
+      exam.class_id,
+    ]);
+    if (st.rows.length === 0) {
+      throw new HttpError(400, "One of the students is not in this exam's class or is no longer active.");
+    }
+
+    const { grade, points } = await resolveConfiguredGrade(item.score, level);
+
+    await query(
+      `INSERT INTO exam_marks (exam_id, student_id, subject_id, score, grade, points, teacher_id, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+       ON CONFLICT (exam_id, student_id, subject_id) DO UPDATE SET
+         score = EXCLUDED.score,
+         grade = EXCLUDED.grade,
+         points = EXCLUDED.points,
+         teacher_id = EXCLUDED.teacher_id,
+         updated_at = NOW()
+       WHERE exam_marks.is_locked = false`,
+      [examId, item.studentId, input.subjectId, item.score, grade, points, teacherId],
+    );
+    saved += 1;
+  }
+
+  return { saved, maxScore };
+}
+
+export async function submitExamMarks(
+  examId: string,
+  subjectId: string,
+  teacherId: string,
+  role: string,
+) {
+  const exam = await getExamRow(examId);
+  if (exam.status !== "open") {
+    throw new HttpError(403, "Marks can only be submitted while the exam is open.");
+  }
+
+  if (role !== "admin" && role !== "headteacher") {
+    const ok = await teacherCanTeachClassSubject(
+      teacherId,
+      exam.class_id,
+      subjectId,
+      exam.academic_year_id,
+    );
+    if (!ok) throw new HttpError(403, "You are not assigned to this subject for this class.");
+  }
+
+  await assertSubjectSubmitted(examId, subjectId);
+
+  const count = await query<{ c: string }>(
+    `SELECT COUNT(*)::text AS c FROM exam_marks WHERE exam_id = $1 AND subject_id = $2`,
+    [examId, subjectId],
+  );
+  if (Number(count.rows[0]?.c ?? 0) === 0) {
+    throw new HttpError(400, "Enter and save at least one mark before submitting.");
+  }
+
+  await query(
+    `INSERT INTO exam_subject_submissions (exam_id, subject_id, is_submitted, submitted_at, submitted_by)
+     VALUES ($1, $2, true, NOW(), $3)
+     ON CONFLICT (exam_id, subject_id) DO UPDATE SET
+       is_submitted = true, submitted_at = NOW(), submitted_by = EXCLUDED.submitted_by`,
+    [examId, subjectId, teacherId],
+  );
+
+  await query(
+    `UPDATE exam_marks SET is_locked = true, updated_at = NOW()
+     WHERE exam_id = $1 AND subject_id = $2`,
+    [examId, subjectId],
+  );
+
+  return { submitted: true };
+}
+
+export async function unlockExamMarks(examId: string, subjectId: string) {
+  const exam = await getExamRow(examId);
+  if (exam.status === "draft") {
+    throw new HttpError(400, "This exam has not been opened yet.");
+  }
+
+  await query(
+    `UPDATE exam_subject_submissions
+     SET is_submitted = false, submitted_at = NULL, submitted_by = NULL
+     WHERE exam_id = $1 AND subject_id = $2`,
+    [examId, subjectId],
+  );
+  await query(
+    `UPDATE exam_marks SET is_locked = false, updated_at = NOW()
+     WHERE exam_id = $1 AND subject_id = $2`,
+    [examId, subjectId],
+  );
+
+  if (exam.status === "closed") {
+    await query(`UPDATE exams SET status = 'open', closed_at = NULL, updated_at = NOW() WHERE id = $1`, [examId]);
+  }
+
+  return { unlocked: true };
+}

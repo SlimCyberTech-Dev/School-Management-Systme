@@ -11,7 +11,8 @@ export type NavIconId =
   | "graduationCap"
   | "barChart3"
   | "school"
-  | "receipt";
+  | "receipt"
+  | "fileText";
 
 export type NavItem = {
   href: string;

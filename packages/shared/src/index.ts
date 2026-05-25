@@ -7,3 +7,4 @@ export * from "./schemas/auth.schema";
 export * from "./schemas/student.schema";
 export * from "./schemas/assessment.schema";
 export * from "./schemas/fees.schema";
+export * from "./schemas/exam.schema";
