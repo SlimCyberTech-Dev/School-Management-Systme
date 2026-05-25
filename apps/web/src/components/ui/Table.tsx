@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import { TableSkeleton } from "@/components/feedback/TableSkeleton";
 import { Input } from "./Input";
 
 export type Column<T> = {
@@ -16,6 +17,7 @@ type Props<T extends Record<string, unknown>> = {
   searchKeys?: (keyof T)[];
   pageSize?: number;
   loading?: boolean;
+  emptyState?: ReactNode;
 };
 
 export function Table<T extends Record<string, unknown>>({
@@ -24,6 +26,7 @@ export function Table<T extends Record<string, unknown>>({
   searchKeys,
   pageSize = 10,
   loading,
+  emptyState,
 }: Props<T>) {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
@@ -38,6 +41,10 @@ export function Table<T extends Record<string, unknown>>({
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const slice = filtered.slice(page * pageSize, (page + 1) * pageSize);
+
+  if (loading) {
+    return <TableSkeleton rows={pageSize} cols={columns.length} showSearch={Boolean(searchKeys?.length)} />;
+  }
 
   return (
     <div className="space-y-3">
@@ -68,16 +75,12 @@ export function Table<T extends Record<string, unknown>>({
             </tr>
           </thead>
           <tbody className="divide-y divide-border bg-card">
-            {loading ? (
+            {slice.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-3 py-6 text-center text-muted-foreground">
-                  Loading…
-                </td>
-              </tr>
-            ) : slice.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length} className="px-3 py-6 text-center text-muted-foreground">
-                  No rows
+                <td colSpan={columns.length} className="p-0">
+                  {emptyState ?? (
+                    <p className="px-3 py-6 text-center text-sm text-muted-foreground">No records to display</p>
+                  )}
                 </td>
               </tr>
             ) : (

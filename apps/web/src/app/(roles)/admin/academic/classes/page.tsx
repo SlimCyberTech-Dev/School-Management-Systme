@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
+import { useQueries } from "@tanstack/react-query";
+import { School } from "lucide-react";
+import { EmptyState } from "@/components/feedback/EmptyState";
 import { useForm } from "react-hook-form";
 import { classSchema } from "@uganda-cbc-sms/shared";
 import type { AcademicYear, SchoolClass } from "@uganda-cbc-sms/shared";
@@ -27,12 +30,19 @@ const ACTION_DANGER_BTN =
   "inline-flex items-center rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs font-medium text-red-700 transition-ui hover:bg-red-500/20 dark:text-red-300 disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function AdminAcademicClassesPage() {
-  const [classes, setClasses] = useState<SchoolClass[]>([]);
-  const [years, setYears] = useState<AcademicYear[]>([]);
-  const [users, setUsers] = useState<TeachingStaffMember[]>([]);
+  const [classesQ, yearsQ, staffQ] = useQueries({
+    queries: [
+      { queryKey: ["academic-classes"], queryFn: () => apiGet<SchoolClass[]>("/academic/classes") },
+      { queryKey: ["academic-years"], queryFn: () => apiGet<AcademicYear[]>("/academic/years") },
+      { queryKey: ["teaching-staff"], queryFn: () => apiGet<TeachingStaffMember[]>("/academic/teaching-staff") },
+    ],
+  });
+  const classes = classesQ.data ?? [];
+  const years = yearsQ.data ?? [];
+  const users = staffQ.data ?? [];
+  const loading = [classesQ, yearsQ, staffQ].some((q) => q.isPending);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editing, setEditing] = useState<SchoolClass | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<SchoolClass | null>(null);
@@ -59,37 +69,24 @@ export default function AdminAcademicClassesPage() {
     },
   });
 
-  const load = async () => {
-    try {
-      const [c, y, staff] = await Promise.all([
-        apiGet<SchoolClass[]>("/academic/classes"),
-        apiGet<AcademicYear[]>("/academic/years"),
-        apiGet<TeachingStaffMember[]>("/academic/teaching-staff"),
-      ]);
-      setClasses(c);
-      setYears(y);
-      setUsers(staff);
-      if (y[0] && !form.getValues("academicYearId")) {
-        form.setValue("academicYearId", y[0].id);
-      }
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed");
-    } finally {
-      setLoading(false);
-    }
+  const reload = () => {
+    void classesQ.refetch();
+    void yearsQ.refetch();
+    void staffQ.refetch();
   };
 
   useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (years[0] && !form.getValues("academicYearId")) {
+      form.setValue("academicYearId", years[0].id);
+    }
+  }, [years, form]);
 
   const onSubmit = async (v: Form) => {
     setErr(null);
     setOk(null);
     try {
       await apiPost("/academic/classes", v);
-      await load();
+      reload();
       setOk("Class created.");
       setCreateOpen(false);
       form.reset({
@@ -122,7 +119,7 @@ export default function AdminAcademicClassesPage() {
     setBusyId(editing.id);
     try {
       await apiPatch(`/academic/classes/${encodeURIComponent(editing.id)}`, v);
-      await load();
+      reload();
       setEditing(null);
       setOk("Class updated.");
     } catch (e) {
@@ -139,7 +136,7 @@ export default function AdminAcademicClassesPage() {
     setBusyId(confirmDelete.id);
     try {
       await apiDelete(`/academic/classes/${encodeURIComponent(confirmDelete.id)}`);
-      await load();
+      reload();
       setConfirmDelete(null);
       setOk("Class deleted.");
     } catch (e) {
@@ -225,7 +222,20 @@ export default function AdminAcademicClassesPage() {
             Add new record
           </Button>
         </div>
-        <Table columns={columns} rows={classes as Row[]} loading={loading} searchKeys={["name", "stream"]} />
+        <Table
+          columns={columns}
+          rows={classes as Row[]}
+          loading={loading}
+          searchKeys={["name", "stream"]}
+          emptyState={
+            <EmptyState
+              title="No classes configured"
+              description="Add classes for each stream and academic year."
+              icon={School}
+              action={{ label: "Add class", onClick: () => setCreateOpen(true) }}
+            />
+          }
+        />
       </Card>
       <Modal open={Boolean(editing)} title={`Edit class${editing ? `: ${editing.name} ${editing.stream}` : ""}`} onClose={() => setEditing(null)}>
           <form className="mt-1 space-y-3" onSubmit={editForm.handleSubmit(onEdit)}>

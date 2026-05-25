@@ -1,30 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { Student } from "@uganda-cbc-sms/shared";
+import { AsyncContent } from "@/components/feedback/AsyncContent";
+import { ErrorState } from "@/components/feedback/ErrorState";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { StudentTable } from "@/components/students/StudentTable";
 import { Button } from "@/components/ui/Button";
 import { apiGet } from "@/lib/api";
+import { queryStatus } from "@/lib/queryStatus";
 
 export default function AdminStudentsPage() {
-  const [rows, setRows] = useState<Student[]>([]);
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const studentsQ = useQuery({
+    queryKey: ["students"],
+    queryFn: () => apiGet<Student[]>("/students"),
+  });
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const data = await apiGet<Student[]>("/students");
-        setRows(data);
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : "Failed to load students");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  const status = queryStatus(studentsQ, (d) => d.length === 0);
 
   return (
     <PageWrapper title="Students" description="Enrolled learners">
@@ -33,13 +26,23 @@ export default function AdminStudentsPage() {
           <Button>Enrol new student</Button>
         </Link>
       </div>
-      {err ? <p className="mb-4 text-red-600">{err}</p> : null}
-      <StudentTable
-        students={rows}
-        loading={loading}
-        profileBasePath="/admin/students"
-        showEnrollmentActions
-      />
+      <AsyncContent
+        status={status}
+        isFetching={studentsQ.isFetching && !studentsQ.isPending}
+        loading={<StudentTable students={[]} loading profileBasePath="/admin/students" showEnrollmentActions />}
+        error={
+          <ErrorState
+            message={studentsQ.error instanceof Error ? studentsQ.error.message : "Failed to load students"}
+            onRetry={() => void studentsQ.refetch()}
+          />
+        }
+      >
+        <StudentTable
+          students={studentsQ.data ?? []}
+          profileBasePath="/admin/students"
+          showEnrollmentActions
+        />
+      </AsyncContent>
     </PageWrapper>
   );
 }

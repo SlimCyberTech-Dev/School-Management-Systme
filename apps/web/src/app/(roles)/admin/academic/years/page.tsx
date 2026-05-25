@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Calendar } from "lucide-react";
+import { EmptyState } from "@/components/feedback/EmptyState";
 import { useForm } from "react-hook-form";
 import { academicYearSchema } from "@uganda-cbc-sms/shared";
 import type { AcademicYear } from "@uganda-cbc-sms/shared";
@@ -25,10 +28,14 @@ const ACTION_DANGER_BTN =
   "inline-flex items-center rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs font-medium text-red-700 transition-ui hover:bg-red-500/20 dark:text-red-300 disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function AdminAcademicYearsPage() {
-  const [rows, setRows] = useState<AcademicYear[]>([]);
+  const yearsQ = useQuery({
+    queryKey: ["academic-years"],
+    queryFn: () => apiGet<AcademicYear[]>("/academic/years"),
+  });
+  const rows = yearsQ.data ?? [];
+  const loading = yearsQ.isPending;
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editing, setEditing] = useState<AcademicYear | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AcademicYear | null>(null);
@@ -44,27 +51,14 @@ export default function AdminAcademicYearsPage() {
     defaultValues: { name: "", startDate: "", endDate: "", isActive: false },
   });
 
-  const load = async () => {
-    try {
-      const r = await apiGet<AcademicYear[]>("/academic/years");
-      setRows(r);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void load();
-  }, []);
+  const reload = () => void yearsQ.refetch();
 
   const onSubmit = async (v: Form) => {
     setErr(null);
     setOk(null);
     try {
       await apiPost("/academic/years", v);
-      await load();
+      reload();
       setOk("Academic year created.");
       setCreateOpen(false);
       form.reset({ name: "", startDate: "", endDate: "", isActive: true });
@@ -90,7 +84,7 @@ export default function AdminAcademicYearsPage() {
     setBusyId(editing.id);
     try {
       await apiPatch(`/academic/years/${encodeURIComponent(editing.id)}`, v);
-      await load();
+      reload();
       setOk("Academic year updated.");
       setEditing(null);
     } catch (e) {
@@ -107,7 +101,7 @@ export default function AdminAcademicYearsPage() {
     setBusyId(confirmDelete.id);
     try {
       await apiDelete(`/academic/years/${encodeURIComponent(confirmDelete.id)}`);
-      await load();
+      reload();
       setOk("Academic year deleted.");
       setConfirmDelete(null);
     } catch (e) {
@@ -165,7 +159,20 @@ export default function AdminAcademicYearsPage() {
             Add new record
           </Button>
         </div>
-        <Table columns={columns} rows={rows as Row[]} loading={loading} searchKeys={["name"]} />
+        <Table
+          columns={columns}
+          rows={rows as Row[]}
+          loading={loading}
+          searchKeys={["name"]}
+          emptyState={
+            <EmptyState
+              title="No academic years configured"
+              description="Create a school year before adding terms, classes, and assessments."
+              icon={Calendar}
+              action={{ label: "Add academic year", onClick: () => setCreateOpen(true) }}
+            />
+          }
+        />
       </Card>
       <Modal open={Boolean(editing)} title={`Edit year${editing ? `: ${editing.name}` : ""}`} onClose={() => setEditing(null)}>
         <form className="mt-1 space-y-3" onSubmit={editForm.handleSubmit(onEdit)}>

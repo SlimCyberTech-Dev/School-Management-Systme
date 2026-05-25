@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
-import { AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { ErrorState } from "@/components/feedback/ErrorState";
+import { KpiSkeleton } from "@/components/feedback/KpiSkeleton";
+import { Skeleton } from "@/components/feedback/Skeleton";
 import type { DashboardMetric } from "./types";
 
 export function DashboardHeader({
@@ -92,22 +93,14 @@ export function DashboardTwoColumn({
 export function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, idx) => (
-          <div key={idx} className="rounded-xl border border-border bg-card p-4">
-            <div className="h-3 w-20 animate-pulse rounded bg-muted" />
-            <div className="mt-3 h-8 w-16 animate-pulse rounded bg-muted" />
-            <div className="mt-3 h-4 w-12 animate-pulse rounded bg-muted" />
-          </div>
-        ))}
-      </div>
+      <KpiSkeleton />
       <div className="overflow-hidden rounded-xl border border-border bg-card">
         <div className="border-b border-border px-5 py-4">
-          <div className="h-4 w-36 animate-pulse rounded bg-muted" />
+          <Skeleton.Line className="w-36" />
         </div>
         <div className="space-y-3 px-5 py-4">
           {Array.from({ length: 3 }).map((_, idx) => (
-            <div key={idx} className="h-10 animate-pulse rounded bg-muted" />
+            <Skeleton.Block key={idx} className="h-10 w-full" />
           ))}
         </div>
       </div>
@@ -115,25 +108,7 @@ export function DashboardSkeleton() {
   );
 }
 
-export function DashboardErrorState({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry?: () => void;
-}) {
-  return (
-    <section className="rounded-xl border border-border bg-card px-5 py-10 text-center">
-      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
-        <AlertTriangle className="h-10 w-10 text-red-400" />
-      </div>
-      <h3 className="mt-4 text-lg font-semibold text-foreground">Something went wrong</h3>
-      <p className="mt-1 text-sm text-muted-foreground">{message}</p>
-      {onRetry ? (
-        <Button className="mt-4" variant="secondary" onClick={onRetry}>
-          Try again
-        </Button>
-      ) : null}
-    </section>
-  );
+/** @deprecated Use ErrorState from @/components/feedback */
+export function DashboardErrorState(props: { message: string; onRetry?: () => void }) {
+  return <ErrorState {...props} />;
 }

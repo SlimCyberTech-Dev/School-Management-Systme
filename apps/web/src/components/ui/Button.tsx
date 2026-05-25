@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { Spinner } from "@/components/feedback/Spinner";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
@@ -30,7 +31,14 @@ export function Button({
       disabled={disabled || loading}
       {...rest}
     >
-      {loading ? "…" : children}
+      {loading ? (
+        <>
+          <Spinner size="sm" className="mr-2 shrink-0" />
+          <span className="opacity-90">{children}</span>
+        </>
+      ) : (
+        children
+      )}
     </button>
   );
 }

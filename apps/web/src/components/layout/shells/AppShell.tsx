@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useState } from "react";
+import { FetchingBar } from "@/components/feedback/FetchingBar";
 import { ShellContent } from "./ShellContent";
 import { ShellHeader } from "./ShellHeader";
 import { ShellSidebar } from "./ShellSidebar";
@@ -16,6 +17,7 @@ export function AppShell({ config, children }: Props) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background transition-ui">
+      <FetchingBar />
       <ShellSidebar config={config} />
       {mobileOpen ? (
         <div

@@ -3,6 +3,9 @@
 import type { AcademicYear, SchoolClass, Term } from "@uganda-cbc-sms/shared";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { AsyncContent } from "@/components/feedback/AsyncContent";
+import { ErrorState } from "@/components/feedback/ErrorState";
+import { ReportsAnalyticsSkeleton } from "@/components/feedback/ReportsAnalyticsSkeleton";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { KpiGrid } from "@/components/layout/shells/DashboardScaffold";
 import { DivisionChart, ReadinessCharts } from "@/components/reports/charts/ReadinessCharts";
@@ -16,6 +19,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { useReportsOverview } from "@/hooks/useReportsAnalytics";
 import { apiGet, apiPost } from "@/lib/api";
+import { queryStatus } from "@/lib/queryStatus";
 
 const CONTEXT_KEY = "sms-admin-reports-context-v1";
 
@@ -94,6 +98,10 @@ export default function AdminReportsPage() {
 
   const data = overviewQ.data;
   const filtersReady = Boolean(filters.classId && filters.termId && filters.yearId);
+  const overviewStatus = filtersReady
+    ? queryStatus(overviewQ)
+    : ("success" as const);
+  const overviewFetching = filtersReady && overviewQ.isFetching && !overviewQ.isPending;
 
   const kpis = useMemo(() => {
     if (!data) return [];
@@ -191,20 +199,6 @@ export default function AdminReportsPage() {
         </div>
       ) : null}
 
-      {overviewQ.isLoading && filtersReady ? (
-        <p className="mt-4 text-sm text-muted-foreground">Loading analytics…</p>
-      ) : null}
-
-      {overviewQ.isError ? (
-        <div className="mt-4">
-          <Alert tone="error">
-            {overviewQ.error instanceof Error ? overviewQ.error.message : "Failed to load analytics"}
-          </Alert>
-        </div>
-      ) : null}
-
-      {data && filtersReady ? <KpiGrid metrics={kpis} /> : null}
-
       <div className="mt-6 flex flex-wrap gap-2 border-b border-border pb-2">
         {tabs.map((t) => (
           <button
@@ -222,7 +216,22 @@ export default function AdminReportsPage() {
         ))}
       </div>
 
-      {tab === "pipeline" && data && filtersReady ? (
+      {filtersReady && tab !== "actions" ? (
+        <AsyncContent
+          status={overviewStatus}
+          isFetching={overviewFetching}
+          loading={<ReportsAnalyticsSkeleton />}
+          error={
+            <ErrorState
+              message={overviewQ.error instanceof Error ? overviewQ.error.message : "Failed to load analytics"}
+              onRetry={() => void overviewQ.refetch()}
+            />
+          }
+          className="mt-4"
+        >
+          <KpiGrid metrics={kpis} />
+
+      {tab === "pipeline" && data ? (
         <div className="mt-4">
           <ReportPipelineCharts
             pipeline={{
@@ -238,7 +247,7 @@ export default function AdminReportsPage() {
         </div>
       ) : null}
 
-      {tab === "performance" && data && filtersReady ? (
+      {tab === "performance" && data ? (
         <div className="mt-4 space-y-4">
           {showCbc || showAlevel ? (
             <PerformanceCharts
@@ -250,13 +259,16 @@ export default function AdminReportsPage() {
         </div>
       ) : null}
 
-      {tab === "readiness" && data && filtersReady ? (
+      {tab === "readiness" && data ? (
         <div className="mt-4">
           <ReadinessCharts
             cbc={showCbc ? data.readiness.cbc : []}
             alevel={showAlevel ? data.readiness.alevel : []}
           />
         </div>
+      ) : null}
+
+        </AsyncContent>
       ) : null}
 
       {tab === "actions" ? (

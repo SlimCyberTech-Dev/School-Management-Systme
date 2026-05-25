@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/lib/api";
 import type { PipelineData } from "@/components/reports/charts/ReportPipelineCharts";
 
@@ -46,6 +46,7 @@ export function useReportsOverview(filters: { classId: string; termId: string; y
     queryKey: ["reports-overview", filters],
     queryFn: () => apiGet<ReportsOverview>(`/analytics/reports-overview?${qp.toString()}`),
     enabled: Boolean(filters.classId && filters.termId && filters.yearId),
+    placeholderData: keepPreviousData,
   });
 }
 

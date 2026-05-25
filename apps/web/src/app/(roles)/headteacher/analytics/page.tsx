@@ -3,15 +3,19 @@
 import type { AcademicYear, SchoolClass, Term } from "@uganda-cbc-sms/shared";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { AsyncContent } from "@/components/feedback/AsyncContent";
+import { ErrorState } from "@/components/feedback/ErrorState";
+import { ReportsAnalyticsSkeleton } from "@/components/feedback/ReportsAnalyticsSkeleton";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { KpiGrid } from "@/components/layout/shells/DashboardScaffold";
 import { DivisionChart, ReadinessCharts } from "@/components/reports/charts/ReadinessCharts";
 import { PerformanceCharts } from "@/components/reports/charts/PerformanceCharts";
 import { ReportPipelineCharts } from "@/components/reports/charts/ReportPipelineCharts";
 import { ReportsFilters, type ReportsFiltersValue } from "@/components/reports/ReportsFilters";
 import { Alert } from "@/components/ui/Alert";
-import { KpiGrid } from "@/components/layout/shells/DashboardScaffold";
 import { useReportsOverview } from "@/hooks/useReportsAnalytics";
 import { apiGet } from "@/lib/api";
+import { queryStatus } from "@/lib/queryStatus";
 
 export default function HeadteacherAnalyticsPage() {
   const [filters, setFilters] = useState<ReportsFiltersValue>({
@@ -59,6 +63,8 @@ export default function HeadteacherAnalyticsPage() {
   const data = overviewQ.data;
   const showCbc = filters.track === "all" || filters.track === "cbc";
   const showAlevel = filters.track === "all" || filters.track === "alevel";
+  const overviewStatus = filtersReady ? queryStatus(overviewQ) : ("success" as const);
+  const overviewFetching = filtersReady && overviewQ.isFetching && !overviewQ.isPending;
 
   const kpis = data
     ? [
@@ -109,52 +115,55 @@ export default function HeadteacherAnalyticsPage() {
         <div className="mt-4">
           <Alert tone="info">Select year, term, and class to load analytics.</Alert>
         </div>
-      ) : null}
-
-      {overviewQ.isError ? (
-        <div className="mt-4">
-          <Alert tone="error">
-            {overviewQ.error instanceof Error ? overviewQ.error.message : "Failed to load"}
-          </Alert>
-        </div>
-      ) : null}
-
-      {data && filtersReady ? (
-        <>
+      ) : (
+        <AsyncContent
+          status={overviewStatus}
+          isFetching={overviewFetching}
+          loading={<ReportsAnalyticsSkeleton />}
+          error={
+            <ErrorState
+              message={overviewQ.error instanceof Error ? overviewQ.error.message : "Failed to load"}
+              onRetry={() => void overviewQ.refetch()}
+            />
+          }
+          className="mt-6 space-y-8"
+        >
           <KpiGrid metrics={kpis} />
-          <div className="mt-6 space-y-8">
-            <section>
-              <h2 className="mb-3 text-lg font-semibold">Report pipeline</h2>
-              <ReportPipelineCharts
-                pipeline={{
-                  ...data.pipeline,
-                  cbc: showCbc
-                    ? data.pipeline.cbc
-                    : { generated: 0, approved: 0, pendingApproval: 0, notGenerated: 0 },
-                  alevel: showAlevel
-                    ? data.pipeline.alevel
-                    : { generated: 0, approved: 0, pendingApproval: 0, notGenerated: 0 },
-                }}
-              />
-            </section>
-            <section>
-              <h2 className="mb-3 text-lg font-semibold">Performance</h2>
-              <PerformanceCharts
-                cbc={showCbc ? data.performance.cbc : []}
-                alevel={showAlevel ? data.performance.alevel : []}
-              />
-              {showAlevel ? <div className="mt-4"><DivisionChart divisions={data.divisions} /></div> : null}
-            </section>
-            <section>
-              <h2 className="mb-3 text-lg font-semibold">Assessment readiness</h2>
-              <ReadinessCharts
-                cbc={showCbc ? data.readiness.cbc : []}
-                alevel={showAlevel ? data.readiness.alevel : []}
-              />
-            </section>
-          </div>
-        </>
-      ) : null}
+          <section>
+            <h2 className="mb-3 text-lg font-semibold">Report pipeline</h2>
+            <ReportPipelineCharts
+              pipeline={{
+                ...data!.pipeline,
+                cbc: showCbc
+                  ? data!.pipeline.cbc
+                  : { generated: 0, approved: 0, pendingApproval: 0, notGenerated: 0 },
+                alevel: showAlevel
+                  ? data!.pipeline.alevel
+                  : { generated: 0, approved: 0, pendingApproval: 0, notGenerated: 0 },
+              }}
+            />
+          </section>
+          <section>
+            <h2 className="mb-3 text-lg font-semibold">Performance</h2>
+            <PerformanceCharts
+              cbc={showCbc ? data!.performance.cbc : []}
+              alevel={showAlevel ? data!.performance.alevel : []}
+            />
+            {showAlevel ? (
+              <div className="mt-4">
+                <DivisionChart divisions={data!.divisions} />
+              </div>
+            ) : null}
+          </section>
+          <section>
+            <h2 className="mb-3 text-lg font-semibold">Assessment readiness</h2>
+            <ReadinessCharts
+              cbc={showCbc ? data!.readiness.cbc : []}
+              alevel={showAlevel ? data!.readiness.alevel : []}
+            />
+          </section>
+        </AsyncContent>
+      )}
     </PageWrapper>
   );
 }

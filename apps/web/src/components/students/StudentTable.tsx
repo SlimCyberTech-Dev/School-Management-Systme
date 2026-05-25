@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { Student } from "@uganda-cbc-sms/shared";
+import { EmptyState } from "@/components/feedback/EmptyState";
+import { GraduationCap } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Table, type Column } from "@/components/ui/Table";
 
@@ -14,6 +17,7 @@ export function StudentTable({
   loading,
   profileBasePath,
   showEnrollmentActions,
+  emptyState,
 }: {
   students: Student[];
   loading?: boolean;
@@ -21,6 +25,7 @@ export function StudentTable({
   profileBasePath: string;
   /** When true, admin-only routes get an Edit enrollment link alongside View. */
   showEnrollmentActions?: boolean;
+  emptyState?: ReactNode;
 }) {
   const columns: Column<Row>[] = [
     { key: "studentNumber", header: "Student #" },
@@ -54,6 +59,20 @@ export function StudentTable({
       rows={students as Row[]}
       searchKeys={["studentNumber", "fullName"]}
       loading={loading}
+      emptyState={
+        emptyState ?? (
+          <EmptyState
+            title="No students enrolled yet"
+            description="Enrol learners to manage attendance, assessments, and report cards."
+            icon={GraduationCap}
+            action={
+              showEnrollmentActions
+                ? { label: "Enrol student", href: "/admin/students/enrol" }
+                : undefined
+            }
+          />
+        )
+      }
     />
   );
 }
