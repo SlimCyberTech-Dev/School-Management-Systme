@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import type { AcademicYear, ExamSummary, SchoolClass, Term } from "@uganda-cbc-sms/shared";
 import { AdminExamFormModal } from "@/components/exams/AdminExamFormModal";
 import { AdminExamRowActions } from "@/components/exams/AdminExamRowActions";
 import { ExamStatusBadge } from "@/components/exams/ExamStatusBadge";
+import { ExamWorkflowGuide } from "@/components/exams/ExamWorkflowGuide";
 import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -20,17 +22,21 @@ import { Select } from "@/components/ui/Select";
 import { Table, type Column } from "@/components/ui/Table";
 import { useExam, useExamAdminActions, useExamsList } from "@/hooks/useExams";
 import { apiGet, getApiErrorMessage } from "@/lib/api";
-import { examDeleteDialogCopy, examDeleteSuccessMessage } from "@/lib/examDeleteCopy";
+import { examArchiveDialogCopy, examArchiveSuccessMessage } from "@/lib/examDeleteCopy";
 import { combineQueryStatus, queryStatus } from "@/lib/queryStatus";
 
 export default function AdminExamsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab") === "archived" ? "archived" : "active";
+
   const [yearId, setYearId] = useState("");
   const [termId, setTermId] = useState("");
   const [classId, setClassId] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [formMode, setFormMode] = useState<"create" | "edit" | null>(null);
   const [editExamId, setEditExamId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<ExamSummary | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<ExamSummary | null>(null);
   const [feedback, setFeedback] = useState<{ ok?: string; err?: string }>({});
 
   const [yearsQ, termsQ, classesQ] = useQueries({
@@ -49,7 +55,8 @@ export default function AdminExamsPage() {
     academicYearId: yearId || undefined,
     termId: termId || undefined,
     classId: classId || undefined,
-    status: statusFilter || undefined,
+    status: tab === "active" ? statusFilter || undefined : undefined,
+    archivedOnly: tab === "archived",
   });
 
   const editExamQ = useExam(editExamId ?? undefined);
@@ -81,6 +88,13 @@ export default function AdminExamsPage() {
         ? yearsQ.error.message
         : "We couldn't load exams. Please try again.";
 
+  const setTab = (next: "active" | "archived") => {
+    const qp = new URLSearchParams(searchParams.toString());
+    if (next === "archived") qp.set("tab", "archived");
+    else qp.delete("tab");
+    router.replace(`/admin/exams${qp.toString() ? `?${qp}` : ""}`);
+  };
+
   const runAction = async (label: string, fn: () => Promise<unknown>) => {
     setFeedback({});
     try {
@@ -96,7 +110,10 @@ export default function AdminExamsPage() {
       key: "name",
       header: "Exam",
       render: (r) => (
-        <Link className="font-medium text-brand underline" href={`/admin/exams/${r.id}`}>
+        <Link
+          className="font-medium text-brand underline"
+          href={`/admin/exams/${r.id}${r.isArchived ? "?archived=1" : ""}`}
+        >
           {r.name}
         </Link>
       ),
@@ -121,17 +138,23 @@ export default function AdminExamsPage() {
       render: (r) => (
         <AdminExamRowActions
           exam={r}
-          busy={actions.open.isPending || actions.close.isPending || actions.reopen.isPending || actions.remove.isPending}
+          archivedView={tab === "archived"}
+          busy={
+            actions.open.isPending ||
+            actions.close.isPending ||
+            actions.reopen.isPending ||
+            actions.archive.isPending
+          }
           onEdit={(exam) => {
             setEditExamId(exam.id);
             setFormMode("edit");
           }}
-          onDelete={setDeleteTarget}
+          onArchive={setArchiveTarget}
           onOpen={(exam) =>
-            void runAction(`"${exam.name}" is now open for marking.`, () => actions.open.mutateAsync(exam.id))
+            void runAction(`"${exam.name}" is open for marking.`, () => actions.open.mutateAsync(exam.id))
           }
           onClose={(exam) =>
-            void runAction(`"${exam.name}" was closed.`, () => actions.close.mutateAsync(exam.id))
+            void runAction(`"${exam.name}" was closed.`, () => actions.close.mutateAsync({ id: exam.id }))
           }
           onReopen={(exam) =>
             void runAction(`"${exam.name}" was reopened.`, () => actions.reopen.mutateAsync(exam.id))
@@ -148,13 +171,32 @@ export default function AdminExamsPage() {
   return (
     <PageWrapper
       title="Exams"
-      description="Create, edit, and manage formal exams. Open exams when teachers should enter marks, then close when complete."
+      description="Formal assessments: plan, open for teacher marking, close when complete, then link to report cards"
     >
       {feedback.ok ? <Alert tone="success">{feedback.ok}</Alert> : null}
       {feedback.err ? <Alert tone="error">{feedback.err}</Alert> : null}
 
-      <div className="mb-6">
+      <div className="mb-6 space-y-4">
+        <ExamWorkflowGuide />
         <Card title="Filters">
+          <div className="mb-3 flex gap-2 border-b border-border pb-3">
+            <Button
+              type="button"
+              variant={tab === "active" ? "primary" : "secondary"}
+              className="!px-3 !py-1.5 text-sm"
+              onClick={() => setTab("active")}
+            >
+              Active exams
+            </Button>
+            <Button
+              type="button"
+              variant={tab === "archived" ? "primary" : "secondary"}
+              className="!px-3 !py-1.5 text-sm"
+              onClick={() => setTab("archived")}
+            >
+              Archived
+            </Button>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Select
               label="Academic year"
@@ -187,24 +229,30 @@ export default function AdminExamsPage() {
               value={classId}
               onChange={(e) => setClassId(e.target.value)}
             />
-            <Select
-              label="Status"
-              options={[
-                { value: "", label: "All statuses" },
-                { value: "draft", label: "Draft" },
-                { value: "open", label: "Open" },
-                { value: "closed", label: "Closed" },
-              ]}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            />
+            {tab === "active" ? (
+              <Select
+                label="Status"
+                options={[
+                  { value: "", label: "All statuses" },
+                  { value: "draft", label: "Draft" },
+                  { value: "open", label: "Open (marking)" },
+                  { value: "closed", label: "Closed" },
+                ]}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              />
+            ) : (
+              <div className="flex items-end text-sm text-muted-foreground">Archived exams only</div>
+            )}
           </div>
         </Card>
       </div>
 
-      <div className="mb-4 flex justify-end">
-        <Button onClick={() => setFormMode("create")}>Create exam</Button>
-      </div>
+      {tab === "active" ? (
+        <div className="mb-4 flex justify-end">
+          <Button onClick={() => setFormMode("create")}>Create exam</Button>
+        </div>
+      ) : null}
 
       <AsyncContent
         status={tableStatus}
@@ -216,8 +264,12 @@ export default function AdminExamsPage() {
           rows={(examsQ.data ?? []) as unknown as Record<string, unknown>[]}
           emptyState={
             <EmptyState
-              title="No exams yet"
-              description="Create an exam for a class and term, then open it when teachers should enter marks."
+              title={tab === "archived" ? "No archived exams" : "No exams yet"}
+              description={
+                tab === "archived"
+                  ? "Archived exams appear here. Archive an active exam when it should no longer be used."
+                  : "Create an exam for a class and term, then open it when teachers should enter marks."
+              }
             />
           }
         />
@@ -237,6 +289,9 @@ export default function AdminExamsPage() {
           defaultClassId={classId}
           onSuccess={(msg) => setFeedback({ ok: msg })}
           onError={(msg) => setFeedback({ err: msg })}
+          onCreated={(created) => {
+            router.push(`/admin/exams/${created.id}?edit=0`);
+          }}
         />
       ) : formMode === "edit" && editExamQ.isError ? (
         <Alert tone="error">
@@ -245,19 +300,21 @@ export default function AdminExamsPage() {
       ) : null}
 
       <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        title={deleteTarget ? examDeleteDialogCopy(deleteTarget).title : "Delete this exam?"}
-        description={deleteTarget ? examDeleteDialogCopy(deleteTarget).description : ""}
-        confirmLabel="Delete"
+        open={Boolean(archiveTarget)}
+        title={archiveTarget ? examArchiveDialogCopy(archiveTarget).title : "Archive this exam?"}
+        description={archiveTarget ? examArchiveDialogCopy(archiveTarget).description : ""}
+        confirmLabel="Archive"
+        danger
+        loading={actions.archive.isPending}
         onConfirm={() => {
-          if (!deleteTarget) return;
-          const target = deleteTarget;
-          void runAction(examDeleteSuccessMessage(target), async () => {
-            await actions.remove.mutateAsync(target.id);
+          if (!archiveTarget) return;
+          const target = archiveTarget;
+          void runAction(examArchiveSuccessMessage(target), async () => {
+            await actions.archive.mutateAsync(target.id);
           });
-          setDeleteTarget(null);
+          setArchiveTarget(null);
         }}
-        onCancel={() => setDeleteTarget(null)}
+        onCancel={() => setArchiveTarget(null)}
       />
     </PageWrapper>
   );

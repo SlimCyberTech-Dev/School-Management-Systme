@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { AcademicYear, Term } from "@uganda-cbc-sms/shared";
 import { AdminExamFormModal } from "@/components/exams/AdminExamFormModal";
+import { ExamLifecycleStepper } from "@/components/exams/ExamLifecycleStepper";
+import { ExamMarkingProgressCard } from "@/components/exams/ExamMarkingProgressCard";
 import { ExamStatusBadge } from "@/components/exams/ExamStatusBadge";
+import { PermanentDeleteExamDialog } from "@/components/exams/PermanentDeleteExamDialog";
 import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { FormSkeleton } from "@/components/feedback/FormSkeleton";
@@ -15,20 +18,35 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { useExam, useExamAdminActions } from "@/hooks/useExams";
+import {
+  useExam,
+  useExamAdminActions,
+  useExamDeletionImpact,
+} from "@/hooks/useExams";
 import { apiGet, getApiErrorMessage } from "@/lib/api";
-import { examDeleteDialogCopy, examDeleteSuccessMessage } from "@/lib/examDeleteCopy";
+import {
+  examArchiveDialogCopy,
+  examArchiveSuccessMessage,
+  examPermanentDeleteSuccessMessage,
+} from "@/lib/examDeleteCopy";
 import { queryStatus } from "@/lib/queryStatus";
 
 export default function AdminExamDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const id = typeof params.id === "string" ? params.id : "";
-  const examQ = useExam(id);
+  const viewArchived = searchParams.get("archived") === "1";
+
+  const examQ = useExam(id, { includeArchived: viewArchived });
   const actions = useExamAdminActions();
   const [feedback, setFeedback] = useState<{ ok?: string; err?: string }>({});
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const [confirmPermanent, setConfirmPermanent] = useState(false);
+  const [confirmForceClose, setConfirmForceClose] = useState(false);
   const [editOpen, setEditOpen] = useState(searchParams.get("edit") === "1");
+
+  const impactQ = useExamDeletionImpact(id, confirmPermanent);
 
   const yearsQ = useQuery({
     queryKey: ["academic-years"],
@@ -43,6 +61,7 @@ export default function AdminExamDetailPage() {
 
   const status = queryStatus(examQ);
   const exam = examQ.data;
+  const isArchived = Boolean(exam?.isArchived);
 
   const yearLabel = useMemo(() => {
     if (!exam) return "—";
@@ -56,8 +75,8 @@ export default function AdminExamDetailPage() {
   }, [exam, termsQ.data]);
 
   useEffect(() => {
-    if (searchParams.get("edit") === "1" && exam?.status === "draft") setEditOpen(true);
-  }, [searchParams, exam?.status]);
+    if (searchParams.get("edit") === "1" && exam?.status === "draft" && !isArchived) setEditOpen(true);
+  }, [searchParams, exam?.status, isArchived]);
 
   const run = async (label: string, fn: () => Promise<unknown>) => {
     setFeedback({});
@@ -70,8 +89,21 @@ export default function AdminExamDetailPage() {
     }
   };
 
+  const tryClose = async (force: boolean) => {
+    setConfirmForceClose(false);
+    await run(
+      force
+        ? "Exam closed with incomplete subject submissions."
+        : "Exam closed. Teachers can no longer change marks.",
+      () => actions.close.mutateAsync({ id, force }),
+    );
+  };
+
   return (
-    <PageWrapper title={exam?.name ?? "Exam"} description="View and manage this exam">
+    <PageWrapper
+      title={exam?.name ?? "Exam"}
+      description="Plan, open for marking, close when complete, then use results on report cards"
+    >
       <Link href="/admin/exams" className="mb-4 inline-block text-sm font-medium text-brand hover:underline">
         ← All exams
       </Link>
@@ -99,6 +131,12 @@ export default function AdminExamDetailPage() {
       >
         {exam ? (
           <div className="space-y-6">
+            <ExamLifecycleStepper status={exam.status} isArchived={isArchived} />
+
+            {exam.status !== "draft" && exam.markingProgress ? (
+              <ExamMarkingProgressCard progress={exam.markingProgress} status={exam.status} />
+            ) : null}
+
             <Card title="Overview">
               <dl className="grid gap-2 text-sm sm:grid-cols-2">
                 <div>
@@ -118,8 +156,11 @@ export default function AdminExamDetailPage() {
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Status</dt>
-                  <dd>
+                  <dd className="flex flex-wrap items-center gap-2">
                     <ExamStatusBadge status={exam.status} />
+                    {isArchived ? (
+                      <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Archived</span>
+                    ) : null}
                   </dd>
                 </div>
                 <div>
@@ -131,92 +172,138 @@ export default function AdminExamDetailPage() {
                   <dd>{exam.maxScore}</dd>
                 </div>
               </dl>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {exam.status === "draft" ? (
-                  <>
-                    <Button variant="secondary" onClick={() => setEditOpen(true)}>
-                      Edit draft
-                    </Button>
+
+              {!isArchived ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {exam.status === "draft" ? (
+                    <>
+                      <Button variant="secondary" onClick={() => setEditOpen(true)}>
+                        Edit draft
+                      </Button>
+                      <Button
+                        loading={actions.open.isPending}
+                        onClick={() =>
+                          void run(
+                            "Exam is open. Teachers assigned to these subjects can enter and submit marks.",
+                            () => actions.open.mutateAsync(id),
+                          )
+                        }
+                      >
+                        Open for marking
+                      </Button>
+                    </>
+                  ) : null}
+                  {exam.status === "open" ? (
                     <Button
-                      loading={actions.open.isPending}
+                      variant="secondary"
+                      loading={actions.close.isPending}
+                      onClick={() => {
+                        if (exam.markingProgress.pendingSubjects > 0) {
+                          setConfirmForceClose(true);
+                          return;
+                        }
+                        void tryClose(false);
+                      }}
+                    >
+                      Close exam
+                    </Button>
+                  ) : null}
+                  {exam.status === "closed" ? (
+                    <Button
+                      loading={actions.reopen.isPending}
                       onClick={() =>
-                        void run("Exam is now open. Teachers assigned to these subjects can enter marks.", () =>
-                          actions.open.mutateAsync(id),
-                        )
+                        void run("Exam reopened for marking.", () => actions.reopen.mutateAsync(id))
                       }
                     >
-                      Open for marking
+                      Reopen for marking
                     </Button>
-                  </>
-                ) : null}
-                {exam.status === "open" ? (
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    loading={actions.restore.isPending}
+                    onClick={() =>
+                      void run("Exam restored to active lists.", async () => {
+                        await actions.restore.mutateAsync(id);
+                        router.replace(`/admin/exams/${id}`);
+                      })
+                    }
+                  >
+                    Restore exam
+                  </Button>
+                </div>
+              )}
+            </Card>
+
+            {!isArchived ? (
+              <Card title="Subjects & teacher submission">
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Each subject teacher must save marks and submit. Unlock only when corrections are approved.
+                </p>
+                <ul className="divide-y divide-border text-sm">
+                  {exam.subjects.map((s) => (
+                    <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                      <span>
+                        <span className="font-medium">{s.subjectCode}</span> — {s.subjectName}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        {s.isSubmitted ? (
+                          <span className="text-xs text-emerald-700 dark:text-emerald-300">Submitted</span>
+                        ) : (
+                          <span className="text-xs text-amber-700 dark:text-amber-300">Awaiting submission</span>
+                        )}
+                        {s.isSubmitted && exam.status !== "draft" ? (
+                          <Button
+                            variant="secondary"
+                            className="!px-2 !py-1 text-xs"
+                            loading={actions.unlock.isPending}
+                            onClick={() =>
+                              void run(`Marks for ${s.subjectCode} unlocked for editing.`, () =>
+                                actions.unlock.mutateAsync({ examId: id, subjectId: s.subjectId }),
+                              )
+                            }
+                          >
+                            Unlock
+                          </Button>
+                        ) : null}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            ) : null}
+
+            <Card title="Retention">
+              <p className="mb-3 text-sm text-muted-foreground">
+                <strong>Archive</strong> hides the exam from teachers and report pickers while keeping marks for audit.{" "}
+                <strong>Permanent delete</strong> removes the exam and all marks from the database — only for archived
+                exams or unused drafts.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {!isArchived ? (
                   <Button
                     variant="secondary"
-                    loading={actions.close.isPending}
-                    onClick={() =>
-                      void run("Exam closed. Teachers can no longer change marks.", () => actions.close.mutateAsync(id))
-                    }
+                    className="text-amber-800 dark:text-amber-300"
+                    onClick={() => setConfirmArchive(true)}
                   >
-                    Close exam
-                  </Button>
-                ) : null}
-                {exam.status === "closed" ? (
-                  <Button
-                    loading={actions.reopen.isPending}
-                    onClick={() =>
-                      void run("Exam reopened for marking.", () => actions.reopen.mutateAsync(id))
-                    }
-                  >
-                    Reopen for marking
+                    Archive exam
                   </Button>
                 ) : null}
                 <Button
                   variant="secondary"
                   className="text-red-700 dark:text-red-400"
-                  onClick={() => setConfirmDelete(true)}
+                  onClick={() => setConfirmPermanent(true)}
                 >
-                  Delete exam
+                  Permanently delete…
                 </Button>
               </div>
-            </Card>
-
-            <Card title="Subjects">
-              <ul className="divide-y divide-border text-sm">
-                {exam.subjects.map((s) => (
-                  <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                    <span>
-                      <span className="font-medium">{s.subjectCode}</span> — {s.subjectName}
-                    </span>
-                    <span className="flex items-center gap-2">
-                      {s.isSubmitted ? (
-                        <span className="text-xs text-emerald-700 dark:text-emerald-300">Submitted</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Pending</span>
-                      )}
-                      {s.isSubmitted ? (
-                        <Button
-                          variant="secondary"
-                          className="!px-2 !py-1 text-xs"
-                          loading={actions.unlock.isPending}
-                          onClick={() =>
-                            void run(`Marks for ${s.subjectCode} unlocked for editing.`, () =>
-                              actions.unlock.mutateAsync({ examId: id, subjectId: s.subjectId }),
-                            )
-                          }
-                        >
-                          Unlock
-                        </Button>
-                      ) : null}
-                    </span>
-                  </li>
-                ))}
-              </ul>
             </Card>
           </div>
         ) : null}
       </AsyncContent>
 
-      {exam ? (
+      {exam && !isArchived ? (
         <AdminExamFormModal
           mode="edit"
           open={editOpen}
@@ -231,19 +318,52 @@ export default function AdminExamDetailPage() {
       ) : null}
 
       <ConfirmDialog
-        open={confirmDelete}
-        title={exam ? examDeleteDialogCopy(exam).title : "Delete this exam?"}
-        description={exam ? examDeleteDialogCopy(exam).description : ""}
-        confirmLabel="Delete"
+        open={confirmArchive}
+        title={exam ? examArchiveDialogCopy(exam).title : "Archive this exam?"}
+        description={exam ? examArchiveDialogCopy(exam).description : ""}
+        confirmLabel="Archive"
+        danger
+        loading={actions.archive.isPending}
         onConfirm={() => {
           if (!exam) return;
-          void run(examDeleteSuccessMessage(exam), async () => {
-            await actions.remove.mutateAsync(id);
-            window.location.href = "/admin/exams";
+          void run(examArchiveSuccessMessage(exam), async () => {
+            await actions.archive.mutateAsync(id);
+            router.push("/admin/exams?tab=archived");
           });
-          setConfirmDelete(false);
+          setConfirmArchive(false);
         }}
-        onCancel={() => setConfirmDelete(false)}
+        onCancel={() => setConfirmArchive(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmForceClose}
+        title="Close with pending subjects?"
+        description={
+          exam
+            ? `${exam.markingProgress.pendingSubjects} subject(s) have not been submitted yet. Close anyway only if leadership accepts incomplete results.`
+            : ""
+        }
+        confirmLabel="Force close"
+        danger
+        loading={actions.close.isPending}
+        onConfirm={() => void tryClose(true)}
+        onCancel={() => setConfirmForceClose(false)}
+      />
+
+      <PermanentDeleteExamDialog
+        open={confirmPermanent}
+        impact={impactQ.data ?? null}
+        loading={actions.permanentDelete.isPending || impactQ.isLoading}
+        onCancel={() => setConfirmPermanent(false)}
+        onConfirm={(confirmName) => {
+          if (!impactQ.data) return;
+          const impact = impactQ.data;
+          void run(examPermanentDeleteSuccessMessage(impact), async () => {
+            await actions.permanentDelete.mutateAsync({ id, confirmName });
+            router.push("/admin/exams");
+          });
+          setConfirmPermanent(false);
+        }}
       />
     </PageWrapper>
   );

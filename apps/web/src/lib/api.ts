@@ -198,8 +198,8 @@ export async function apiPut<T>(url: string, body?: unknown): Promise<T> {
   return parseEnvelope(() => api.put<ApiEnvelope<T>>(url, body));
 }
 
-export async function apiDelete<T>(url: string): Promise<T> {
-  return parseEnvelope(() => api.delete<ApiEnvelope<T>>(url));
+export async function apiDelete<T>(url: string, body?: unknown): Promise<T> {
+  return parseEnvelope(() => api.delete<ApiEnvelope<T>>(url, body != null ? { data: body } : undefined));
 }
 
 export async function apiUpload<T>(url: string, formData: FormData): Promise<T> {

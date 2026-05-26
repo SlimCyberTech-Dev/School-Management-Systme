@@ -1,19 +1,27 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateExamInput, ExamSummary, UpdateExamInput } from "@uganda-cbc-sms/shared";
+import type {
+  CreateExamInput,
+  ExamDeletionImpact,
+  ExamMarkingProgress,
+  ExamSummary,
+  UpdateExamInput,
+} from "@uganda-cbc-sms/shared";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 
-const toQuery = (filters: Record<string, string | undefined>) => {
+const toQuery = (filters: Record<string, string | boolean | undefined>) => {
   const qp = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => {
-    if (v) qp.set(k, v);
+    if (v === true) qp.set(k, "true");
+    else if (typeof v === "string" && v) qp.set(k, v);
   });
   const s = qp.toString();
   return s ? `?${s}` : "";
 };
 
 export type ExamDetail = ExamSummary & {
+  markingProgress: ExamMarkingProgress;
   subjects: Array<{
     id: string;
     subjectId: string;
@@ -51,6 +59,7 @@ export function useExamsList(filters: {
   termId?: string;
   classId?: string;
   status?: string;
+  archivedOnly?: boolean;
 }) {
   return useQuery({
     queryKey: ["exams", filters],
@@ -87,11 +96,22 @@ export function useOpenExams() {
   });
 }
 
-export function useExam(id: string | undefined) {
+export function useExam(id: string | undefined, options?: { includeArchived?: boolean }) {
   return useQuery({
-    queryKey: ["exams", id],
-    queryFn: () => apiGet<ExamDetail>(`/exams/${id}`),
+    queryKey: ["exams", id, options?.includeArchived ? "archived" : "active"],
+    queryFn: () =>
+      apiGet<ExamDetail>(
+        `/exams/${id}${options?.includeArchived ? "?includeArchived=true" : ""}`,
+      ),
     enabled: Boolean(id),
+  });
+}
+
+export function useExamDeletionImpact(examId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ["exams", examId, "deletion-impact"],
+    queryFn: () => apiGet<ExamDeletionImpact>(`/exams/${examId}/deletion-impact`),
+    enabled: Boolean(examId) && enabled,
   });
 }
 
@@ -130,8 +150,20 @@ export function useExamAdminActions() {
       apiPatch<ExamDetail>(`/exams/${id}`, body),
     onSuccess: () => void invalidate(),
   });
-  const remove = useMutation({
-    mutationFn: (id: string) => apiDelete<{ deleted: boolean }>(`/exams/${id}`),
+  const archive = useMutation({
+    mutationFn: (id: string) => apiDelete<{ archived: boolean }>(`/exams/${id}`),
+    onSuccess: () => void invalidate(),
+  });
+  const restore = useMutation({
+    mutationFn: (id: string) => apiPost<ExamDetail>(`/exams/${id}/restore`),
+    onSuccess: () => void invalidate(),
+  });
+  const permanentDelete = useMutation({
+    mutationFn: ({ id, confirmName }: { id: string; confirmName: string }) =>
+      apiDelete<{ deleted: boolean; marksRemoved: number; linkedReportsUnchanged: number }>(
+        `/exams/${id}/permanent`,
+        { confirmName },
+      ),
     onSuccess: () => void invalidate(),
   });
   const open = useMutation({
@@ -139,7 +171,8 @@ export function useExamAdminActions() {
     onSuccess: () => void invalidate(),
   });
   const close = useMutation({
-    mutationFn: (id: string) => apiPost<ExamDetail>(`/exams/${id}/close`),
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) =>
+      apiPost<ExamDetail>(`/exams/${id}/close${force ? "?force=true" : ""}`),
     onSuccess: () => void invalidate(),
   });
   const reopen = useMutation({
@@ -152,7 +185,7 @@ export function useExamAdminActions() {
     onSuccess: () => void invalidate(),
   });
 
-  return { create, update, remove, open, close, reopen, unlock, invalidate };
+  return { create, update, archive, restore, permanentDelete, open, close, reopen, unlock, invalidate };
 }
 
 export function useExamMarkActions(examId: string) {

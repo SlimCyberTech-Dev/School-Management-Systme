@@ -20,6 +20,7 @@ type ExamRow = {
   opened_at: Date | null;
   closed_at: Date | null;
   created_at: Date;
+  deleted_at?: Date | null;
   class_name?: string;
   class_stream?: string | null;
   class_level?: string;
@@ -30,6 +31,7 @@ function mapExam(row: ExamRow) {
   return {
     id: row.id,
     name: row.name,
+    isArchived: row.deleted_at != null,
     academicYearId: row.academic_year_id,
     termId: row.term_id,
     classId: row.class_id,
@@ -47,17 +49,66 @@ function mapExam(row: ExamRow) {
   };
 }
 
-async function getExamRow(id: string) {
-  const { rows } = await query<ExamRow>(
+async function getExamRow(id: string, options?: { includeArchived?: boolean }) {
+  const archivedClause = options?.includeArchived ? "" : " AND e.deleted_at IS NULL";
+  const { rows } = await query<ExamRow & { deleted_at: Date | null }>(
     `SELECT e.*, c.name AS class_name, c.stream AS class_stream, c.level AS class_level,
             (SELECT COUNT(*)::text FROM exam_subjects es WHERE es.exam_id = e.id) AS subject_count
      FROM exams e
      JOIN classes c ON c.id = e.class_id
-     WHERE e.id = $1 AND e.deleted_at IS NULL`,
+     WHERE e.id = $1${archivedClause}`,
     [id],
   );
   if (rows.length === 0) throw new HttpError(404, "We could not find that exam. It may have been removed.");
   return rows[0]!;
+}
+
+async function getExamMarkingProgress(examId: string, classId: string) {
+  const [{ rows: sub }, { rows: st }, { rows: marks }] = await Promise.all([
+    query<{ total: number; submitted: number }>(
+      `SELECT
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (WHERE COALESCE(ess.is_submitted, false))::int AS submitted
+       FROM exam_subjects es
+       LEFT JOIN exam_subject_submissions ess
+         ON ess.exam_id = es.exam_id AND ess.subject_id = es.subject_id
+       WHERE es.exam_id = $1`,
+      [examId],
+    ),
+    query<{ c: number }>(
+      `SELECT COUNT(*)::int AS c FROM students WHERE class_id = $1 AND status = 'active'`,
+      [classId],
+    ),
+    query<{ c: number }>(
+      `SELECT COUNT(*)::int AS c FROM exam_marks WHERE exam_id = $1`,
+      [examId],
+    ),
+  ]);
+  const totalSubjects = sub[0]?.total ?? 0;
+  const submittedSubjects = sub[0]?.submitted ?? 0;
+  return {
+    totalSubjects,
+    submittedSubjects,
+    pendingSubjects: Math.max(0, totalSubjects - submittedSubjects),
+    activeStudents: st[0]?.c ?? 0,
+    marksEntered: marks[0]?.c ?? 0,
+  };
+}
+
+async function countLinkedReports(examId: string): Promise<number> {
+  const { rows } = await query<{ c: number }>(
+    `SELECT (
+       (SELECT COUNT(*)::int FROM cbc_report_cards
+        WHERE payload->>'sourceExamId' = $1
+           OR payload->'formalExam'->>'examId' = $1)
+       +
+       (SELECT COUNT(*)::int FROM alevel_results
+        WHERE payload->>'sourceExamId' = $1
+           OR payload->'formalExam'->>'examId' = $1)
+     ) AS c`,
+    [examId],
+  );
+  return rows[0]?.c ?? 0;
 }
 
 async function assertSubjectsBelongToClass(classId: string, academicYearId: string, subjectIds: string[]) {
@@ -150,17 +201,85 @@ export async function updateExam(id: string, input: UpdateExamInput) {
   return getExamById(id);
 }
 
-export async function deleteExam(id: string, deletedBy?: string) {
+/** Soft-delete: hides exam from lists; marks remain for audit. */
+export async function archiveExam(id: string, archivedBy?: string) {
   await getExamRow(id);
   const { rowCount } = await query(
     `UPDATE exams
      SET deleted_at = NOW(), deleted_by = $2, updated_at = NOW()
      WHERE id = $1 AND deleted_at IS NULL`,
-    [id, deletedBy ?? null],
+    [id, archivedBy ?? null],
   );
   if (!rowCount) {
     throw new HttpError(404, "We could not find that exam. It may have been removed.");
   }
+}
+
+/** @deprecated alias — use archiveExam */
+export const deleteExam = archiveExam;
+
+export async function restoreExam(id: string) {
+  const row = await getExamRow(id, { includeArchived: true });
+  if (!row.deleted_at) {
+    throw new HttpError(400, "This exam is already active and not archived.");
+  }
+  const { rowCount } = await query(
+    `UPDATE exams SET deleted_at = NULL, deleted_by = NULL, updated_at = NOW() WHERE id = $1`,
+    [id],
+  );
+  if (!rowCount) throw new HttpError(404, "We could not find that exam.");
+}
+
+export async function getExamDeletionImpact(id: string) {
+  const row = await getExamRow(id, { includeArchived: true });
+  const marksCount = (
+    await query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM exam_marks WHERE exam_id = $1`, [id])
+  ).rows[0]?.c ?? 0;
+  const linkedReportCount = await countLinkedReports(id);
+  const isArchived = Boolean(row.deleted_at);
+
+  let canPermanentDelete = true;
+  let blockReason: string | null = null;
+
+  if (!isArchived) {
+    if (row.status !== "draft") {
+      canPermanentDelete = false;
+      blockReason =
+        "Archive this exam first. Permanent deletion applies to archived exams or unused drafts only.";
+    } else if (marksCount > 0) {
+      canPermanentDelete = false;
+      blockReason = "This draft has saved marks. Archive it first, then permanently delete from the archive.";
+    }
+  }
+
+  return {
+    examName: row.name,
+    status: row.status as "draft" | "open" | "closed",
+    isArchived,
+    marksCount,
+    linkedReportCount,
+    canPermanentDelete,
+    blockReason,
+  };
+}
+
+export async function permanentDeleteExam(id: string, confirmName: string) {
+  const impact = await getExamDeletionImpact(id);
+  if (!impact.canPermanentDelete) {
+    throw new HttpError(400, impact.blockReason ?? "This exam cannot be permanently deleted.");
+  }
+  if (impact.examName.trim() !== confirmName.trim()) {
+    throw new HttpError(400, "The confirmation name does not match this exam. Type the exact exam name.");
+  }
+
+  const { rowCount } = await query(`DELETE FROM exams WHERE id = $1`, [id]);
+  if (!rowCount) throw new HttpError(404, "We could not find that exam.");
+
+  return {
+    deleted: true,
+    marksRemoved: impact.marksCount,
+    linkedReportsUnchanged: impact.linkedReportCount,
+  };
 }
 
 export async function openExam(id: string) {
@@ -178,11 +297,20 @@ export async function openExam(id: string) {
   return getExamById(id);
 }
 
-export async function closeExam(id: string) {
+export async function closeExam(id: string, options?: { force?: boolean }) {
   const exam = await getExamRow(id);
   if (exam.status !== "open") {
     throw new HttpError(400, "Only open exams can be closed. Open the exam first so teachers can enter marks.");
   }
+
+  const progress = await getExamMarkingProgress(id, exam.class_id);
+  if (progress.pendingSubjects > 0 && !options?.force) {
+    throw new HttpError(
+      400,
+      `${progress.pendingSubjects} subject(s) still have unsubmitted marks. Ensure all teachers submit, or force-close if you accept incomplete results.`,
+    );
+  }
+
   await query(
     `UPDATE exams SET status = 'closed', closed_at = NOW(), updated_at = NOW() WHERE id = $1`,
     [id],
@@ -207,10 +335,18 @@ export async function listExams(filters: {
   termId?: string;
   classId?: string;
   status?: string;
+  includeArchived?: boolean;
+  archivedOnly?: boolean;
 }) {
-  const where: string[] = ["e.deleted_at IS NULL"];
+  const where: string[] = [];
   const values: unknown[] = [];
   let i = 1;
+
+  if (filters.archivedOnly) {
+    where.push("e.deleted_at IS NOT NULL");
+  } else if (!filters.includeArchived) {
+    where.push("e.deleted_at IS NULL");
+  }
   if (filters.academicYearId) {
     where.push(`e.academic_year_id = $${i++}`);
     values.push(filters.academicYearId);
@@ -240,8 +376,10 @@ export async function listExams(filters: {
   return rows.map(mapExam);
 }
 
-export async function getExamById(id: string) {
-  const exam = mapExam(await getExamRow(id));
+export async function getExamById(id: string, options?: { includeArchived?: boolean }) {
+  const row = await getExamRow(id, options);
+  const exam = mapExam(row);
+  const markingProgress = await getExamMarkingProgress(id, row.class_id);
   const { rows: subjects } = await query<{
     id: string;
     subject_id: string;
@@ -261,6 +399,7 @@ export async function getExamById(id: string) {
   );
   return {
     ...exam,
+    markingProgress,
     subjects: subjects.map((s) => ({
       id: s.id,
       subjectId: s.subject_id,
@@ -447,8 +586,15 @@ export async function listTeacherSubjectsForExam(examId: string, teacherId: stri
   return allowed;
 }
 
-export async function getExamForTeacher(examId: string, teacherId: string, role: string) {
-  const exam = await getExamById(examId);
+export async function getExamForTeacher(
+  examId: string,
+  teacherId: string,
+  role: string,
+  options?: { includeArchived?: boolean },
+) {
+  const allowArchived =
+    options?.includeArchived && (role === "admin" || role === "headteacher");
+  const exam = await getExamById(examId, allowArchived ? { includeArchived: true } : undefined);
   if (role === "admin" || role === "headteacher") return exam;
   const subjects = await listTeacherSubjectsForExam(examId, teacherId, role);
   return { ...exam, subjects };

@@ -37,6 +37,11 @@ export const examMarksSubmitSchema = z.object({
   subjectId: z.string().uuid("Please select a subject"),
 });
 
+/** Permanent removal — admin must type the exact exam name. */
+export const permanentDeleteExamSchema = z.object({
+  confirmName: z.string().min(1, "Type the exam name exactly as shown to confirm permanent deletion"),
+});
+
 export type CreateExamInput = z.infer<typeof createExamSchema>;
 export type UpdateExamInput = z.infer<typeof updateExamSchema>;
 export type ExamMarksBulkInput = z.infer<typeof examMarksBulkSchema>;

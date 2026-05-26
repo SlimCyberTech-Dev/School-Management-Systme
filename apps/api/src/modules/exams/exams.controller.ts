@@ -3,6 +3,7 @@ import {
   createExamSchema,
   examMarksBulkSchema,
   examMarksSubmitSchema,
+  permanentDeleteExamSchema,
   updateExamSchema,
 } from "@uganda-cbc-sms/shared";
 import { HttpError } from "../../utils/httpError";
@@ -14,6 +15,8 @@ export async function listExams(req: Request, res: Response) {
     termId: req.query.termId as string | undefined,
     classId: req.query.classId as string | undefined,
     status: req.query.status as string | undefined,
+    includeArchived: req.query.includeArchived === "true",
+    archivedOnly: req.query.archivedOnly === "true",
   });
   res.json({ success: true, data });
 }
@@ -32,7 +35,10 @@ export async function listMarkingSlots(req: Request, res: Response) {
 
 export async function getExam(req: Request, res: Response) {
   if (!req.user) throw new HttpError(401, "Please sign in to continue.");
-  const data = await svc.getExamForTeacher(req.params.id!, req.user.id, req.user.role);
+  const includeArchived = req.query.includeArchived === "true";
+  const data = await svc.getExamForTeacher(req.params.id!, req.user.id, req.user.role, {
+    includeArchived,
+  });
   res.json({ success: true, data });
 }
 
@@ -49,9 +55,30 @@ export async function updateExam(req: Request, res: Response) {
   res.json({ success: true, data });
 }
 
-export async function deleteExam(req: Request, res: Response) {
-  await svc.deleteExam(req.params.id!, req.user?.id);
-  res.json({ success: true, data: { deleted: true } });
+export async function archiveExam(req: Request, res: Response) {
+  await svc.archiveExam(req.params.id!, req.user?.id);
+  res.json({ success: true, data: { archived: true }, message: "Exam archived." });
+}
+
+export async function restoreExam(req: Request, res: Response) {
+  await svc.restoreExam(req.params.id!);
+  const data = await svc.getExamById(req.params.id!);
+  res.json({ success: true, data, message: "Exam restored to active lists." });
+}
+
+export async function getExamDeletionImpact(req: Request, res: Response) {
+  const data = await svc.getExamDeletionImpact(req.params.id!);
+  res.json({ success: true, data });
+}
+
+export async function permanentDeleteExam(req: Request, res: Response) {
+  const { confirmName } = permanentDeleteExamSchema.parse(req.body);
+  const data = await svc.permanentDeleteExam(req.params.id!, confirmName);
+  res.json({
+    success: true,
+    data,
+    message: "Exam and all related marks were permanently removed.",
+  });
 }
 
 export async function openExam(req: Request, res: Response) {
@@ -60,7 +87,8 @@ export async function openExam(req: Request, res: Response) {
 }
 
 export async function closeExam(req: Request, res: Response) {
-  const data = await svc.closeExam(req.params.id!);
+  const force = req.query.force === "true";
+  const data = await svc.closeExam(req.params.id!, { force });
   res.json({ success: true, data });
 }
 

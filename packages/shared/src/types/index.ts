@@ -33,6 +33,7 @@ export interface ExamSummary {
   createdAt?: string;
   openedAt?: string | null;
   closedAt?: string | null;
+  isArchived?: boolean;
 }
 
 export interface ExamSubject {
@@ -41,6 +42,24 @@ export interface ExamSubject {
   subjectName: string;
   subjectCode: string;
   isSubmitted?: boolean;
+}
+
+export interface ExamMarkingProgress {
+  totalSubjects: number;
+  submittedSubjects: number;
+  pendingSubjects: number;
+  activeStudents: number;
+  marksEntered: number;
+}
+
+export interface ExamDeletionImpact {
+  examName: string;
+  status: ExamStatus;
+  isArchived: boolean;
+  marksCount: number;
+  linkedReportCount: number;
+  canPermanentDelete: boolean;
+  blockReason?: string | null;
 }
 
 export interface Student {

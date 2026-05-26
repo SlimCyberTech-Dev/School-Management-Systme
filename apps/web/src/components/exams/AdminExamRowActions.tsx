@@ -7,22 +7,34 @@ import { Button } from "@/components/ui/Button";
 type Props = {
   exam: ExamSummary;
   onEdit: (exam: ExamSummary) => void;
-  onDelete: (exam: ExamSummary) => void;
+  onArchive: (exam: ExamSummary) => void;
   onOpen: (exam: ExamSummary) => void;
   onClose: (exam: ExamSummary) => void;
   onReopen: (exam: ExamSummary) => void;
   busy?: boolean;
+  archivedView?: boolean;
 };
 
 export function AdminExamRowActions({
   exam,
   onEdit,
-  onDelete,
+  onArchive,
   onOpen,
   onClose,
   onReopen,
   busy,
+  archivedView,
 }: Props) {
+  if (archivedView || exam.isArchived) {
+    return (
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Link className="text-sm font-medium text-brand underline" href={`/admin/exams/${exam.id}?archived=1`}>
+          View archive
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       <Link className="text-sm font-medium text-brand underline" href={`/admin/exams/${exam.id}`}>
@@ -51,11 +63,11 @@ export function AdminExamRowActions({
       <Button
         type="button"
         variant="secondary"
-        className="!px-2 !py-1 text-xs text-red-700 dark:text-red-400"
+        className="!px-2 !py-1 text-xs text-amber-800 dark:text-amber-300"
         disabled={busy}
-        onClick={() => onDelete(exam)}
+        onClick={() => onArchive(exam)}
       >
-        Delete
+        Archive
       </Button>
     </div>
   );

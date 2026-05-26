@@ -35,6 +35,7 @@ type Props = {
   defaultClassId?: string;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
+  onCreated?: (exam: ExamDetail) => void;
 };
 
 export function AdminExamFormModal({
@@ -47,6 +48,7 @@ export function AdminExamFormModal({
   defaultClassId = "",
   onSuccess,
   onError,
+  onCreated,
 }: Props) {
   const actions = useExamAdminActions();
   const isCreate = mode === "create";
@@ -185,7 +187,8 @@ export function AdminExamFormModal({
   const onCreate = async (v: CreateForm) => {
     try {
       const created = await actions.create.mutateAsync(v);
-      onSuccess(`"${created.name}" was created as a draft. Open it when teachers should enter marks.`);
+      onSuccess(`"${created.name}" was created as a draft.`);
+      onCreated?.(created);
       onClose();
     } catch (e) {
       onError(getApiErrorMessage(e));
