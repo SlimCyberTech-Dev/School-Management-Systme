@@ -680,6 +680,93 @@ export async function getTeacherAssignmentCount(teacherId: string, academicYearI
   return Number(row?.count ?? 0);
 }
 
+export type TeacherWorkloadSummaryRow = {
+  teacherId: string;
+  teacherName: string;
+  role: string;
+  assignmentCount: number;
+};
+
+export type TeachersWorkloadSummary = {
+  teachers: TeacherWorkloadSummaryRow[];
+  totalSlots: number;
+  assignedSlots: number;
+  unassignedSlots: number;
+  averageAssignments: number;
+  maxAssignments: number;
+};
+
+export async function getTeachersWorkloadSummary(
+  academicYearId: string,
+  classId?: string,
+): Promise<TeachersWorkloadSummary> {
+  const classFilter = classId ?? null;
+
+  const { rows: slotRows } = await query<{
+    total: number;
+    assigned: number;
+    unassigned: number;
+  }>(
+    `SELECT
+       COUNT(*)::int AS total,
+       COUNT(*) FILTER (WHERE teacher_id IS NOT NULL)::int AS assigned,
+       COUNT(*) FILTER (WHERE teacher_id IS NULL)::int AS unassigned
+     FROM class_subjects
+     WHERE academic_year_id = $1
+       AND ($2::uuid IS NULL OR class_id = $2::uuid)`,
+    [academicYearId, classFilter],
+  );
+  const slots = slotRows[0] ?? { total: 0, assigned: 0, unassigned: 0 };
+
+  const { rows } = await query<{
+    teacher_id: string;
+    teacher_name: string;
+    role: string;
+    assignment_count: number;
+  }>(
+    `SELECT
+       u.id AS teacher_id,
+       u.full_name AS teacher_name,
+       u.role,
+       COUNT(cs.id)::int AS assignment_count
+     FROM users u
+     LEFT JOIN class_subjects cs
+       ON cs.teacher_id = u.id
+      AND cs.academic_year_id = $1
+      AND ($2::uuid IS NULL OR cs.class_id = $2::uuid)
+     WHERE u.deleted_at IS NULL
+       AND u.is_active = true
+       AND u.role = ANY($3::text[])
+     GROUP BY u.id, u.full_name, u.role
+     ORDER BY assignment_count DESC, u.full_name`,
+    [academicYearId, classFilter, TEACHING_STAFF_ROLES],
+  );
+
+  const teachers = rows.map((r) => ({
+    teacherId: r.teacher_id,
+    teacherName: r.teacher_name,
+    role: r.role,
+    assignmentCount: r.assignment_count,
+  }));
+
+  const withAssignments = teachers.filter((t) => t.assignmentCount > 0);
+  const sum = withAssignments.reduce((s, t) => s + t.assignmentCount, 0);
+  const averageAssignments =
+    withAssignments.length > 0
+      ? Math.round((sum / withAssignments.length) * 10) / 10
+      : 0;
+  const maxAssignments = teachers.reduce((m, t) => Math.max(m, t.assignmentCount), 0);
+
+  return {
+    teachers,
+    totalSlots: slots.total,
+    assignedSlots: slots.assigned,
+    unassignedSlots: slots.unassigned,
+    averageAssignments,
+    maxAssignments,
+  };
+}
+
 export type UnassignedClassSubjectRow = {
   id: string;
   className: string;

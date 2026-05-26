@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { AcademicYear, SchoolClass } from "@uganda-cbc-sms/shared";
+import {
+  TeacherWorkloadChart,
+  type TeacherWorkloadSummary,
+} from "@/components/academic/TeacherWorkloadChart";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -53,6 +57,8 @@ export default function AdminTeacherAssignmentsPage() {
   const [busyRemoveId, setBusyRemoveId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+  const [workloadSummary, setWorkloadSummary] = useState<TeacherWorkloadSummary | null>(null);
+  const [workloadLoading, setWorkloadLoading] = useState(true);
 
   const classFilterOptions = useMemo(
     () => [
@@ -96,6 +102,17 @@ export default function AdminTeacherAssignmentsPage() {
     setAssignments(rows);
   };
 
+  const loadWorkloadSummaryWith = async (yId: string, classId?: string) => {
+    if (!yId) {
+      setWorkloadSummary(null);
+      return;
+    }
+    const q = new URLSearchParams({ academicYearId: yId });
+    if (classId) q.set("classId", classId);
+    const data = await apiGet<TeacherWorkloadSummary>(`/academic/workload-summary?${q.toString()}`);
+    setWorkloadSummary(data);
+  };
+
   const loadUnassignedWith = async (yId: string, tId?: string, classId?: string) => {
     if (!yId) {
       setUnassigned([]);
@@ -113,16 +130,19 @@ export default function AdminTeacherAssignmentsPage() {
 
   const load = async () => {
     setErr(null);
+    setWorkloadLoading(true);
     try {
       const { yearId, teacherIdResolved } = await loadLookups();
       await Promise.all([
         loadTeacherDataWith(yearId, teacherIdResolved),
         loadUnassignedWith(yearId, teacherIdResolved, classFilterId || undefined),
+        loadWorkloadSummaryWith(yearId, classFilterId || undefined),
       ]);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setLoading(false);
+      setWorkloadLoading(false);
     }
   };
 
@@ -134,14 +154,19 @@ export default function AdminTeacherAssignmentsPage() {
 
   const refreshForYearChange = async (yearId: string) => {
     setSectionBusy(true);
+    setWorkloadLoading(true);
     setErr(null);
     try {
-      await loadUnassignedWith(yearId, teacherId || undefined, classFilterId || undefined);
-      await loadTeacherDataWith(yearId, teacherId);
+      await Promise.all([
+        loadUnassignedWith(yearId, teacherId || undefined, classFilterId || undefined),
+        loadTeacherDataWith(yearId, teacherId),
+        loadWorkloadSummaryWith(yearId, classFilterId || undefined),
+      ]);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to refresh data");
     } finally {
       setSectionBusy(false);
+      setWorkloadLoading(false);
     }
   };
 
@@ -164,16 +189,19 @@ export default function AdminTeacherAssignmentsPage() {
   const refreshForClassFilter = async (classId: string) => {
     if (!academicYearId) return;
     setSectionBusy(true);
+    setWorkloadLoading(true);
     setErr(null);
     try {
       await Promise.all([
         loadTeacherDataWith(academicYearId, teacherId),
         loadUnassignedWith(academicYearId, teacherId || undefined, classId || undefined),
+        loadWorkloadSummaryWith(academicYearId, classId || undefined),
       ]);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to refresh slots");
     } finally {
       setSectionBusy(false);
+      setWorkloadLoading(false);
     }
   };
 
@@ -181,7 +209,13 @@ export default function AdminTeacherAssignmentsPage() {
     await Promise.all([
       loadTeacherDataWith(academicYearId, teacherId),
       loadUnassignedWith(academicYearId, teacherId || undefined, classFilterId || undefined),
+      loadWorkloadSummaryWith(academicYearId, classFilterId || undefined),
     ]);
+  };
+
+  const onChartSelectTeacher = (tId: string) => {
+    setTeacherId(tId);
+    void refreshForTeacherChange(tId);
   };
 
   const onRemoveAssignment = async (classSubjectId: string) => {
@@ -344,6 +378,15 @@ export default function AdminTeacherAssignmentsPage() {
             }}
           />
         </div>
+      </Card>
+
+      <Card title="Workload overview">
+        <TeacherWorkloadChart
+          summary={workloadSummary}
+          selectedTeacherId={teacherId || undefined}
+          onSelectTeacher={onChartSelectTeacher}
+          loading={workloadLoading || loading}
+        />
       </Card>
 
       <Card title="Current assignments">

@@ -7,11 +7,13 @@ export function ChartPanel({
   subtitle,
   children,
   empty,
+  chartHeight = 280,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   empty?: boolean;
+  chartHeight?: number;
 }) {
   return (
     <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -22,7 +24,9 @@ export function ChartPanel({
       {empty ? (
         <p className="py-12 text-center text-sm text-muted-foreground">No data for the selected filters</p>
       ) : (
-        <div className="h-[280px] w-full">{children}</div>
+        <div className="w-full" style={{ height: chartHeight }}>
+          {children}
+        </div>
       )}
     </div>
   );

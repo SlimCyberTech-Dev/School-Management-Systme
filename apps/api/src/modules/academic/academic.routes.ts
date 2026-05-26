@@ -41,6 +41,7 @@ academicRouter.put(
 );
 academicRouter.get("/teaching-staff", teachingReaders, asyncHandler(c.getTeachingStaff));
 academicRouter.get("/teaching-staff/eligible", teachingReaders, asyncHandler(c.getEligibleTeachers));
+academicRouter.get("/workload-summary", teachingReaders, asyncHandler(c.getTeachersWorkloadSummary));
 academicRouter.get("/teachers/:teacherId/specializations", teachingReaders, asyncHandler(c.getTeacherSpecializations));
 academicRouter.put("/teachers/:teacherId/specializations", academicLeads, asyncHandler(c.putTeacherSpecializations));
 academicRouter.get("/teachers/:teacherId/assignments", teachingReaders, asyncHandler(c.getTeacherWorkload));

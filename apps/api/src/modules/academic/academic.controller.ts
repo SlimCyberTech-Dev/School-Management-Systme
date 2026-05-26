@@ -216,6 +216,22 @@ export async function postBulkAssignTeacher(req: Request, res: Response): Promis
   });
 }
 
+export async function getTeachersWorkloadSummary(req: Request, res: Response): Promise<void> {
+  const queryParams = teacherAssignmentsQuerySchema.parse(req.query) as {
+    academicYearId: string;
+    classId?: string;
+  };
+  const data = await svc.getTeachersWorkloadSummary(
+    queryParams.academicYearId,
+    queryParams.classId,
+  );
+  res.json({
+    success: true,
+    data,
+    message: "Teacher workload summary loaded.",
+  });
+}
+
 export async function getTeacherWorkload(req: Request, res: Response): Promise<void> {
   const queryParams = teacherAssignmentsQuerySchema.parse(req.query) as { academicYearId: string };
   const teacherId = req.params["teacherId"]!;
