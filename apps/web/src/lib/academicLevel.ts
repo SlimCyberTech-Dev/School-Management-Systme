@@ -13,7 +13,9 @@ export function levelShortLabel(level: AcademicLevel | string): string {
 }
 
 export function parseAcademicLevel(raw: string | null | undefined): AcademicLevel {
-  return raw === "A_LEVEL" ? "A_LEVEL" : "O_LEVEL";
+  const normalized = (raw ?? "").trim().toUpperCase().replace(/-/g, "_");
+  if (normalized === "A_LEVEL" || normalized === "ALEVEL") return "A_LEVEL";
+  return "O_LEVEL";
 }
 
 export function filterClassesByLevel(classes: SchoolClass[], level: AcademicLevel, yearId?: string) {

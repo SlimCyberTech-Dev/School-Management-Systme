@@ -7,7 +7,7 @@ export default function SubjectTeacherExamsPage() {
   return (
     <PageWrapper
       title="Open exams"
-      description="Formal exam marking for your assigned class–subject papers."
+      description="Formal exam papers you teach — O-Level and A-Level each use their own grading scale."
     >
       <TeacherExamsPageContent roleBase="/subject-teacher" />
     </PageWrapper>

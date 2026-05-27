@@ -75,7 +75,7 @@ export async function getExamDeletionImpact(req: Request, res: Response) {
 
 export async function permanentDeleteExam(req: Request, res: Response) {
   const { confirmName } = permanentDeleteExamSchema.parse(req.body);
-  const data = await svc.permanentDeleteExam(req.params.id!, confirmName);
+  const data = await svc.permanentDeleteExam(req.params.id!, confirmName, req.user?.id);
   res.json({
     success: true,
     data,

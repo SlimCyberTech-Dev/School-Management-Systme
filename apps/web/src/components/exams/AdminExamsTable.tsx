@@ -6,6 +6,7 @@ import { AdminExamRowActions } from "@/components/exams/AdminExamRowActions";
 import { ExamStatusBadge } from "@/components/exams/ExamStatusBadge";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { Badge } from "@/components/ui/Badge";
+import { levelShortLabel, parseAcademicLevel } from "@/lib/academicLevel";
 import { formatDisplayDate } from "@/lib/dates";
 
 function classLabel(exam: ExamSummary): string {
@@ -53,6 +54,9 @@ export function AdminExamsTable({
             <th className="hidden px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground md:table-cell">
               Class
             </th>
+            <th className="hidden px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">
+              Level
+            </th>
             <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Date
             </th>
@@ -94,6 +98,15 @@ export function AdminExamsTable({
               </td>
               <td className="hidden px-4 py-3 align-middle text-muted-foreground md:table-cell">
                 {classLabel(exam)}
+              </td>
+              <td className="hidden px-4 py-3 align-middle lg:table-cell">
+                {exam.classLevel ? (
+                  <Badge tone={parseAcademicLevel(exam.classLevel) === "A_LEVEL" ? "warning" : "neutral"}>
+                    {levelShortLabel(parseAcademicLevel(exam.classLevel))}
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </td>
               <td className="whitespace-nowrap px-4 py-3 align-middle tabular-nums text-muted-foreground">
                 {formatDisplayDate(exam.examDate)}

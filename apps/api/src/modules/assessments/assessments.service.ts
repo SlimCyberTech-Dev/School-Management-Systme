@@ -672,9 +672,22 @@ async function recalcStudentDivision(studentId: string, termId: string, yearId: 
 }
 
 async function logAssessmentAudit(actorId: string, action: string, metadata: Record<string, unknown>) {
-  await query(
-    `INSERT INTO user_audit_logs (user_id, actor_id, action, metadata)
-     VALUES ($1, $1, $2, $3::jsonb)`,
-    [actorId, action, JSON.stringify(metadata)],
-  );
+  const { writeAuditLog } = await import("../audit/audit.service");
+  const messages: Record<string, string> = {
+    assessment_cbc_submitted: "CBC assessment submitted for class",
+    assessment_cbc_unlocked: "CBC assessment unlocked for editing",
+    assessment_alevel_submitted: "A-Level assessment submitted for class",
+  };
+  await writeAuditLog({
+    category: "assessments",
+    severity: "info",
+    outcome: "success",
+    action: action.toUpperCase(),
+    message: messages[action] ?? "Assessment action recorded",
+    actorId,
+    targetUserId: actorId,
+    metadata,
+    resourceType: "class",
+    resourceId: typeof metadata.classId === "string" ? metadata.classId : null,
+  });
 }

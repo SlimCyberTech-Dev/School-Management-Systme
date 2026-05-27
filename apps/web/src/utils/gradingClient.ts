@@ -1,10 +1,21 @@
 import {
   DEFAULT_ASSESSMENT_GRADING_SCALES,
   resolveGradeFromScaleRows,
+  type GradingScaleLevel,
 } from "@uganda-cbc-sms/shared";
 
-export function computeUNEBGrade(score: number): { grade: string; points: number } {
-  const fromDefaults = resolveGradeFromScaleRows(score, DEFAULT_ASSESSMENT_GRADING_SCALES.A_LEVEL);
+type ScaleRow = {
+  grade: string;
+  minScore: number;
+  maxScore: number;
+  points: number;
+  sortOrder?: number;
+  isActive?: boolean;
+};
+
+function hardcodedGrade(score: number, level: GradingScaleLevel): { grade: string; points: number } {
+  const rows = DEFAULT_ASSESSMENT_GRADING_SCALES[level];
+  const fromDefaults = resolveGradeFromScaleRows(score, rows);
   if (fromDefaults) return fromDefaults;
   if (score >= 80) return { grade: "A", points: 1 };
   if (score >= 75) return { grade: "B", points: 2 };
@@ -15,19 +26,32 @@ export function computeUNEBGrade(score: number): { grade: string; points: number
   return { grade: "F", points: 9 };
 }
 
+/** Resolve letter grade and points for a 0–100 score using the correct level scale. */
+export function computeGradeForLevel(
+  score: number,
+  level: GradingScaleLevel,
+  configuredRows?: ScaleRow[],
+): { grade: string; points: number } {
+  if (configuredRows?.length) {
+    const fromConfig = resolveGradeFromScaleRows(score, configuredRows);
+    if (fromConfig) return fromConfig;
+  }
+  return hardcodedGrade(score, level);
+}
+
+/** @deprecated Use computeGradeForLevel(score, "A_LEVEL") */
+export function computeUNEBGrade(score: number): { grade: string; points: number } {
+  return computeGradeForLevel(score, "A_LEVEL");
+}
+
 export function computeGradeFromConfiguredScale(
   score: number,
-  rows: Array<{
-    grade: string;
-    minScore: number;
-    maxScore: number;
-    points: number;
-    sortOrder?: number;
-    isActive?: boolean;
-  }>,
+  rows: ScaleRow[],
+  level: GradingScaleLevel = "A_LEVEL",
 ): { grade: string; points: number } {
-  return resolveGradeFromScaleRows(score, rows) ?? computeUNEBGrade(score);
+  return computeGradeForLevel(score, level, rows);
 }
+
 export function computeDivision(totalPoints: number): string {
   if (totalPoints <= 12) return "I";
   if (totalPoints <= 18) return "II";

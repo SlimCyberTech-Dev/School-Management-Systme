@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { computeGradeFromConfiguredScale, computeUNEBGrade } from "@/utils/gradingClient";
+import { computeGradeForLevel } from "@/utils/gradingClient";
 import type { GradingScaleRow } from "@/hooks/useGradingScales";
+import type { AcademicLevel } from "@/lib/academicLevel";
 
 type StudentRow = {
   id: string;
@@ -17,6 +18,7 @@ type StudentRow = {
 export function ExamScoreGrid({
   students,
   maxScore,
+  level,
   gradingScaleRows,
   readOnly,
   onSave,
@@ -26,10 +28,11 @@ export function ExamScoreGrid({
 }: {
   students: StudentRow[];
   maxScore: number;
+  level: AcademicLevel;
   gradingScaleRows?: GradingScaleRow[];
   readOnly?: boolean;
   onSave: (items: Array<{ studentId: string; score: number }>) => Promise<void>;
-  onSubmit: () => Promise<void>;
+  onSubmit: () => void | Promise<void>;
   saving?: boolean;
   submitting?: boolean;
 }) {
@@ -51,14 +54,10 @@ export function ExamScoreGrid({
         const valid =
           score !== null && !Number.isNaN(score) && score >= 0 && score <= maxScore;
         const out =
-          valid && score !== null
-            ? gradingScaleRows?.length
-              ? computeGradeFromConfiguredScale(score, gradingScaleRows)
-              : computeUNEBGrade(score)
-            : null;
+          valid && score !== null ? computeGradeForLevel(score, level, gradingScaleRows) : null;
         return { ...s, score, valid, out };
       }),
-    [gradingScaleRows, maxScore, scores, students],
+    [gradingScaleRows, level, maxScore, scores, students],
   );
 
   const hasEditable = !readOnly && students.some((s) => !s.isLocked);
@@ -66,7 +65,8 @@ export function ExamScoreGrid({
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Enter scores from 0 to {maxScore}. Grades are calculated automatically from your school&apos;s grading scale.
+        Enter scores from 0 to {maxScore}. Letter grades and points preview use the{" "}
+        {level === "A_LEVEL" ? "A-Level" : "O-Level"} grading scale for this class.
       </p>
       <div className="overflow-x-auto rounded border border-border">
         <table className="min-w-full text-sm">

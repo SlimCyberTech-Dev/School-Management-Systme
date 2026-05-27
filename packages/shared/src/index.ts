@@ -9,3 +9,4 @@ export * from "./schemas/assessment.schema";
 export * from "./schemas/fees.schema";
 export * from "./schemas/exam.schema";
 export * from "./schemas/timetable.schema";
+export * from "./schemas/audit.schema";

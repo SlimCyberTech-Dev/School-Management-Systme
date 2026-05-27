@@ -6,6 +6,7 @@ import morgan from "morgan";
 import path from "path";
 import { errorHandler } from "./middleware/errorHandler";
 import { analyticsRouter } from "./modules/analytics/analytics.routes";
+import { auditRouter } from "./modules/audit/audit.routes";
 import { assessmentsRouter } from "./modules/assessments/assessments.routes";
 import { examsRouter } from "./modules/exams/exams.routes";
 import { attendanceRouter } from "./modules/attendance/attendance.routes";
@@ -46,6 +47,7 @@ app.use("/api/fees", feesRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/timetable", timetableRouter);
 app.use("/api/analytics", analyticsRouter);
+app.use("/api/audit-logs", auditRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ success: false, error: "Not found" });

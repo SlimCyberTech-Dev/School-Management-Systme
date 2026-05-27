@@ -5,8 +5,6 @@ import {
   type GradingScaleLevel,
 } from "@uganda-cbc-sms/shared";
 import { query } from "../config/db";
-import { computeUNEBGrade } from "./grading";
-
 export type GradingScaleBand = {
   grade: string;
   minScore: number;
@@ -58,8 +56,27 @@ export async function resolveConfiguredGrade(
   const bands = await loadActiveGradingBands(level);
   const fromConfig = resolveGradeFromBands(score, bands);
   if (fromConfig) return fromConfig;
-  if (level === "A_LEVEL") return computeUNEBGrade(score);
-  return computeUNEBGrade(score);
+  const fromDefaults = resolveGradeFromBands(
+    score,
+    defaultScaleRows(level).map((r) => ({
+      ...r,
+      sortOrder: r.sortOrder,
+    })),
+  );
+  if (fromDefaults) return fromDefaults;
+  const lastResort = resolveGradeFromBands(
+    score,
+    DEFAULT_ASSESSMENT_GRADING_SCALES[level].map((r) => ({
+      grade: r.grade,
+      minScore: r.minScore,
+      maxScore: r.maxScore,
+      points: r.points,
+      sortOrder: r.sortOrder,
+      isActive: true,
+    })),
+  );
+  if (lastResort) return lastResort;
+  return { grade: "F", points: 9 };
 }
 
 export function defaultScaleRows(level: GradingScaleLevel) {

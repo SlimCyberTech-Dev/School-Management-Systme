@@ -29,6 +29,7 @@ import {
   messageFromUniqueViolation,
   validationClashMessage,
 } from "./timetableClashMessages";
+import { writeAuditLog } from "../audit/audit.service";
 
 const DAY_NAMES = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -859,7 +860,7 @@ export async function publishTemplate(
     );
   }
 
-  return withTransaction(async (client) => {
+  const published = await withTransaction(async (client) => {
     await client.query(
       `UPDATE timetable_templates
        SET status = 'archived', updated_at = NOW()
@@ -902,6 +903,24 @@ export async function publishTemplate(
     const row = await client.query(`SELECT * FROM timetable_templates WHERE id = $1`, [templateId]);
     return mapTemplate(row.rows[0] as TemplateRow);
   });
+
+  void writeAuditLog({
+    category: "timetable",
+    severity: "info",
+    outcome: "success",
+    action: "TIMETABLE_PUBLISHED",
+    message: `Published timetable v${published.version} (${published.name})`,
+    actorId: userId,
+    resourceType: "timetable_template",
+    resourceId: templateId,
+    metadata: {
+      entryCount: published.entryCount,
+      warnings: report.warnings.length,
+      level: published.level,
+    },
+  });
+
+  return published;
 }
 
 export async function cloneTemplate(input: CloneTimetableTemplateInput): Promise<TimetableTemplate> {
@@ -976,7 +995,21 @@ export async function cloneTemplate(input: CloneTimetableTemplateInput): Promise
     await client.query(`UPDATE timetable_templates SET updated_at = NOW() WHERE id = $1`, [targetId]);
   });
 
-  return getTemplate(targetId!);
+  const result = await getTemplate(targetId!);
+  void writeAuditLog({
+    category: "timetable",
+    severity: "info",
+    outcome: "success",
+    action: "TIMETABLE_CLONED",
+    message: `Cloned timetable from template ${input.sourceTemplateId}`,
+    resourceType: "timetable_template",
+    resourceId: targetId!,
+    metadata: {
+      sourceTemplateId: input.sourceTemplateId,
+      copyEntries: input.copyEntries,
+    },
+  });
+  return result;
 }
 
 export async function getPublicationLog(templateId: string): Promise<TimetablePublicationLogEntry[]> {

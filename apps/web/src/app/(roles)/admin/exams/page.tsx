@@ -126,7 +126,7 @@ export default function AdminExamsPage() {
   return (
     <PageWrapper
       title="Exams"
-      description="Formal assessments: plan, open for teacher marking, close when complete, then link to report cards"
+      description="Manage formal exam events (draft → open → closed). Teachers enter marks on their exam pages; term CBC and A-Level scores live under Assessment."
     >
       <div className="space-y-6">
         {feedback.ok ? <Alert tone="success">{feedback.ok}</Alert> : null}

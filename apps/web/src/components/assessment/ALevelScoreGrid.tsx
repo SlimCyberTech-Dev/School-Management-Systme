@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { computeGradeFromConfiguredScale, computeUNEBGrade } from "@/utils/gradingClient";
+import { computeGradeForLevel } from "@/utils/gradingClient";
 import type { GradingScaleRow } from "@/hooks/useGradingScales";
 
 type Student = { id: string; fullName: string; studentNumber: string };
@@ -37,9 +37,7 @@ export function ALevelScoreGrid({
         const valid = score !== null && !Number.isNaN(score) && score >= 0 && score <= 100;
         const out =
           valid && score !== null
-            ? gradingScaleRows?.length
-              ? computeGradeFromConfiguredScale(score, gradingScaleRows)
-              : computeUNEBGrade(score)
+            ? computeGradeForLevel(score, "A_LEVEL", gradingScaleRows)
             : null;
         return { ...s, score, valid, out };
       }),

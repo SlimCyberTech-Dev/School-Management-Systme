@@ -80,6 +80,7 @@ export type ExamMarkingSlot = {
   classId: string;
   className: string;
   classStream: string | null;
+  classLevel: "O_LEVEL" | "A_LEVEL";
   subjectId: string;
   subjectName: string;
   subjectCode: string;

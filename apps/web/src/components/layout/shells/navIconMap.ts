@@ -11,6 +11,7 @@ import {
   Home,
   Receipt,
   School,
+  Shield,
   Users,
 } from "lucide-react";
 import type { NavIconId } from "./types";
@@ -28,4 +29,5 @@ export const NAV_ICON_MAP: Record<NavIconId, LucideIcon> = {
   barChart3: BarChart3,
   school: School,
   receipt: Receipt,
+  shield: Shield,
 };

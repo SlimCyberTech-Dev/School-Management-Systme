@@ -5,6 +5,7 @@ import type {
   UpdateExamInput,
 } from "@uganda-cbc-sms/shared";
 import { query } from "../../config/db";
+import { writeAuditLog } from "../audit/audit.service";
 import { HttpError } from "../../utils/httpError";
 import { resolveConfiguredGrade } from "../../utils/gradingScales";
 import {
@@ -49,7 +50,7 @@ function mapExam(row: ExamRow) {
     classId: row.class_id,
     className: row.class_name,
     classStream: row.class_stream ?? null,
-    classLevel: row.class_level as "O_LEVEL" | "A_LEVEL" | undefined,
+    classLevel: row.class_level ? normalizeClassLevel(row.class_level) : undefined,
     examDate: row.exam_date,
     maxScore: Number(row.max_score),
     status: row.status as "draft" | "open" | "closed",
@@ -142,10 +143,16 @@ async function assertSubjectsBelongToClass(classId: string, academicYearId: stri
   }
 }
 
+function normalizeClassLevel(level: string | null | undefined): "O_LEVEL" | "A_LEVEL" {
+  const normalized = (level ?? "").trim().toUpperCase().replace(/-/g, "_");
+  if (normalized === "A_LEVEL" || normalized === "ALEVEL") return "A_LEVEL";
+  return "O_LEVEL";
+}
+
 async function gradingLevelForClass(classId: string): Promise<"O_LEVEL" | "A_LEVEL"> {
   const { rows } = await query<{ level: string }>(`SELECT level FROM classes WHERE id = $1`, [classId]);
   if (rows.length === 0) return "O_LEVEL";
-  return rows[0]!.level === "A_LEVEL" ? "A_LEVEL" : "O_LEVEL";
+  return normalizeClassLevel(rows[0]!.level);
 }
 
 export async function createExam(input: CreateExamInput, createdBy: string) {
@@ -240,6 +247,16 @@ export async function archiveExam(id: string, archivedBy?: string) {
   if (!rowCount) {
     throw new HttpError(404, "We could not find that exam. It may have been removed.");
   }
+  void writeAuditLog({
+    category: "exams",
+    severity: "warning",
+    outcome: "success",
+    action: "EXAM_ARCHIVED",
+    message: "Exam archived (hidden from active lists)",
+    actorId: archivedBy ?? null,
+    resourceType: "exam",
+    resourceId: id,
+  });
 }
 
 /** @deprecated alias — use archiveExam */
@@ -293,7 +310,7 @@ export async function getExamDeletionImpact(id: string) {
   };
 }
 
-export async function permanentDeleteExam(id: string, confirmName: string) {
+export async function permanentDeleteExam(id: string, confirmName: string, actorId?: string) {
   const impact = await getExamDeletionImpact(id);
   if (!impact.canPermanentDelete) {
     throw new HttpError(400, impact.blockReason ?? "This exam cannot be permanently deleted.");
@@ -304,6 +321,18 @@ export async function permanentDeleteExam(id: string, confirmName: string) {
 
   const { rowCount } = await query(`DELETE FROM exams WHERE id = $1`, [id]);
   if (!rowCount) throw new HttpError(404, "We could not find that exam.");
+
+  void writeAuditLog({
+    category: "exams",
+    severity: "error",
+    outcome: "success",
+    action: "EXAM_PERMANENTLY_DELETED",
+    message: `Exam permanently deleted: ${impact.examName}`,
+    actorId: actorId ?? null,
+    resourceType: "exam",
+    resourceId: id,
+    metadata: { marksRemoved: impact.marksCount },
+  });
 
   return {
     deleted: true,
@@ -507,6 +536,7 @@ export type ExamMarkingSlot = {
   classId: string;
   className: string;
   classStream: string | null;
+  classLevel: "O_LEVEL" | "A_LEVEL";
   subjectId: string;
   subjectName: string;
   subjectCode: string;
@@ -529,6 +559,7 @@ export async function listTeacherMarkingSlots(teacherId: string, role: string): 
           classId: exam.classId,
           className: exam.className ?? "",
           classStream: exam.classStream ?? null,
+          classLevel: exam.classLevel ?? "O_LEVEL",
           subjectId: s.subjectId,
           subjectName: s.subjectName,
           subjectCode: s.subjectCode,
@@ -548,6 +579,7 @@ export async function listTeacherMarkingSlots(teacherId: string, role: string): 
     class_id: string;
     class_name: string;
     class_stream: string | null;
+    class_level: string;
     subject_id: string;
     subject_name: string;
     subject_code: string;
@@ -561,6 +593,7 @@ export async function listTeacherMarkingSlots(teacherId: string, role: string): 
         e.class_id,
         c.name AS class_name,
         c.stream AS class_stream,
+        c.level AS class_level,
         es.subject_id,
         s.name AS subject_name,
         s.code AS subject_code,
@@ -589,6 +622,7 @@ export async function listTeacherMarkingSlots(teacherId: string, role: string): 
     classId: r.class_id,
     className: r.class_name,
     classStream: r.class_stream,
+    classLevel: normalizeClassLevel(r.class_level),
     subjectId: r.subject_id,
     subjectName: r.subject_name,
     subjectCode: r.subject_code,

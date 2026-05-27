@@ -13,7 +13,8 @@ export type NavIconId =
   | "school"
   | "receipt"
   | "fileText"
-  | "calendar";
+  | "calendar"
+  | "shield";
 
 export type NavItem = {
   href: string;

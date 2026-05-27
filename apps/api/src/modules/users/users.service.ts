@@ -400,27 +400,19 @@ export async function updateUserNotes(id: string, notes: string, actorId: string
 }
 
 export async function getUserAuditLogs(userId: string, limit = 50) {
-  const { rows } = await query(
-    `SELECT l.id, l.user_id, l.actor_id, l.action, l.changed_fields, l.ip_address, l.user_agent, l.metadata, l.created_at,
-            actor.full_name AS actor_name
-     FROM user_audit_logs l
-     LEFT JOIN users actor ON actor.id = l.actor_id
-     WHERE l.user_id = $1
-     ORDER BY l.created_at DESC
-     LIMIT $2`,
-    [userId, limit],
-  );
+  const { getUserAuditLogsFromSystem } = await import("../audit/audit.service");
+  const rows = await getUserAuditLogsFromSystem(userId, limit);
   return rows.map((row) => ({
     id: row.id,
-    userId: row.user_id,
-    actorId: row.actor_id,
-    actorName: row.actor_name,
+    userId: row.targetUserId ?? userId,
+    actorId: row.actorId,
+    actorName: row.actorName,
     action: row.action,
-    changedFields: row.changed_fields,
-    ipAddress: row.ip_address,
-    userAgent: row.user_agent,
+    changedFields: (row.metadata?.changedFields as string[] | undefined) ?? null,
+    ipAddress: row.ipAddress,
+    userAgent: row.userAgent,
     metadata: row.metadata,
-    createdAt: row.created_at ? new Date(row.created_at as string).toISOString() : undefined,
+    createdAt: row.createdAt,
   }));
 }
 
