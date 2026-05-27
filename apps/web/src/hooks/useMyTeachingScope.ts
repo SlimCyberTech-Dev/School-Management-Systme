@@ -123,6 +123,49 @@ export function useMyTeachingScope() {
   /** Best class for roster / attendance on dashboards when homeroom is not set. */
   const primaryDashboardClassId = homeroomClass?.classId ?? primarySubjectClassId;
 
+  /** Classes this teacher may load on the attendance register (deduped). */
+  const attendanceClasses = useMemo(() => {
+    const map = new Map<
+      string,
+      { classId: string; label: string; isHomeroom: boolean; hasSubjectSlot: boolean }
+    >();
+    for (const c of homeroomClasses) {
+      map.set(c.classId, {
+        classId: c.classId,
+        label: classDisplayName({ name: c.className, stream: c.classStream }),
+        isHomeroom: true,
+        hasSubjectSlot: false,
+      });
+    }
+    for (const c of myClasses) {
+      const existing = map.get(c.classId);
+      if (existing) {
+        if (c.isHomeroom) existing.isHomeroom = true;
+      } else {
+        map.set(c.classId, {
+          classId: c.classId,
+          label: classDisplayName({ name: c.className, stream: c.classStream }),
+          isHomeroom: c.isHomeroom,
+          hasSubjectSlot: false,
+        });
+      }
+    }
+    for (const s of subjectSlots) {
+      const existing = map.get(s.classId);
+      if (existing) {
+        existing.hasSubjectSlot = true;
+      } else {
+        map.set(s.classId, {
+          classId: s.classId,
+          label: classDisplayName({ name: s.className, stream: s.classStream }),
+          isHomeroom: false,
+          hasSubjectSlot: true,
+        });
+      }
+    }
+    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }, [homeroomClasses, myClasses, subjectSlots]);
+
   return {
     activeYear,
     activeTerm,
@@ -134,6 +177,7 @@ export function useMyTeachingScope() {
     homeroomClass,
     primarySubjectClassId,
     primaryDashboardClassId,
+    attendanceClasses,
     uniqueClassCount,
     hasAssignments,
     classLabel,

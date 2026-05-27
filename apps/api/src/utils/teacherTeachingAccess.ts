@@ -87,13 +87,11 @@ export async function teacherCanAccessClassForAttendance(
   if (role === "admin" || role === "headteacher") return true;
   if (role === "class_teacher" || role === "subject_teacher") {
     if (await teacherAssignedToClass(teacherId, classId)) return true;
-  }
-  if (role === "subject_teacher") {
     const { rows } = await query(
       `SELECT 1 FROM class_subjects WHERE class_id = $1 AND teacher_id = $2 LIMIT 1`,
       [classId, teacherId],
     );
-    return rows.length > 0;
+    if (rows.length > 0) return true;
   }
   return false;
 }

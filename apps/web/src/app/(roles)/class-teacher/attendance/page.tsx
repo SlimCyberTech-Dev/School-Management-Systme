@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useMyTeachingScope } from "@/hooks/useMyTeachingScope";
 import { apiGet, apiPost, apiPut } from "@/lib/api";
-import { classDisplayName } from "@/lib/academicLevel";
 
 type AttendanceStatus = "present" | "absent" | "late";
 
@@ -46,23 +45,17 @@ const STATUS_OPTIONS: AttendanceStatus[] = ["present", "absent", "late"];
 export default function ClassTeacherAttendancePage() {
   const scope = useMyTeachingScope();
 
-  const classOptions = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const c of scope.homeroomClasses) {
-      map.set(c.classId, classDisplayName({ name: c.className, stream: c.classStream }));
-    }
-    for (const c of scope.myClasses) {
-      if (!map.has(c.classId)) {
-        map.set(c.classId, classDisplayName({ name: c.className, stream: c.classStream }));
-      }
-    }
-    for (const s of scope.subjectSlots) {
-      if (!map.has(s.classId)) {
-        map.set(s.classId, classDisplayName({ name: s.className, stream: s.classStream }));
-      }
-    }
-    return [...map.entries()].map(([value, label]) => ({ value, label }));
-  }, [scope.homeroomClasses, scope.myClasses, scope.subjectSlots]);
+  const classOptions = useMemo(
+    () =>
+      scope.attendanceClasses.map((c) => {
+        const tags: string[] = [];
+        if (c.isHomeroom) tags.push("Homeroom");
+        if (c.hasSubjectSlot) tags.push("Subject");
+        const suffix = tags.length ? ` (${tags.join(" · ")})` : "";
+        return { value: c.classId, label: `${c.label}${suffix}` };
+      }),
+    [scope.attendanceClasses],
+  );
 
   const [classId, setClassId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
