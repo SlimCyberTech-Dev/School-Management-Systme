@@ -82,7 +82,7 @@ export function useMyTeachingScope() {
     enabled: Boolean(yearId),
   });
 
-  const myClasses = myClassesQ.data ?? [];
+  const myClasses = useMemo(() => myClassesQ.data ?? [], [myClassesQ.data]);
 
   const subjectSlots: MySubjectSlotRow[] = useMemo(
     () =>

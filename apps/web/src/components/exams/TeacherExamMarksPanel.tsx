@@ -33,8 +33,8 @@ export function TeacherExamMarksPanel({ examId }: { examId: string }) {
     examQ.data?.classLevel === "A_LEVEL" ? ("A_LEVEL" as const) : ("O_LEVEL" as const);
   const gradingQ = useGradingScales(level);
 
-  const subjects = subjectsQ.data ?? [];
-  const editable = subjects.filter((s) => s.canEdit);
+  const subjects = useMemo(() => subjectsQ.data ?? [], [subjectsQ.data]);
+  const editable = useMemo(() => subjects.filter((s) => s.canEdit), [subjects]);
   const singleSubject = subjects.length === 1;
 
   useEffect(() => {

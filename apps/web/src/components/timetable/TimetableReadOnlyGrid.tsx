@@ -42,7 +42,7 @@ export function TimetableReadOnlyGrid({
       map.set(`${cell.dayOfWeek}:${cell.periodId}`, cell);
     }
     return map;
-  }, [grid.cells]);
+  }, [grid]);
 
   const filledCount = grid.cells.filter((c) => c.classSubjectId).length;
   const totalSlots = schoolDays.length * teachingPeriods.length;

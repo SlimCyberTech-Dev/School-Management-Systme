@@ -81,7 +81,7 @@ export function useEligibleTeachers(subjectIds: string[], classId: string | unde
         setLoading(false);
       }
     })();
-  }, [subjectKey, classId, enabled]);
+  }, [subjectKey, subjectIds, classId, enabled]);
 
   const options = [
     { value: "", label: "— Unassigned —" },

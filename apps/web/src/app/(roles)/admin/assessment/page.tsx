@@ -144,10 +144,10 @@ export default function AdminAssessmentPage() {
     [studentsQ.data, filters.classId],
   );
 
-  const years = yearsQ.data ?? [];
-  const terms = termsQ.data ?? [];
-  const classes = classesQ.data ?? [];
-  const catalog = subjectsQ.data ?? [];
+  const years = useMemo(() => yearsQ.data ?? [], [yearsQ.data]);
+  const terms = useMemo(() => termsQ.data ?? [], [termsQ.data]);
+  const classes = useMemo(() => classesQ.data ?? [], [classesQ.data]);
+  const catalog = useMemo(() => subjectsQ.data ?? [], [subjectsQ.data]);
 
   const levelForTab = tab === "cbc" ? "O_LEVEL" : "A_LEVEL";
 
@@ -184,7 +184,7 @@ export default function AdminAssessmentPage() {
     return out;
   }, [classSubjectsQ.data, levelBySubjectId]);
 
-  const combos = combosQ.data ?? [];
+  const combos = useMemo(() => combosQ.data ?? [], [combosQ.data]);
   const comboOptions = useMemo(() => combos.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` })), [combos]);
 
   const selectedCombo = combos.find((c) => c.id === filters.combinationId);

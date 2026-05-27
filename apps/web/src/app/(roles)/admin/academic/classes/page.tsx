@@ -41,9 +41,9 @@ export default function AdminAcademicClassesPage() {
       { queryKey: ["teaching-staff"], queryFn: () => apiGet<TeachingStaffMember[]>("/academic/teaching-staff") },
     ],
   });
-  const classes = classesQ.data ?? [];
-  const years = yearsQ.data ?? [];
-  const users = staffQ.data ?? [];
+  const classes = useMemo(() => classesQ.data ?? [], [classesQ.data]);
+  const years = useMemo(() => yearsQ.data ?? [], [yearsQ.data]);
+  const users = useMemo(() => staffQ.data ?? [], [staffQ.data]);
   const scopedClasses = useMemo(() => filterClassesByLevel(classes, level), [classes, level]);
   const loading = [classesQ, yearsQ, staffQ].some((q) => q.isPending);
   const [err, setErr] = useState<string | null>(null);

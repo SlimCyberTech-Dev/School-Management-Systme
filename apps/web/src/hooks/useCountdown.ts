@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export function useCountdown(initialSeconds: number, autoStart = true) {
   const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
@@ -17,13 +17,13 @@ export function useCountdown(initialSeconds: number, autoStart = true) {
     return Math.max(0, Math.min(1, secondsLeft / initialSeconds));
   }, [initialSeconds, secondsLeft]);
 
-  const reset = (nextSeconds = initialSeconds) => {
+  const reset = useCallback((nextSeconds = initialSeconds) => {
     setSecondsLeft(nextSeconds);
     setRunning(true);
-  };
+  }, [initialSeconds]);
 
-  const stop = () => setRunning(false);
-  const start = () => setRunning(true);
+  const stop = useCallback(() => setRunning(false), []);
+  const start = useCallback(() => setRunning(true), []);
 
   return {
     secondsLeft,

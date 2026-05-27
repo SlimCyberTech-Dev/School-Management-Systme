@@ -45,8 +45,8 @@ export function TeacherAssessmentAssignmentsList({
   const termsQ = useAssessmentTerms(yearId);
   const [termId, setTermId] = useState("");
 
-  const years = yearsQ.data ?? [];
-  const terms = termsQ.data ?? [];
+  const years = useMemo(() => yearsQ.data ?? [], [yearsQ.data]);
+  const terms = useMemo(() => termsQ.data ?? [], [termsQ.data]);
 
   useEffect(() => {
     if (years[0] && !yearId) setYearId(years[0].id);

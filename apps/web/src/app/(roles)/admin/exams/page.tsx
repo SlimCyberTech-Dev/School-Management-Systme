@@ -64,10 +64,10 @@ export default function AdminExamsPage() {
 
   const editExamQ = useExam(editExamId ?? undefined);
   const actions = useExamAdminActions();
-  const years = yearsQ.data ?? [];
-  const terms = termsQ.data ?? [];
-  const classes = classesQ.data ?? [];
-  const exams = examsQ.data ?? [];
+  const years = useMemo(() => yearsQ.data ?? [], [yearsQ.data]);
+  const terms = useMemo(() => termsQ.data ?? [], [termsQ.data]);
+  const classes = useMemo(() => classesQ.data ?? [], [classesQ.data]);
+  const exams = useMemo(() => examsQ.data ?? [], [examsQ.data]);
 
   useEffect(() => {
     if (years[0] && !yearId) setYearId(years[0].id);

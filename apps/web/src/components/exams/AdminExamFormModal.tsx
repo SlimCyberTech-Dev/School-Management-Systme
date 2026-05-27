@@ -89,8 +89,8 @@ export function AdminExamFormModal({
     },
   });
 
-  const years = yearsQ.data ?? [];
-  const classes = classesQ.data ?? [];
+  const years = useMemo(() => yearsQ.data ?? [], [yearsQ.data]);
+  const classes = useMemo(() => classesQ.data ?? [], [classesQ.data]);
 
   const createYearId = createForm.watch("academicYearId");
   const createClassId = createForm.watch("classId");

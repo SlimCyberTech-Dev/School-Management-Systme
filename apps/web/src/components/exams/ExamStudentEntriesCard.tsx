@@ -28,7 +28,10 @@ export function ExamStudentEntriesCard({
   const [feedback, setFeedback] = useState<{ ok?: string; err?: string }>({});
 
   const data = entriesQ.data;
-  const entriesByStudent = localEntries ?? data?.entriesByStudent ?? {};
+  const entriesByStudent = useMemo(
+    () => localEntries ?? data?.entriesByStudent ?? {},
+    [localEntries, data?.entriesByStudent],
+  );
   const isDraft = examStatus === "draft";
 
   const enteredSet = useMemo(() => {

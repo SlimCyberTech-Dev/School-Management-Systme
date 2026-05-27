@@ -125,9 +125,15 @@ function AdminTimetablePageContent() {
     },
   });
 
-  const years = yearsQ.data ?? [];
-  const terms = (termsQ.data ?? []).filter((t) => !yearId || t.academicYearId === yearId);
-  const classes = filterClassesByLevel(classesQ.data ?? [], level, yearId);
+  const years = useMemo(() => yearsQ.data ?? [], [yearsQ.data]);
+  const terms = useMemo(
+    () => (termsQ.data ?? []).filter((t) => !yearId || t.academicYearId === yearId),
+    [termsQ.data, yearId],
+  );
+  const classes = useMemo(
+    () => filterClassesByLevel(classesQ.data ?? [], level, yearId),
+    [classesQ.data, level, yearId],
+  );
 
   useEffect(() => {
     if (!yearId && years.length) {

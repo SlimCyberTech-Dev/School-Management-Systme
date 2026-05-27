@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { AcademicYear, SchoolClass, Term } from "@uganda-cbc-sms/shared";
 import { ReportGeneratePanel } from "@/components/reports/ReportGeneratePanel";
@@ -21,9 +21,15 @@ export default function HeadteacherReportsPage() {
   const termsQ = useQuery({ queryKey: ["terms"], queryFn: () => apiGet<Term[]>("/academic/terms") });
   const classesQ = useQuery({ queryKey: ["classes"], queryFn: () => apiGet<SchoolClass[]>("/academic/classes") });
 
-  const years = yearsQ.data ?? [];
-  const terms = (termsQ.data ?? []).filter((t) => !filters.yearId || t.academicYearId === filters.yearId);
-  const classes = (classesQ.data ?? []).filter((c) => !filters.yearId || c.academicYearId === filters.yearId);
+  const years = useMemo(() => yearsQ.data ?? [], [yearsQ.data]);
+  const terms = useMemo(
+    () => (termsQ.data ?? []).filter((t) => !filters.yearId || t.academicYearId === filters.yearId),
+    [termsQ.data, filters.yearId],
+  );
+  const classes = useMemo(
+    () => (classesQ.data ?? []).filter((c) => !filters.yearId || c.academicYearId === filters.yearId),
+    [classesQ.data, filters.yearId],
+  );
 
   useEffect(() => {
     if (!filters.yearId && years.length) {

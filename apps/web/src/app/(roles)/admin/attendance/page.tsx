@@ -47,8 +47,8 @@ export default function AdminAttendancePage() {
     queryFn: () => apiGet<SchoolClass[]>("/academic/classes"),
   });
 
-  const years = yearsQ.data ?? [];
-  const allClasses = classesQ.data ?? [];
+  const years = useMemo(() => yearsQ.data ?? [], [yearsQ.data]);
+  const allClasses = useMemo(() => classesQ.data ?? [], [classesQ.data]);
 
   useEffect(() => {
     if (!filters.academicYearId && years.length) {

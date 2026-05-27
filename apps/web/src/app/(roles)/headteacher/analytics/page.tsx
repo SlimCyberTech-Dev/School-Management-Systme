@@ -1,7 +1,7 @@
 "use client";
 
 import type { AcademicYear, SchoolClass, Term } from "@uganda-cbc-sms/shared";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -35,9 +35,15 @@ export default function HeadteacherAnalyticsPage() {
     yearId: filters.yearId,
   });
 
-  const years = yearsQ.data ?? [];
-  const terms = (termsQ.data ?? []).filter((t) => !filters.yearId || t.academicYearId === filters.yearId);
-  const classes = (classesQ.data ?? []).filter((c) => !filters.yearId || c.academicYearId === filters.yearId);
+  const years = useMemo(() => yearsQ.data ?? [], [yearsQ.data]);
+  const terms = useMemo(
+    () => (termsQ.data ?? []).filter((t) => !filters.yearId || t.academicYearId === filters.yearId),
+    [termsQ.data, filters.yearId],
+  );
+  const classes = useMemo(
+    () => (classesQ.data ?? []).filter((c) => !filters.yearId || c.academicYearId === filters.yearId),
+    [classesQ.data, filters.yearId],
+  );
 
   useEffect(() => {
     if (!filters.yearId && years.length) {

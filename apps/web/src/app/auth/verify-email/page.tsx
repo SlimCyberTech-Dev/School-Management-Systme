@@ -17,7 +17,12 @@ import { useCountdown } from "@/hooks/useCountdown";
 
 function VerifyEmailPageInner() {
   const email = useSearchParams().get("email") ?? "";
-  const redirect = useCountdown(4, false);
+  const redirectCountdown = useCountdown(4, false);
+  const {
+    secondsLeft: redirectSecondsLeft,
+    reset: resetRedirect,
+    progress: redirectProgress,
+  } = redirectCountdown;
   const resend = useCountdown(60, false);
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -34,13 +39,13 @@ function VerifyEmailPageInner() {
 
   useEffect(() => {
     if (status !== "success") return;
-    redirect.reset(4);
-  }, [status]);
+    resetRedirect(4);
+  }, [status, resetRedirect]);
 
   useEffect(() => {
-    if (status !== "success" || redirect.secondsLeft > 0) return;
+    if (status !== "success" || redirectSecondsLeft > 0) return;
     router.push("/login");
-  }, [redirect.secondsLeft, router, status]);
+  }, [redirectSecondsLeft, router, status]);
 
   const verifyCode = async () => {
     setTouched(true);
@@ -98,7 +103,7 @@ function VerifyEmailPageInner() {
                 <div className="h-1 w-full overflow-hidden rounded-full bg-slate-200">
                   <motion.div
                     className="h-full bg-[#2563EB]"
-                    animate={{ width: `${redirect.progress * 100}%` }}
+                    animate={{ width: `${redirectProgress * 100}%` }}
                     transition={{ ease: "linear" }}
                   />
                 </div>

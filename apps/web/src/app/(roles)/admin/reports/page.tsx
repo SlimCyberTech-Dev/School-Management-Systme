@@ -63,9 +63,15 @@ export default function AdminReportsPage() {
     localStorage.setItem(CONTEXT_KEY, JSON.stringify(filters));
   }, [filters]);
 
-  const years = yearsQ.data ?? [];
-  const terms = (termsQ.data ?? []).filter((t) => !filters.yearId || t.academicYearId === filters.yearId);
-  const classes = (classesQ.data ?? []).filter((c) => !filters.yearId || c.academicYearId === filters.yearId);
+  const years = useMemo(() => yearsQ.data ?? [], [yearsQ.data]);
+  const terms = useMemo(
+    () => (termsQ.data ?? []).filter((t) => !filters.yearId || t.academicYearId === filters.yearId),
+    [termsQ.data, filters.yearId],
+  );
+  const classes = useMemo(
+    () => (classesQ.data ?? []).filter((c) => !filters.yearId || c.academicYearId === filters.yearId),
+    [classesQ.data, filters.yearId],
+  );
 
   useEffect(() => {
     if (!filters.yearId && years.length) {
