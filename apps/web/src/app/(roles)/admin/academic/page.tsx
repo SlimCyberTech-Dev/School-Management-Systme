@@ -153,9 +153,9 @@ export default function AdminAcademicHubPage() {
             </li>
             <li>
               <strong className="font-medium text-foreground">Weekly timetable</strong> — when each lesson occurs;
-              publish for teachers on{" "}
+              build and publish on{" "}
               <Link href="/admin/academic/timetable" className="text-brand hover:underline">
-                Timetable builder
+                Timetable
               </Link>
               .
             </li>

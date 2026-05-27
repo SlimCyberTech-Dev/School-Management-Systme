@@ -14,7 +14,9 @@ timetableRouter.use(requireAuth);
 timetableRouter.get("/my-week", teachers, asyncHandler(c.getMyWeek));
 timetableRouter.get("/today", teachers, asyncHandler(c.getToday));
 
+timetableRouter.get("/browse", leads, asyncHandler(c.browsePublished));
 timetableRouter.get("/templates", leads, asyncHandler(c.listTemplates));
+timetableRouter.get("/templates/:id/overview", leads, asyncHandler(c.getTemplateOverview));
 timetableRouter.get("/templates/draft", leads, asyncHandler(c.getOrCreateDraft));
 timetableRouter.post("/templates", leads, asyncHandler(c.createTemplate));
 timetableRouter.get("/templates/:id", leads, asyncHandler(c.getTemplate));

@@ -9,9 +9,12 @@ import type {
   TimetableGridView,
   TimetablePeriod,
   TimetablePeriodsBulkInput,
+  TimetableBrowseItem,
+  TimetableBrowseQuery,
   TimetablePublicationLogEntry,
   TimetablePublishInput,
   TimetableTemplate,
+  TimetableTemplateOverview,
   TimetableTemplateQuery,
   TimetableValidateResult,
   TeacherTodayView,
@@ -25,6 +28,31 @@ export type TimetableScope = {
   termId: string;
   level: AcademicLevel;
 };
+
+export function useTimetableBrowse(filters: TimetableBrowseQuery) {
+  const qp = new URLSearchParams();
+  if (filters.academicYearId) qp.set("academicYearId", filters.academicYearId);
+  if (filters.termId) qp.set("termId", filters.termId);
+  if (filters.level) qp.set("level", filters.level);
+  if (filters.status) qp.set("status", filters.status);
+  const qs = qp.toString();
+  return useQuery({
+    queryKey: ["timetable-browse", filters],
+    queryFn: () => apiGet<TimetableBrowseItem[]>(`/timetable/browse${qs ? `?${qs}` : ""}`),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useTimetableOverview(templateId: string) {
+  return useQuery({
+    queryKey: ["timetable-overview", templateId],
+    queryFn: () =>
+      apiGet<TimetableTemplateOverview>(
+        `/timetable/templates/${encodeURIComponent(templateId)}/overview`,
+      ),
+    enabled: Boolean(templateId),
+  });
+}
 
 export function useTimetableTemplates(scope: TimetableScope) {
   const qp = new URLSearchParams({
@@ -136,6 +164,8 @@ export function useTeacherWeek(weekStart?: string) {
   return useQuery({
     queryKey: ["timetable-my-week", weekStart ?? "current"],
     queryFn: () => apiGet<TeacherWeekView>(`/timetable/my-week${qp}`),
+    refetchOnWindowFocus: true,
+    staleTime: 30_000,
   });
 }
 
@@ -143,7 +173,17 @@ export function useTeacherToday() {
   return useQuery({
     queryKey: ["timetable-today"],
     queryFn: () => apiGet<TeacherTodayView>("/timetable/today"),
+    refetchOnWindowFocus: true,
+    staleTime: 30_000,
   });
+}
+
+export function mondayOfWeekIso(ref: Date = new Date()): string {
+  const d = new Date(ref);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
 }
 
 export function useTimetableMutations(scope: TimetableScope) {

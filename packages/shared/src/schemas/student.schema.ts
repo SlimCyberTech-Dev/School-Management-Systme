@@ -104,6 +104,19 @@ export const attendanceRegisterSaveSchema = z.object({
 
 export const attendanceRegisterSubmitSchema = attendanceRegisterQuerySchema;
 
+export const attendanceLessonRegisterQuerySchema = z.object({
+  timetableEntryId: z.string().uuid(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+export const attendanceLessonRegisterSaveSchema = z.object({
+  timetableEntryId: z.string().uuid(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  rows: z.array(attendanceRegisterRowSchema).min(1),
+});
+
+export const attendanceLessonRegisterSubmitSchema = attendanceLessonRegisterQuerySchema;
+
 export const attendanceRangeQuerySchema = z.object({
   classId: z.string().uuid(),
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -159,6 +172,9 @@ export type AttendanceRegisterQuery = z.infer<typeof attendanceRegisterQuerySche
 export type AttendanceRegisterRowInput = z.infer<typeof attendanceRegisterRowSchema>;
 export type AttendanceRegisterSaveInput = z.infer<typeof attendanceRegisterSaveSchema>;
 export type AttendanceRegisterSubmitInput = z.infer<typeof attendanceRegisterSubmitSchema>;
+export type AttendanceLessonRegisterQuery = z.infer<typeof attendanceLessonRegisterQuerySchema>;
+export type AttendanceLessonRegisterSaveInput = z.infer<typeof attendanceLessonRegisterSaveSchema>;
+export type AttendanceLessonRegisterSubmitInput = z.infer<typeof attendanceLessonRegisterSubmitSchema>;
 export type AttendanceRangeQuery = z.infer<typeof attendanceRangeQuerySchema>;
 export type AttendanceAdminOverviewQuery = z.infer<typeof attendanceAdminOverviewQuerySchema>;
 export type StudentBrowseQuery = z.infer<typeof studentBrowseQuerySchema>;

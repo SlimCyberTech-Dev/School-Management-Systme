@@ -24,6 +24,17 @@ attendanceRouter.post(
   requireRoles("class_teacher", "subject_teacher", "admin", "headteacher"),
   asyncHandler(c.postAttendanceRegisterSubmit),
 );
+attendanceRouter.get("/lesson-register", asyncHandler(c.getAttendanceLessonRegister));
+attendanceRouter.put(
+  "/lesson-register",
+  requireRoles("class_teacher", "subject_teacher", "admin", "headteacher"),
+  asyncHandler(c.putAttendanceLessonRegister),
+);
+attendanceRouter.post(
+  "/lesson-register/submit",
+  requireRoles("class_teacher", "subject_teacher", "admin", "headteacher"),
+  asyncHandler(c.postAttendanceLessonRegisterSubmit),
+);
 attendanceRouter.get("/range", asyncHandler(c.getAttendanceRange));
 attendanceRouter.get(
   "/admin/overview",

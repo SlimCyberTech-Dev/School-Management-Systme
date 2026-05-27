@@ -1,14 +1,21 @@
 import type {
   AttendanceAdminOverviewQuery,
   AttendanceInput,
-  AttendanceRegisterRowInput,
+  AttendanceLessonRegisterSaveInput,
   AttendanceRegisterSaveInput,
   AttendanceRangeQuery,
   Role,
 } from "@uganda-cbc-sms/shared";
 import { query, withTransaction } from "../../config/db";
 import { HttpError } from "../../utils/httpError";
+import { loadPublishedLessonForTeacher } from "../../utils/attendanceLessonAccess";
 import { teacherCanAccessClassForAttendance } from "../../utils/teacherTeachingAccess";
+import { rethrowAttendanceSaveError } from "./attendanceErrors";
+import {
+  ensureHomeroomRegisterDraft,
+  ensureLessonRegisterDraft,
+  replaceRegisterMarks,
+} from "./attendanceRegisterPersistence";
 
 type RegisterMeta = {
   registerId: string | null;
@@ -39,6 +46,21 @@ export type AttendanceRegisterView = {
     late: number;
     unmarked: number;
   };
+};
+
+export type AttendanceLessonRegisterView = AttendanceRegisterView & {
+  registerType: "lesson";
+  timetableEntryId: string;
+  classSubjectId: string;
+  periodId: string;
+  periodLabel: string;
+  periodNumber: number;
+  startTime: string;
+  endTime: string;
+  subjectName: string;
+  subjectCode: string;
+  templateId: string;
+  templateVersion: number;
 };
 
 export type AttendanceRangeDaySummary = {
@@ -76,10 +98,13 @@ export async function getAttendanceRegister(
          s.student_number AS student_number,
          a.status
        FROM students s
+       LEFT JOIN attendance_registers ar
+         ON ar.class_id = $1
+        AND ar.date = $2
+        AND ar.register_type = 'homeroom'
        LEFT JOIN attendance a
          ON a.student_id = s.id
-        AND a.class_id = $1
-        AND a.date = $2
+        AND a.register_id = ar.id
        WHERE s.class_id = $1
          AND s.status = 'active'
        ORDER BY s.student_number, s.full_name`,
@@ -134,48 +159,31 @@ export async function saveAttendanceRegister(
   if (invalidRows.length > 0) {
     throw new HttpError(
       400,
-      `Some learners are not active in this class (${invalidRows.length} invalid row(s)). Refresh and retry.`,
+      `${invalidRows.length} learner(s) are not on this class roll. Refresh the register and try again.`,
     );
   }
 
-  await withTransaction(async (client) => {
-    const existing = await client.query<{ id: string; status: "draft" | "submitted" | "locked" }>(
-      `SELECT id, status
-       FROM attendance_registers
-       WHERE class_id = $1 AND date = $2
-       LIMIT 1`,
-      [input.classId, input.date],
-    );
-    const row = existing.rows[0];
-    if (row?.status === "locked" || row?.status === "submitted") {
-      throw new HttpError(400, "This register is already submitted and cannot be edited.");
-    }
-
-    const register = await client.query<{ id: string }>(
-      `INSERT INTO attendance_registers (class_id, date, status, recorded_by, updated_at)
-       VALUES ($1, $2, 'draft', $3, NOW())
-       ON CONFLICT (class_id, date) DO UPDATE
-       SET recorded_by = EXCLUDED.recorded_by,
-           updated_at = NOW()
-       RETURNING id`,
-      [input.classId, input.date, recordedBy],
-    );
-    const registerId = register.rows[0]!.id;
-    const studentIds = input.rows.map((r) => r.studentId);
-    const statuses = input.rows.map((r) => r.status);
-    await client.query(
-      `INSERT INTO attendance (student_id, class_id, date, status, recorded_by, register_id, updated_at)
-       SELECT x.student_id, $1, $2, x.status, $3, $4, NOW()
-       FROM unnest($5::uuid[], $6::text[]) AS x(student_id, status)
-       ON CONFLICT (student_id, date) DO UPDATE
-       SET status = EXCLUDED.status,
-           class_id = EXCLUDED.class_id,
-           recorded_by = EXCLUDED.recorded_by,
-           register_id = EXCLUDED.register_id,
-           updated_at = NOW()`,
-      [input.classId, input.date, recordedBy, registerId, studentIds, statuses],
-    );
-  });
+  try {
+    await withTransaction(async (client) => {
+      const registerId = await ensureHomeroomRegisterDraft(
+        client,
+        input.classId,
+        input.date,
+        recordedBy,
+      );
+      await replaceRegisterMarks(
+        client,
+        registerId,
+        input.classId,
+        input.date,
+        recordedBy,
+        input.rows.map((r) => r.studentId),
+        input.rows.map((r) => r.status),
+      );
+    });
+  } catch (err) {
+    rethrowAttendanceSaveError(err, "homeroom");
+  }
 
   return getAttendanceRegister(input.classId, input.date, role, recordedBy);
 }
@@ -193,14 +201,16 @@ export async function submitAttendanceRegister(
     const existing = await client.query<{ id: string; status: "draft" | "submitted" | "locked" }>(
       `SELECT id, status
        FROM attendance_registers
-       WHERE class_id = $1 AND date = $2
+       WHERE class_id = $1
+         AND date = $2
+         AND register_type = 'homeroom'
        LIMIT 1`,
       [classId, date],
     );
     if (!existing.rows[0]) {
       await client.query(
-        `INSERT INTO attendance_registers (class_id, date, status, recorded_by, submitted_at, updated_at)
-         VALUES ($1, $2, 'submitted', $3, NOW(), NOW())`,
+        `INSERT INTO attendance_registers (class_id, date, register_type, status, recorded_by, submitted_at, updated_at)
+         VALUES ($1, $2, 'homeroom', 'submitted', $3, NOW(), NOW())`,
         [classId, date, userId],
       );
       return;
@@ -215,7 +225,8 @@ export async function submitAttendanceRegister(
            submitted_at = COALESCE(submitted_at, NOW()),
            updated_at = NOW()
        WHERE class_id = $1
-         AND date = $2`,
+         AND date = $2
+         AND register_type = 'homeroom'`,
       [classId, date, userId],
     );
   });
@@ -259,6 +270,7 @@ export async function getAttendanceRange(
      LEFT JOIN attendance_registers ar
        ON ar.class_id = $1
       AND ar.date = d.day::date
+      AND ar.register_type = 'homeroom'
      GROUP BY d.day, ar.status
      ORDER BY d.day DESC`,
     [filters.classId, filters.from, filters.to],
@@ -325,6 +337,7 @@ async function getRegisterMeta(classId: string, date: string): Promise<RegisterM
      FROM attendance_registers
      WHERE class_id = $1
        AND date = $2
+       AND register_type = 'homeroom'
      LIMIT 1`,
     [classId, date],
   );
@@ -626,4 +639,215 @@ export async function getAttendanceAdminOverview(
       missing: registersMissing,
     },
   };
+}
+
+async function getLessonRegisterMeta(
+  timetableEntryId: string,
+  date: string,
+): Promise<RegisterMeta> {
+  const { rows } = await query<{
+    id: string;
+    status: "draft" | "submitted" | "locked";
+    submitted_at: string | null;
+  }>(
+    `SELECT id, status, submitted_at
+     FROM attendance_registers
+     WHERE timetable_entry_id = $1
+       AND date = $2
+       AND register_type = 'lesson'
+     LIMIT 1`,
+    [timetableEntryId, date],
+  );
+  const row = rows[0];
+  if (!row) {
+    return { registerId: null, status: "draft", submittedAt: null };
+  }
+  return {
+    registerId: row.id,
+    status: row.status,
+    submittedAt: row.submitted_at,
+  };
+}
+
+export async function getAttendanceLessonRegister(
+  timetableEntryId: string,
+  date: string,
+  role: Role,
+  userId: string,
+): Promise<AttendanceLessonRegisterView> {
+  const slot = await loadPublishedLessonForTeacher(timetableEntryId, userId, date);
+  if (role !== "admin" && role !== "headteacher" && slot.teacherId !== userId) {
+    throw new HttpError(403, "You can only mark attendance for lessons assigned to you on the published timetable.");
+  }
+
+  const [meta, students] = await Promise.all([
+    getLessonRegisterMeta(timetableEntryId, date),
+    query<{
+      student_id: string;
+      student_name: string;
+      student_number: string;
+      status: "present" | "absent" | "late" | null;
+    }>(
+      `SELECT
+         s.id AS student_id,
+         s.full_name AS student_name,
+         s.student_number AS student_number,
+         a.status
+       FROM students s
+       LEFT JOIN attendance_registers ar
+         ON ar.timetable_entry_id = $1
+        AND ar.date = $2
+        AND ar.register_type = 'lesson'
+       LEFT JOIN attendance a
+         ON a.student_id = s.id
+        AND a.register_id = ar.id
+       WHERE s.class_id = $3
+         AND s.status = 'active'
+       ORDER BY s.student_number, s.full_name`,
+      [timetableEntryId, date, slot.classId],
+    ),
+  ]);
+
+  const rows = students.rows.map((r) => ({
+    studentId: r.student_id,
+    studentName: r.student_name,
+    studentNumber: r.student_number,
+    status: r.status,
+  }));
+  const present = rows.filter((r) => r.status === "present").length;
+  const absent = rows.filter((r) => r.status === "absent").length;
+  const late = rows.filter((r) => r.status === "late").length;
+  const unmarked = rows.length - present - absent - late;
+
+  return {
+    registerType: "lesson",
+    timetableEntryId: slot.timetableEntryId,
+    classSubjectId: slot.classSubjectId,
+    periodId: slot.periodId,
+    periodLabel: slot.periodLabel,
+    periodNumber: slot.periodNumber,
+    startTime: slot.startTime,
+    endTime: slot.endTime,
+    subjectName: slot.subjectName,
+    subjectCode: slot.subjectCode,
+    templateId: slot.templateId,
+    templateVersion: slot.templateVersion,
+    classId: slot.classId,
+    className: slot.className,
+    classStream: slot.classStream,
+    date,
+    registerId: meta.registerId,
+    registerStatus: meta.status,
+    submittedAt: meta.submittedAt,
+    students: rows,
+    summary: { total: rows.length, present, absent, late, unmarked },
+  };
+}
+
+export async function saveAttendanceLessonRegister(
+  input: AttendanceLessonRegisterSaveInput,
+  recordedBy: string,
+  role: Role,
+) {
+  const slot = await loadPublishedLessonForTeacher(input.timetableEntryId, recordedBy, input.date);
+  if (role !== "admin" && role !== "headteacher" && slot.teacherId !== recordedBy) {
+    throw new HttpError(403, "You can only mark attendance for lessons assigned to you on the published timetable.");
+  }
+  if (input.rows.length > 1000) {
+    throw new HttpError(400, "Register is too large. Split the class and try again.");
+  }
+
+  const rosterIds = await loadActiveClassStudentIds(slot.classId);
+  const rosterSet = new Set(rosterIds);
+  const invalidRows = input.rows.filter((r) => !rosterSet.has(r.studentId));
+  if (invalidRows.length > 0) {
+    throw new HttpError(
+      400,
+      `${invalidRows.length} learner(s) are not on this class roll. Refresh the register and try again.`,
+    );
+  }
+
+  try {
+    await withTransaction(async (client) => {
+      const registerId = await ensureLessonRegisterDraft(client, {
+        classId: slot.classId,
+        date: input.date,
+        timetableEntryId: input.timetableEntryId,
+        periodId: slot.periodId,
+        classSubjectId: slot.classSubjectId,
+        recordedBy,
+      });
+      await replaceRegisterMarks(
+        client,
+        registerId,
+        slot.classId,
+        input.date,
+        recordedBy,
+        input.rows.map((r) => r.studentId),
+        input.rows.map((r) => r.status),
+      );
+    });
+  } catch (err) {
+    rethrowAttendanceSaveError(err, "lesson");
+  }
+
+  return getAttendanceLessonRegister(input.timetableEntryId, input.date, role, recordedBy);
+}
+
+export async function submitAttendanceLessonRegister(
+  timetableEntryId: string,
+  date: string,
+  userId: string,
+  role: Role,
+) {
+  const slot = await loadPublishedLessonForTeacher(timetableEntryId, userId, date);
+  if (role !== "admin" && role !== "headteacher" && slot.teacherId !== userId) {
+    throw new HttpError(403, "You can only mark attendance for lessons assigned to you on the published timetable.");
+  }
+
+  await withTransaction(async (client) => {
+    const existing = await client.query<{ id: string; status: "draft" | "submitted" | "locked" }>(
+      `SELECT id, status
+       FROM attendance_registers
+       WHERE timetable_entry_id = $1
+         AND date = $2
+         AND register_type = 'lesson'
+       LIMIT 1`,
+      [timetableEntryId, date],
+    );
+    if (!existing.rows[0]) {
+      await client.query(
+        `INSERT INTO attendance_registers (
+           class_id, date, register_type, timetable_entry_id, period_id, class_subject_id,
+           status, recorded_by, submitted_at, updated_at
+         )
+         VALUES ($1, $2, 'lesson', $3, $4, $5, 'submitted', $6, NOW(), NOW())`,
+        [
+          slot.classId,
+          date,
+          timetableEntryId,
+          slot.periodId,
+          slot.classSubjectId,
+          userId,
+        ],
+      );
+      return;
+    }
+    if (existing.rows[0].status === "locked") {
+      throw new HttpError(400, "This register is locked.");
+    }
+    await client.query(
+      `UPDATE attendance_registers
+       SET status = 'submitted',
+           recorded_by = $3,
+           submitted_at = COALESCE(submitted_at, NOW()),
+           updated_at = NOW()
+       WHERE timetable_entry_id = $1
+         AND date = $2
+         AND register_type = 'lesson'`,
+      [timetableEntryId, date, userId],
+    );
+  });
+
+  return getAttendanceLessonRegister(timetableEntryId, date, role, userId);
 }

@@ -2,7 +2,8 @@
 
 import type { AcademicYear, SchoolClass, Term, TimetableValidateResult } from "@uganda-cbc-sms/shared";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -15,6 +16,7 @@ import {
   TimetablePeriodEditor,
   type PeriodDraft,
 } from "@/components/timetable/TimetablePeriodEditor";
+import { TimetablePublishedViewer } from "@/components/timetable/TimetablePublishedViewer";
 import { TimetablePublishBar } from "@/components/timetable/TimetablePublishBar";
 import { TimetableValidationPanel } from "@/components/timetable/TimetableValidationPanel";
 import { Alert } from "@/components/ui/Alert";
@@ -38,7 +40,22 @@ import { filterClassesByLevel } from "@/lib/academicLevel";
 import { apiGet } from "@/lib/api";
 import { queryStatus } from "@/lib/queryStatus";
 
-type TabId = "setup" | "class" | "teacher" | "publish";
+type TabId = "setup" | "class" | "teacher" | "publish" | "view";
+
+const TAB_IDS: TabId[] = ["view", "setup", "class", "teacher", "publish"];
+
+const TAB_LABELS: { id: TabId; label: string }[] = [
+  { id: "view", label: "View published" },
+  { id: "setup", label: "Periods & days" },
+  { id: "class", label: "By class" },
+  { id: "teacher", label: "By teacher" },
+  { id: "publish", label: "Publish" },
+];
+
+function parseTab(value: string | null): TabId {
+  if (value && TAB_IDS.includes(value as TabId)) return value as TabId;
+  return "view";
+}
 
 const DAY_ROWS = [
   { dayOfWeek: 1, label: "Monday" },
@@ -50,9 +67,31 @@ const DAY_ROWS = [
   { dayOfWeek: 7, label: "Sunday" },
 ];
 
-export default function AdminTimetablePage() {
+function AdminTimetablePageContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { level, setLevel, hrefWithLevel } = useAcademicLevelScope();
-  const [tab, setTab] = useState<TabId>("setup");
+  const [tab, setTab] = useState<TabId>(() => parseTab(searchParams.get("tab")));
+
+  const setTabAndUrl = useCallback(
+    (next: TabId) => {
+      setTab(next);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", next);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
+
+  useEffect(() => {
+    if (!searchParams.get("tab")) {
+      setTabAndUrl("view");
+      return;
+    }
+    const fromUrl = parseTab(searchParams.get("tab"));
+    if (fromUrl !== tab) setTab(fromUrl);
+  }, [searchParams, tab, setTabAndUrl]);
   const [yearId, setYearId] = useState("");
   const [termId, setTermId] = useState("");
   const [classId, setClassId] = useState("");
@@ -235,10 +274,14 @@ export default function AdminTimetablePage() {
   return (
     <PageWrapper
       title="Timetable"
-      description="Configure bell periods and weekly schedules per term and level. Teachers see published timetables only."
+      description="View published schedules, then build and publish drafts per term and level."
     >
       <p className="-mt-4 mb-4 text-sm text-muted-foreground">
-        Instructional subjects and teachers are managed in{" "}
+        Start on <strong className="font-medium text-foreground">View published</strong> to browse live and archived
+        timetables. Use <strong className="font-medium text-foreground">Periods &amp; days</strong>,{" "}
+        <strong className="font-medium text-foreground">By class</strong>, and{" "}
+        <strong className="font-medium text-foreground">Publish</strong> to edit drafts. Subjects and teachers are set
+        under{" "}
         <Link href={hrefWithLevel("/admin/academic/class-subjects")} className="font-medium text-brand hover:underline">
           Class subjects
         </Link>{" "}
@@ -246,7 +289,7 @@ export default function AdminTimetablePage() {
         <Link href={hrefWithLevel("/admin/academic/teacher-assignments")} className="font-medium text-brand hover:underline">
           Subject teachers
         </Link>
-        . This page schedules when each slot occurs.
+        .
       </p>
 
       {err ? <Alert tone="error">{err}</Alert> : null}
@@ -263,38 +306,39 @@ export default function AdminTimetablePage() {
         </div>
       </Card>
 
-      <div className="mt-4">
-        <TimetablePublishBar
-          template={draftQ.data}
-          onValidate={() => void runValidate()}
-          onPublish={() => void runPublish()}
-          validating={mutations.validate.isPending}
-          publishing={mutations.publish.isPending}
-          disabled={!templateId}
-        />
-      </div>
+      {tab !== "view" ? (
+        <div className="mt-4">
+          <TimetablePublishBar
+            template={draftQ.data}
+            onValidate={() => void runValidate()}
+            onPublish={() => void runPublish()}
+            validating={mutations.validate.isPending}
+            publishing={mutations.publish.isPending}
+            disabled={!templateId}
+          />
+        </div>
+      ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2 border-b border-border pb-2">
-        {(
-          [
-            ["setup", "Setup"],
-            ["class", "By class"],
-            ["teacher", "By teacher"],
-            ["publish", "Publish"],
-          ] as const
-        ).map(([id, label]) => (
+        {TAB_LABELS.map(({ id, label }) => (
           <button
             key={id}
             type="button"
             className={`rounded-lg px-3 py-2 text-sm font-medium transition-ui ${
               tab === id ? "bg-brand text-white" : "bg-muted text-muted-foreground hover:text-foreground"
             }`}
-            onClick={() => setTab(id)}
+            onClick={() => setTabAndUrl(id)}
           >
             {label}
           </button>
         ))}
       </div>
+
+      {tab === "view" ? (
+        <div className="mt-4">
+          <TimetablePublishedViewer academicYearId={yearId} termId={termId} level={level} />
+        </div>
+      ) : null}
 
       {tab === "setup" ? (
         <AsyncContent
@@ -455,5 +499,13 @@ export default function AdminTimetablePage() {
         </div>
       ) : null}
     </PageWrapper>
+  );
+}
+
+export default function AdminTimetablePage() {
+  return (
+    <Suspense fallback={<p className="p-6 text-sm text-muted-foreground">Loading timetable…</p>}>
+      <AdminTimetablePageContent />
+    </Suspense>
   );
 }

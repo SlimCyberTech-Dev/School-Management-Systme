@@ -4,15 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { NAV_ICON_MAP } from "./navIconMap";
+import { isNavItemActive } from "./navActive";
 import { useAuthStore } from "@/store/authStore";
 import type { RoleShellConfig } from "./types";
-
-function isActive(pathname: string, href: string, activePrefix?: string, exactMatch?: boolean): boolean {
-  if (href.endsWith("/dashboard")) return pathname === href;
-  if (exactMatch) return pathname === href;
-  const p = activePrefix ?? href;
-  return pathname === p || pathname.startsWith(`${p}/`);
-}
 
 export function ShellSidebar({ config, mobile = false }: { config: RoleShellConfig; mobile?: boolean }) {
   const pathname = usePathname();
@@ -38,7 +32,7 @@ export function ShellSidebar({ config, mobile = false }: { config: RoleShellConf
         <p className="px-4 pb-1 pt-4 text-[10px] uppercase tracking-widest text-muted-foreground/60">Navigation</p>
         <nav className="flex flex-col gap-1 pb-3">
           {config.items.map((item) => {
-            const active = isActive(pathname, item.href, item.activePrefix, item.exactMatch);
+            const active = isNavItemActive(item, pathname, config.items);
             const Icon = NAV_ICON_MAP[item.icon];
             return (
               <Link

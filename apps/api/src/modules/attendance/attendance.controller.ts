@@ -6,6 +6,9 @@ const {
   attendanceSchema,
   attendanceAdminOverviewQuerySchema,
   attendanceRangeQuerySchema,
+  attendanceLessonRegisterQuerySchema,
+  attendanceLessonRegisterSaveSchema,
+  attendanceLessonRegisterSubmitSchema,
   attendanceRegisterQuerySchema,
   attendanceRegisterSaveSchema,
   attendanceRegisterSubmitSchema,
@@ -74,6 +77,46 @@ export async function getAttendanceRange(req: Request, res: Response): Promise<v
   const q = attendanceRangeQuerySchema.parse(req.query);
   const data = await svc.getAttendanceRange(q, req.user.role, req.user.id);
   res.json({ success: true, data });
+}
+
+export async function getAttendanceLessonRegister(req: Request, res: Response): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ success: false, error: "Unauthorized" });
+    return;
+  }
+  const q = attendanceLessonRegisterQuerySchema.parse(req.query);
+  const data = await svc.getAttendanceLessonRegister(
+    q.timetableEntryId,
+    q.date,
+    req.user.role,
+    req.user.id,
+  );
+  res.json({ success: true, data });
+}
+
+export async function putAttendanceLessonRegister(req: Request, res: Response): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ success: false, error: "Unauthorized" });
+    return;
+  }
+  const body = attendanceLessonRegisterSaveSchema.parse(req.body);
+  const data = await svc.saveAttendanceLessonRegister(body, req.user.id, req.user.role);
+  res.json({ success: true, data, message: "Lesson attendance draft saved." });
+}
+
+export async function postAttendanceLessonRegisterSubmit(req: Request, res: Response): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ success: false, error: "Unauthorized" });
+    return;
+  }
+  const body = attendanceLessonRegisterSubmitSchema.parse(req.body);
+  const data = await svc.submitAttendanceLessonRegister(
+    body.timetableEntryId,
+    body.date,
+    req.user.id,
+    req.user.role,
+  );
+  res.json({ success: true, data, message: "Lesson attendance register submitted." });
 }
 
 export async function getAttendanceAdminOverview(req: Request, res: Response): Promise<void> {

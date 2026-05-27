@@ -1,22 +1,27 @@
 "use client";
 
+import { useState } from "react";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { TeacherTimetableSkeleton } from "@/components/timetable/TeacherTimetableSkeleton";
 import { TeacherWeekTimetable } from "@/components/timetable/TeacherWeekTimetable";
 import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { ErrorState } from "@/components/feedback/ErrorState";
-import { TableSkeleton } from "@/components/feedback/TableSkeleton";
 import { useTeacherWeek } from "@/hooks/useTimetable";
 import { queryStatus } from "@/lib/queryStatus";
 
 export default function ClassTeacherTimetablePage() {
-  const weekQ = useTeacherWeek();
+  const [weekStart, setWeekStart] = useState<string | undefined>(undefined);
+  const weekQ = useTeacherWeek(weekStart);
   const status = queryStatus(weekQ);
 
   return (
-    <PageWrapper title="My timetable" description="Your published weekly teaching schedule for the current term.">
+    <PageWrapper
+      title="My timetable"
+      description="Your published teaching schedule — times, classes, and attendance for each lesson."
+    >
       <AsyncContent
         status={status}
-        loading={<TableSkeleton rows={4} cols={5} />}
+        loading={<TeacherTimetableSkeleton />}
         error={
           <ErrorState
             message={weekQ.error instanceof Error ? weekQ.error.message : "Failed to load timetable"}
@@ -24,7 +29,13 @@ export default function ClassTeacherTimetablePage() {
           />
         }
       >
-        <TeacherWeekTimetable week={weekQ.data} />
+        <TeacherWeekTimetable
+          week={weekQ.data}
+          weekStart={weekStart}
+          onWeekStartChange={setWeekStart}
+          onRefresh={() => void weekQ.refetch()}
+          isFetching={weekQ.isFetching}
+        />
       </AsyncContent>
     </PageWrapper>
   );

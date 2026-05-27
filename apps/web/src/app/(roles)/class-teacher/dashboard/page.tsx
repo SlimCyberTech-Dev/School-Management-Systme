@@ -16,6 +16,7 @@ import {
 } from "@/components/layout/shells/DashboardScaffold";
 import { TeacherTeachingScopeCard } from "@/components/teaching/TeacherTeachingScopeCard";
 import { useMyTeachingScope } from "@/hooks/useMyTeachingScope";
+import { useTeacherToday } from "@/hooks/useTimetable";
 import { classDisplayName } from "@/lib/academicLevel";
 import { apiGet } from "@/lib/api";
 import { manualStatus } from "@/lib/queryStatus";
@@ -40,6 +41,8 @@ export default function ClassTeacherDashboardPage() {
       ),
     enabled: Boolean(scope.primaryDashboardClassId) && (loadAttendance || loadSubjectRoster),
   });
+
+  const todayLessonsQ = useTeacherToday();
 
   const attendanceQ = useQuery({
     queryKey: ["attendance-today", homeroomClass?.classId, today],
@@ -276,6 +279,44 @@ export default function ClassTeacherDashboardPage() {
                 homeroomClasses={scope.homeroomClasses}
                 academicYearName={scope.activeYear?.name}
               />
+              <DashboardPanel title={`Today's lessons (${today})`}>
+                {todayLessonsQ.isLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading timetable…</p>
+                ) : (todayLessonsQ.data?.lessons.length ?? 0) === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No lessons on your published timetable today.
+                  </p>
+                ) : (
+                  <ul className="space-y-2 text-sm">
+                    {todayLessonsQ.data!.lessons
+                      .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                      .map((l) => (
+                        <li key={l.timetableEntryId} className="rounded-md border border-border px-3 py-2">
+                          <p className="font-medium text-foreground">
+                            {l.startTime}–{l.endTime} · {l.subjectCode}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {classDisplayName({ name: l.className, stream: l.classStream })}
+                          </p>
+                          <Link
+                            href={`/class-teacher/attendance?timetableEntryId=${encodeURIComponent(l.timetableEntryId)}&date=${encodeURIComponent(today)}`}
+                            className="mt-1 inline-block text-xs font-medium text-brand hover:underline"
+                          >
+                            {l.attendanceStatus === "submitted" || l.attendanceStatus === "locked"
+                              ? "View register"
+                              : "Take attendance"}
+                          </Link>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+                <Link
+                  href="/class-teacher/timetable"
+                  className="mt-3 inline-block text-sm font-medium text-brand hover:underline"
+                >
+                  Full week timetable →
+                </Link>
+              </DashboardPanel>
               <DashboardPanel title="Quick links">
                 <div className="space-y-2 text-sm">
                   {homeroomClass ? (

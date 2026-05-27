@@ -12,8 +12,29 @@ const {
   timetableMyWeekQuerySchema,
   timetablePeriodsBulkSchema,
   timetablePublishSchema,
+  timetableBrowseQuerySchema,
   timetableTemplateQuerySchema,
 } = sharedSchemas;
+
+export async function browsePublished(req: Request, res: Response): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ success: false, error: "Unauthorized" });
+    return;
+  }
+  const q = timetableBrowseQuerySchema.parse(req.query);
+  const data = await svc.browsePublishedTimetables(q);
+  res.json({ success: true, data });
+}
+
+export async function getTemplateOverview(req: Request, res: Response): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ success: false, error: "Unauthorized" });
+    return;
+  }
+  const id = String(req.params["id"] ?? "");
+  const data = await svc.getTemplateOverview(id);
+  res.json({ success: true, data });
+}
 
 export async function listTemplates(req: Request, res: Response): Promise<void> {
   if (!req.user) {

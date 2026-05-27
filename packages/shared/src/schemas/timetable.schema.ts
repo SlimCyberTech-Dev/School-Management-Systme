@@ -95,6 +95,17 @@ export const timetableMyWeekQuerySchema = z.object({
     .optional(),
 });
 
+export const timetableBrowseQuerySchema = z.object({
+  academicYearId: z.string().uuid().optional(),
+  termId: z.string().uuid().optional(),
+  level: timetableLevelSchema.optional(),
+  status: z.enum(["active", "archived", "all"]).default("active"),
+});
+
+export const timetableOverviewParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
 export type TimetableLevel = z.infer<typeof timetableLevelSchema>;
 export type TimetableStatus = z.infer<typeof timetableStatusSchema>;
 export type TimetableTemplateQuery = z.infer<typeof timetableTemplateQuerySchema>;
@@ -109,6 +120,41 @@ export type TimetableGridQuery = z.infer<typeof timetableGridQuerySchema>;
 export type TimetablePublishInput = z.infer<typeof timetablePublishSchema>;
 export type TimetableValidateResult = z.infer<typeof timetableValidateResultSchema>;
 export type TimetableMyWeekQuery = z.infer<typeof timetableMyWeekQuerySchema>;
+export type TimetableBrowseQuery = z.infer<typeof timetableBrowseQuerySchema>;
+
+export type TimetableBrowseItem = TimetableTemplate & {
+  academicYearName: string;
+  termNumber: number;
+  publishedByName: string | null;
+  classCount: number;
+  teacherCount: number;
+  isActive: boolean;
+};
+
+export type TimetableTemplateOverview = {
+  template: TimetableTemplate;
+  academicYearName: string;
+  termNumber: number;
+  publishedByName: string | null;
+  stats: {
+    entryCount: number;
+    classCount: number;
+    teacherCount: number;
+    teachingPeriodCount: number;
+    schoolDayCount: number;
+  };
+  classes: Array<{
+    classId: string;
+    className: string;
+    classStream: string;
+    lessonCount: number;
+  }>;
+  teachers: Array<{
+    teacherId: string;
+    teacherName: string;
+    lessonCount: number;
+  }>;
+};
 
 export type TimetableTemplate = {
   id: string;
@@ -186,6 +232,8 @@ export type TimetablePublicationLogEntry = {
 };
 
 export type TeacherWeekLesson = {
+  timetableEntryId: string;
+  classSubjectId: string;
   dayOfWeek: number;
   date: string;
   periodId: string;
@@ -200,6 +248,11 @@ export type TeacherWeekLesson = {
   subjectName: string;
   subjectCode: string;
   level: string;
+  templateId: string;
+  templateVersion: number;
+  attendanceRegisterId: string | null;
+  attendanceStatus: "none" | "draft" | "submitted" | "locked";
+  studentCount: number;
 };
 
 export type TeacherWeekView = {

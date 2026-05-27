@@ -1,6 +1,8 @@
 import type {
   CloneTimetableTemplateInput,
   CreateTimetableTemplateInput,
+  TimetableBrowseItem,
+  TimetableBrowseQuery,
   TimetableClassSubjectOption,
   TimetableDaysBulkInput,
   TimetableEntriesBulkSaveInput,
@@ -10,14 +12,21 @@ import type {
   TimetablePublicationLogEntry,
   TimetablePublishInput,
   TimetableTemplate,
+  TimetableTemplateOverview,
   TimetableTemplateQuery,
   TimetableValidateResult,
   TeacherTodayView,
+  TeacherWeekLesson,
   TeacherWeekView,
 } from "@uganda-cbc-sms/shared";
 import type { PoolClient } from "pg";
 import { query, withTransaction } from "../../config/db";
 import { HttpError } from "../../utils/httpError";
+import {
+  assertNoScheduleClashes,
+  messageFromUniqueViolation,
+  validationClashMessage,
+} from "./timetableClashMessages";
 
 const DAY_NAMES = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -347,7 +356,7 @@ async function validateClassSubjectSlot(
   templateRow: TemplateRow,
   classId: string,
   classSubjectId: string,
-): Promise<{ teacherId: string | null }> {
+): Promise<{ teacherId: string }> {
   const level = normalizeLevel(templateRow.level);
   const { rows } = await query<{ teacher_id: string | null }>(
     `SELECT cs.teacher_id
@@ -394,6 +403,20 @@ export async function saveClassGrid(
     await validateClassSubjectSlot(tpl, classId, e.classSubjectId);
   }
 
+  const teacherBySubject = new Map<string, string>();
+  for (const e of input.entries) {
+    const { teacherId } = await validateClassSubjectSlot(tpl, classId, e.classSubjectId);
+    teacherBySubject.set(e.classSubjectId, teacherId);
+  }
+
+  await assertNoScheduleClashes(
+    templateId,
+    classId,
+    input.entries,
+    periods,
+    async (classSubjectId) => teacherBySubject.get(classSubjectId)!,
+  );
+
   try {
     await withTransaction(async (client) => {
       await client.query(
@@ -402,7 +425,7 @@ export async function saveClassGrid(
         [templateId, classId],
       );
       for (const e of input.entries) {
-        const { teacherId } = await validateClassSubjectSlot(tpl, classId, e.classSubjectId);
+        const teacherId = teacherBySubject.get(e.classSubjectId)!;
         await client.query(
           `INSERT INTO timetable_entries
              (template_id, day_of_week, period_id, class_id, class_subject_id, teacher_id, updated_at)
@@ -413,12 +436,12 @@ export async function saveClassGrid(
       await client.query(`UPDATE timetable_templates SET updated_at = NOW() WHERE id = $1`, [templateId]);
     });
   } catch (err: unknown) {
-    if (typeof err === "object" && err !== null && "code" in err && (err as { code: string }).code === "23505") {
-      throw new HttpError(
-        409,
-        "Schedule clash: a class or teacher is already booked in one of the selected slots. Adjust and try again.",
-      );
-    }
+    if (err instanceof HttpError) throw err;
+    const pgMsg =
+      typeof err === "object" && err !== null
+        ? messageFromUniqueViolation(err as { code?: string; constraint?: string; detail?: string }, periods)
+        : null;
+    if (pgMsg) throw new HttpError(409, pgMsg);
     throw err;
   }
 
@@ -586,6 +609,7 @@ export async function getTeacherGrid(templateId: string, teacherId: string): Pro
 
 export async function validateTemplate(templateId: string): Promise<TimetableValidateResult> {
   const tpl = await getTemplateRow(templateId);
+  const periods = await getPeriods(templateId);
   const errors: TimetableValidateResult["errors"] = [];
   const warnings: TimetableValidateResult["warnings"] = [];
 
@@ -609,9 +633,10 @@ export async function validateTemplate(templateId: string): Promise<TimetableVal
     [templateId],
   );
   for (const c of clashes.rows) {
+    const kind = c.kind === "class" ? "class" : "teacher";
     errors.push({
       code: c.kind === "class" ? "CLASS_CLASH" : "TEACHER_CLASH",
-      message: `${c.kind === "class" ? "Class" : "Teacher"} double-booked on ${DAY_NAMES[c.day_of_week]} in the same period.`,
+      message: validationClashMessage(kind, c.day_of_week, c.period_id, periods),
       dayOfWeek: c.day_of_week,
       periodId: c.period_id,
     });
@@ -831,6 +856,190 @@ export async function getPublicationLog(templateId: string): Promise<TimetablePu
   }));
 }
 
+export async function browsePublishedTimetables(
+  filters: TimetableBrowseQuery,
+): Promise<TimetableBrowseItem[]> {
+  const params: unknown[] = [];
+  const parts: string[] = [`tt.status IN ('published', 'archived')`];
+
+  if (filters.status === "active") {
+    parts[0] = `tt.status = 'published'`;
+  } else if (filters.status === "archived") {
+    parts[0] = `tt.status = 'archived'`;
+  }
+
+  if (filters.academicYearId) {
+    params.push(filters.academicYearId);
+    parts.push(`tt.academic_year_id = $${params.length}::uuid`);
+  }
+  if (filters.termId) {
+    params.push(filters.termId);
+    parts.push(`tt.term_id = $${params.length}::uuid`);
+  }
+  if (filters.level) {
+    const level = normalizeLevel(filters.level);
+    params.push(levelSqlVariants(level));
+    parts.push(`tt.level = ANY($${params.length}::text[])`);
+  }
+
+  const { rows } = await query<
+    TemplateRow & {
+      academic_year_name: string;
+      term_number: number;
+      published_by_name: string | null;
+      class_count: number;
+      teacher_count: number;
+      entry_count: number;
+      period_count: number;
+    }
+  >(
+    `SELECT
+       tt.*,
+       ay.name AS academic_year_name,
+       t.term_number,
+       u.full_name AS published_by_name,
+       COALESCE(ec.class_count, 0)::int AS class_count,
+       COALESCE(ec.teacher_count, 0)::int AS teacher_count,
+       COALESCE(ec.entry_count, 0)::int AS entry_count,
+       COALESCE(pc.period_count, 0)::int AS period_count
+     FROM timetable_templates tt
+     JOIN academic_years ay ON ay.id = tt.academic_year_id
+     JOIN terms t ON t.id = tt.term_id
+     LEFT JOIN users u ON u.id = tt.published_by
+     LEFT JOIN (
+       SELECT
+         template_id,
+         COUNT(*)::int AS entry_count,
+         COUNT(DISTINCT class_id)::int AS class_count,
+         COUNT(DISTINCT teacher_id)::int AS teacher_count
+       FROM timetable_entries
+       GROUP BY template_id
+     ) ec ON ec.template_id = tt.id
+     LEFT JOIN (
+       SELECT template_id, COUNT(*)::int AS period_count
+       FROM timetable_periods
+       WHERE is_teaching = true
+       GROUP BY template_id
+     ) pc ON pc.template_id = tt.id
+     WHERE ${parts.join(" AND ")}
+     ORDER BY
+       CASE tt.status WHEN 'published' THEN 0 ELSE 1 END,
+       tt.published_at DESC NULLS LAST,
+       tt.updated_at DESC`,
+    params,
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    academicYearId: r.academic_year_id,
+    termId: r.term_id,
+    level: normalizeLevel(r.level),
+    name: r.name,
+    status: r.status,
+    version: r.version,
+    publishedAt: r.published_at,
+    publishedBy: r.published_by,
+    periodCount: r.period_count,
+    entryCount: r.entry_count,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    academicYearName: r.academic_year_name,
+    termNumber: r.term_number,
+    publishedByName: r.published_by_name,
+    classCount: r.class_count,
+    teacherCount: r.teacher_count,
+    isActive: r.status === "published",
+  }));
+}
+
+export async function getTemplateOverview(templateId: string): Promise<TimetableTemplateOverview> {
+  const tpl = await getTemplate(templateId);
+  if (tpl.status === "draft") {
+    throw new HttpError(400, "Draft timetables cannot be browsed here. Use the timetable builder to edit drafts.");
+  }
+
+  const metaQ = await query<{
+    academic_year_name: string;
+    term_number: number;
+    published_by_name: string | null;
+    teaching_period_count: number;
+    school_day_count: number;
+  }>(
+    `SELECT
+       ay.name AS academic_year_name,
+       t.term_number,
+       u.full_name AS published_by_name,
+       (SELECT COUNT(*)::int FROM timetable_periods WHERE template_id = $1 AND is_teaching = true) AS teaching_period_count,
+       (SELECT COUNT(*)::int FROM timetable_days WHERE template_id = $1 AND is_school_day = true) AS school_day_count
+     FROM timetable_templates tt
+     JOIN academic_years ay ON ay.id = tt.academic_year_id
+     JOIN terms t ON t.id = tt.term_id
+     LEFT JOIN users u ON u.id = tt.published_by
+     WHERE tt.id = $1`,
+    [templateId],
+  );
+  const meta = metaQ.rows[0];
+  if (!meta) throw new HttpError(404, "Timetable template not found");
+
+  const [classesQ, teachersQ] = await Promise.all([
+    query<{
+      class_id: string;
+      class_name: string;
+      class_stream: string | null;
+      lesson_count: number;
+    }>(
+      `SELECT
+         c.id AS class_id,
+         c.name AS class_name,
+         c.stream AS class_stream,
+         COUNT(*)::int AS lesson_count
+       FROM timetable_entries e
+       JOIN classes c ON c.id = e.class_id
+       WHERE e.template_id = $1
+       GROUP BY c.id, c.name, c.stream
+       ORDER BY c.name, c.stream`,
+      [templateId],
+    ),
+    query<{ teacher_id: string; teacher_name: string; lesson_count: number }>(
+      `SELECT
+         u.id AS teacher_id,
+         u.full_name AS teacher_name,
+         COUNT(*)::int AS lesson_count
+       FROM timetable_entries e
+       JOIN users u ON u.id = e.teacher_id
+       WHERE e.template_id = $1
+       GROUP BY u.id, u.full_name
+       ORDER BY u.full_name`,
+      [templateId],
+    ),
+  ]);
+
+  return {
+    template: tpl,
+    academicYearName: meta.academic_year_name,
+    termNumber: meta.term_number,
+    publishedByName: meta.published_by_name,
+    stats: {
+      entryCount: tpl.entryCount,
+      classCount: classesQ.rows.length,
+      teacherCount: teachersQ.rows.length,
+      teachingPeriodCount: meta.teaching_period_count,
+      schoolDayCount: meta.school_day_count,
+    },
+    classes: classesQ.rows.map((r) => ({
+      classId: r.class_id,
+      className: r.class_name,
+      classStream: r.class_stream ?? "",
+      lessonCount: r.lesson_count,
+    })),
+    teachers: teachersQ.rows.map((r) => ({
+      teacherId: r.teacher_id,
+      teacherName: r.teacher_name,
+      lessonCount: r.lesson_count,
+    })),
+  };
+}
+
 async function getActiveYearTerm() {
   const yearQ = await query<{ id: string }>(
     `SELECT id FROM academic_years WHERE is_active = true ORDER BY start_date DESC LIMIT 1`,
@@ -874,6 +1083,67 @@ function mondayOfWeek(ref: Date): Date {
   return d;
 }
 
+type TeacherLessonBase = Omit<
+  TeacherWeekLesson,
+  "attendanceRegisterId" | "attendanceStatus" | "studentCount"
+>;
+
+async function enrichTeacherLessonsWithAttendance(
+  lessons: TeacherLessonBase[],
+): Promise<TeacherWeekLesson[]> {
+  if (lessons.length === 0) return [];
+
+  const entryIds = lessons.map((l) => l.timetableEntryId);
+  const dates = [...new Set(lessons.map((l) => l.date))];
+  const classIds = [...new Set(lessons.map((l) => l.classId))];
+
+  const [regQ, countQ] = await Promise.all([
+    query<{
+      timetable_entry_id: string;
+      date: string;
+      id: string;
+      status: "draft" | "submitted" | "locked";
+    }>(
+      `SELECT timetable_entry_id, date::text, id, status
+       FROM attendance_registers
+       WHERE timetable_entry_id = ANY($1::uuid[])
+         AND date = ANY($2::date[])
+         AND register_type = 'lesson'`,
+      [entryIds, dates],
+    ),
+    query<{ class_id: string; cnt: number }>(
+      `SELECT class_id, COUNT(*)::int AS cnt
+       FROM students
+       WHERE class_id = ANY($1::uuid[])
+         AND status = 'active'
+       GROUP BY class_id`,
+      [classIds],
+    ),
+  ]);
+
+  const regMap = new Map(
+    regQ.rows.map((r) => [`${r.timetable_entry_id}:${r.date}`, r] as const),
+  );
+  const countMap = new Map(countQ.rows.map((r) => [r.class_id, r.cnt] as const));
+
+  return lessons.map((l) => {
+    const reg = regMap.get(`${l.timetableEntryId}:${l.date}`);
+    const attendanceStatus: TeacherWeekLesson["attendanceStatus"] = !reg
+      ? "none"
+      : reg.status === "draft"
+        ? "draft"
+        : reg.status === "locked"
+          ? "locked"
+          : "submitted";
+    return {
+      ...l,
+      attendanceRegisterId: reg?.id ?? null,
+      attendanceStatus,
+      studentCount: countMap.get(l.classId) ?? 0,
+    };
+  });
+}
+
 export async function getTeacherWeek(teacherId: string, weekStart?: string): Promise<TeacherWeekView> {
   const scope = await getActiveYearTerm();
   if (!scope?.termId) {
@@ -895,7 +1165,10 @@ export async function getTeacherWeek(teacherId: string, weekStart?: string): Pro
 
   const templateIds = templates.map((t) => t.id);
   const { rows } = await query<{
+    entry_id: string;
+    class_subject_id: string;
     template_id: string;
+    template_version: number;
     level: string;
     day_of_week: number;
     period_id: string;
@@ -911,7 +1184,10 @@ export async function getTeacherWeek(teacherId: string, weekStart?: string): Pro
     subject_code: string;
   }>(
     `SELECT
+       e.id AS entry_id,
+       e.class_subject_id,
        e.template_id,
+       tt.version AS template_version,
        tt.level,
        e.day_of_week,
        p.id AS period_id,
@@ -938,10 +1214,14 @@ export async function getTeacherWeek(teacherId: string, weekStart?: string): Pro
     [templateIds, teacherId],
   );
 
-  const lessons = rows.map((r) => {
+  const baseLessons = rows.map((r) => {
     const lessonDate = new Date(start);
     lessonDate.setDate(start.getDate() + (r.day_of_week - 1));
     return {
+      timetableEntryId: r.entry_id,
+      classSubjectId: r.class_subject_id,
+      templateId: r.template_id,
+      templateVersion: r.template_version,
       dayOfWeek: r.day_of_week,
       date: isoDate(lessonDate),
       periodId: r.period_id,
@@ -958,6 +1238,8 @@ export async function getTeacherWeek(teacherId: string, weekStart?: string): Pro
       level: normalizeLevel(r.level),
     };
   });
+
+  const lessons = await enrichTeacherLessonsWithAttendance(baseLessons);
 
   return {
     weekStart: isoDate(start),

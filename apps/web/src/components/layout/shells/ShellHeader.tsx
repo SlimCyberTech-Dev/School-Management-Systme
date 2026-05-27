@@ -7,6 +7,7 @@ import Image from "next/image";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { resolveUploadUrl } from "@/lib/media";
 import { useAuthStore } from "@/store/authStore";
+import { resolveActiveNavItem } from "./navActive";
 import type { RoleShellConfig } from "./types";
 
 type Props = {
@@ -25,11 +26,7 @@ export function ShellHeader({ config, onToggleMobileNav }: Props) {
   const hasUnread = true;
 
   const pageTitle = useMemo(() => {
-    const current = config.items.find((item) => {
-      if (item.exactMatch) return pathname === item.href;
-      const prefix = item.activePrefix ?? item.href;
-      return pathname === prefix || pathname.startsWith(`${prefix}/`);
-    });
+    const current = resolveActiveNavItem(config.items, pathname);
     return current?.label ?? `${config.roleLabel} Dashboard`;
   }, [config.items, config.roleLabel, pathname]);
 

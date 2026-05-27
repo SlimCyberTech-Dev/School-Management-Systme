@@ -12,7 +12,8 @@ export type NavIconId =
   | "barChart3"
   | "school"
   | "receipt"
-  | "fileText";
+  | "fileText"
+  | "calendar";
 
 export type NavItem = {
   href: string;
