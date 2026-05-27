@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AcademicLevelScope } from "@/components/academic/AcademicLevelScope";
+import { useAcademicLevelScope } from "@/hooks/useAcademicLevelScope";
+import { filterClassesByLevel, levelShortLabel } from "@/lib/academicLevel";
 import { useQueries } from "@tanstack/react-query";
 import { School } from "lucide-react";
 import { EmptyState } from "@/components/feedback/EmptyState";
@@ -30,6 +33,7 @@ const ACTION_DANGER_BTN =
   "inline-flex items-center rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs font-medium text-red-700 transition-ui hover:bg-red-500/20 dark:text-red-300 disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function AdminAcademicClassesPage() {
+  const { level, setLevel, hrefWithLevel } = useAcademicLevelScope("O_LEVEL");
   const [classesQ, yearsQ, staffQ] = useQueries({
     queries: [
       { queryKey: ["academic-classes"], queryFn: () => apiGet<SchoolClass[]>("/academic/classes") },
@@ -40,6 +44,7 @@ export default function AdminAcademicClassesPage() {
   const classes = classesQ.data ?? [];
   const years = yearsQ.data ?? [];
   const users = staffQ.data ?? [];
+  const scopedClasses = useMemo(() => filterClassesByLevel(classes, level), [classes, level]);
   const loading = [classesQ, yearsQ, staffQ].some((q) => q.isPending);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -81,11 +86,15 @@ export default function AdminAcademicClassesPage() {
     }
   }, [years, form]);
 
+  useEffect(() => {
+    form.setValue("level", level);
+  }, [level, form]);
+
   const onSubmit = async (v: Form) => {
     setErr(null);
     setOk(null);
     try {
-      await apiPost("/academic/classes", v);
+      await apiPost("/academic/classes", { ...v, classTeacherId: null });
       reload();
       setOk("Class created.");
       setCreateOpen(false);
@@ -118,7 +127,12 @@ export default function AdminAcademicClassesPage() {
     setOk(null);
     setBusyId(editing.id);
     try {
-      await apiPatch(`/academic/classes/${encodeURIComponent(editing.id)}`, v);
+      await apiPatch(`/academic/classes/${encodeURIComponent(editing.id)}`, {
+        name: v.name,
+        stream: v.stream,
+        level: v.level,
+        academicYearId: v.academicYearId,
+      });
       reload();
       setEditing(null);
       setOk("Class updated.");
@@ -146,13 +160,6 @@ export default function AdminAcademicClassesPage() {
     }
   };
 
-  const teacherOpts = [
-    { value: "", label: "— None —" },
-    ...users
-      .filter((x) => ["class_teacher", "subject_teacher", "headteacher"].includes(x.role))
-      .map((x) => ({ value: x.id, label: `${x.fullName} (${x.role})` })),
-  ];
-
   const columns: Column<Row>[] = [
     { key: "name", header: "Class" },
     { key: "stream", header: "Stream" },
@@ -165,17 +172,27 @@ export default function AdminAcademicClassesPage() {
     {
       key: "classTeacherId",
       header: "Homeroom",
-      render: (r) => users.find((u) => u.id === r.classTeacherId)?.fullName ?? "—",
+      render: (r) => {
+        const name = users.find((u) => u.id === r.classTeacherId)?.fullName;
+        return name ? (
+          name
+        ) : (
+          <span className="text-amber-700 dark:text-amber-300">Not set</span>
+        );
+      },
     },
     {
       key: "manage",
       header: "",
       render: (r) => (
         <Link
-          href={`/admin/academic/class-teachers?classId=${encodeURIComponent(r.id)}&academicYearId=${encodeURIComponent(r.academicYearId)}`}
+          href={hrefWithLevel("/admin/academic/class-teachers", {
+            classId: r.id,
+            academicYearId: r.academicYearId,
+          })}
           className="text-sm font-medium text-brand hover:underline"
         >
-          Teachers
+          Class teachers
         </Link>
       ),
     },
@@ -206,7 +223,7 @@ export default function AdminAcademicClassesPage() {
   ];
 
   return (
-    <PageWrapper title="Classes" description="Create classes for an academic year">
+    <PageWrapper title="Classes" description="Create O-Level and A-Level class groups — assign teachers on Class teachers">
       <div className="mb-3">
         <Link href="/admin/academic" className="text-sm font-medium text-brand hover:underline">
           ← Back to Academic
@@ -216,7 +233,16 @@ export default function AdminAcademicClassesPage() {
         {ok ? <Alert tone="success">{ok}</Alert> : null}
         {err ? <Alert tone="error">{err}</Alert> : null}
       </div>
-      <Card title={`Classes (${classes.length})`}>
+      <div className="mb-4">
+        <Card title="School level">
+          <AcademicLevelScope
+            level={level}
+            onLevelChange={setLevel}
+            description={`Showing ${levelShortLabel(level)} classes. Homeroom is assigned under Class teachers, not here.`}
+          />
+        </Card>
+      </div>
+      <Card title={`Classes (${scopedClasses.length})`}>
         <div className="mb-3 flex justify-end">
           <Button type="button" onClick={() => setCreateOpen(true)}>
             Add new record
@@ -224,7 +250,7 @@ export default function AdminAcademicClassesPage() {
         </div>
         <Table
           columns={columns}
-          rows={classes as Row[]}
+          rows={scopedClasses as Row[]}
           loading={loading}
           searchKeys={["name", "stream"]}
           emptyState={
@@ -254,13 +280,24 @@ export default function AdminAcademicClassesPage() {
               options={years.map((y) => ({ value: y.id, label: y.name }))}
               {...editForm.register("academicYearId")}
             />
-            <Select
-              label="Class teacher (optional)"
-              options={teacherOpts}
-              {...editForm.register("classTeacherId", {
-                setValueAs: (v: string) => (v === "" ? null : v),
-              })}
-            />
+            <p className="text-sm text-muted-foreground">
+              Assign homeroom and class teachers on{" "}
+              <Link
+                href={hrefWithLevel(
+                  "/admin/academic/class-teachers",
+                  editing
+                    ? {
+                        classId: editing.id,
+                        academicYearId: editing.academicYearId,
+                      }
+                    : undefined,
+                )}
+                className="font-medium text-brand hover:underline"
+              >
+                Class teachers
+              </Link>
+              .
+            </p>
             <div className="flex gap-2">
               <Button type="submit" loading={Boolean(editing && busyId === editing.id)}>
                 Save changes
@@ -298,13 +335,13 @@ export default function AdminAcademicClassesPage() {
             options={years.map((y) => ({ value: y.id, label: y.name }))}
             {...form.register("academicYearId")}
           />
-          <Select
-            label="Class teacher (optional)"
-            options={teacherOpts}
-            {...form.register("classTeacherId", {
-              setValueAs: (v: string) => (v === "" ? null : v),
-            })}
-          />
+          <p className="text-sm text-muted-foreground">
+            After creating the class, assign homeroom on{" "}
+            <Link href={hrefWithLevel("/admin/academic/class-teachers")} className="font-medium text-brand hover:underline">
+              Class teachers
+            </Link>
+            .
+          </p>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setCreateOpen(false)}>
               Cancel

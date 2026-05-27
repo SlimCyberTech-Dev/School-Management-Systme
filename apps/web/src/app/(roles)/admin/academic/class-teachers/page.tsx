@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { AcademicYear, SchoolClass } from "@uganda-cbc-sms/shared";
 import { AcademicLevelScope } from "@/components/academic/AcademicLevelScope";
+import { ClassTeachersByTeacherPanel } from "@/components/academic/ClassTeachersByTeacherPanel";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -38,16 +39,22 @@ type Row = ClassTeacherAssignment & Record<string, unknown>;
 const CHECK =
   "h-4 w-4 rounded border-border text-foreground accent-brand disabled:cursor-not-allowed disabled:opacity-50";
 
+type ViewMode = "class" | "teacher";
+
 export default function AdminClassTeachersPage() {
   const searchParams = useSearchParams();
   const initialClassId = searchParams.get("classId") ?? "";
   const initialYearId = searchParams.get("academicYearId") ?? "";
+  const initialTeacherId = searchParams.get("teacherId") ?? "";
+  const initialView = searchParams.get("view") === "teacher" ? "teacher" : "class";
   const { level, setLevel, hrefWithLevel } = useAcademicLevelScope("O_LEVEL");
-  const { staff, loading: staffLoading } = useTeachingStaff();
+  const { staff, options: teacherOptions, loading: staffLoading } = useTeachingStaff();
+  const [viewMode, setViewMode] = useState<ViewMode>(initialView);
   const [years, setYears] = useState<AcademicYear[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [academicYearId, setAcademicYearId] = useState("");
   const [classId, setClassId] = useState("");
+  const [teacherId, setTeacherId] = useState(initialTeacherId);
   const [assignments, setAssignments] = useState<ClassTeacherAssignment[]>([]);
   const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
   const [homeroomTeacherId, setHomeroomTeacherId] = useState("");
@@ -64,17 +71,21 @@ export default function AdminClassTeachersPage() {
     return filtered.map((c) => ({ value: c.id, label: classDisplayName(c) }));
   }, [classes, academicYearId, level]);
 
+  const selectedTeacher = useMemo(
+    () => staff.find((t) => t.id === teacherId) ?? null,
+    [staff, teacherId],
+  );
+
+  const classTeacherStaff = useMemo(
+    () => staff.filter((t) => ["class_teacher", "subject_teacher", "headteacher"].includes(t.role)),
+    [staff],
+  );
+
   useEffect(() => {
     if (classId && !classOptions.some((o) => o.value === classId)) {
       setClassId(classOptions[0]?.value ?? "");
     }
   }, [classId, classOptions]);
-
-  const teacherChecklist = useMemo(
-    () =>
-      staff.filter((t) => ["class_teacher", "subject_teacher", "headteacher"].includes(t.role)),
-    [staff],
-  );
 
   const loadMeta = async () => {
     const [y, c] = await Promise.all([
@@ -93,6 +104,8 @@ export default function AdminClassTeachersPage() {
       (initialClassId && yearClasses.find((x) => x.id === initialClassId)) ||
       yearClasses[0];
     if (pickClass && !classId) setClassId(pickClass.id);
+    if (initialTeacherId && !teacherId) setTeacherId(initialTeacherId);
+    else if (!teacherId && classTeacherStaff[0]) setTeacherId(classTeacherStaff[0].id);
   };
 
   const loadAssignments = async (yId: string, cId: string) => {
@@ -122,11 +135,17 @@ export default function AdminClassTeachersPage() {
   }, []);
 
   useEffect(() => {
-    if (!academicYearId || !classId) return;
+    if (viewMode !== "class" || !academicYearId || !classId) return;
     void loadAssignments(academicYearId, classId).catch((e) => {
       setErr(e instanceof Error ? e.message : "Failed to load assignments");
     });
-  }, [academicYearId, classId]);
+  }, [academicYearId, classId, viewMode]);
+
+  useEffect(() => {
+    if (staffLoading || loading) return;
+    void loadMeta();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [level]);
 
   const onSave = async () => {
     if (!classId || !academicYearId) return;
@@ -134,9 +153,9 @@ export default function AdminClassTeachersPage() {
     setErr(null);
     setOk(null);
     try {
-      const teachers = selectedTeacherIds.map((teacherId) => ({
-        teacherId,
-        isHomeroom: teacherId === homeroomTeacherId,
+      const teachers = selectedTeacherIds.map((id) => ({
+        teacherId: id,
+        isHomeroom: id === homeroomTeacherId,
       }));
       await apiPut(`/academic/classes/${encodeURIComponent(classId)}/teacher-assignments`, {
         academicYearId,
@@ -167,7 +186,7 @@ export default function AdminClassTeachersPage() {
   return (
     <PageWrapper
       title="Class teachers"
-      description={`Step 1 — assign homeroom and class teachers for ${levelShortLabel(level)} classes`}
+      description={`Single place to assign homeroom and class teachers for ${levelShortLabel(level)} and A-Level`}
     >
       <div className="mb-3 flex flex-wrap items-center gap-4">
         <Link
@@ -190,17 +209,51 @@ export default function AdminClassTeachersPage() {
           <AcademicLevelScope
             level={level}
             onLevelChange={setLevel}
-            description={`Only ${levelShortLabel(level)} classes appear below. Switch level to configure the other track.`}
+            description={`Only ${levelShortLabel(level)} classes appear below. Switch level for the other track.`}
           />
         </Card>
       </div>
 
-      <Card title="Select class">
-        <p className="mb-3 text-sm text-muted-foreground">
-          A class may have many teachers. The homeroom teacher is the class head for reports and leadership. Subject
-          teaching is managed in steps 2 and 3 on the teaching assignments page.
+      <Card title="How to assign">
+        <p className="text-sm text-muted-foreground">
+          This is the only page for class teacher assignment. Use <strong>By class</strong> to set all teachers on one
+          class, or <strong>By teacher</strong> to see every class a staff member leads. Subject teaching slots are on{" "}
+          <Link
+            href={hrefWithLevel("/admin/academic/teacher-assignments", { academicYearId })}
+            className="font-medium text-brand hover:underline"
+          >
+            Subject teachers
+          </Link>
+          . Do not set homeroom on the Classes page — it is managed here.
         </p>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="mt-3 inline-flex rounded-lg border border-border bg-muted/40 p-1" role="tablist">
+          {(
+            [
+              { id: "class" as const, label: "By class" },
+              { id: "teacher" as const, label: "By teacher" },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={viewMode === tab.id}
+              className={`rounded-md px-4 py-2 text-sm font-medium transition-ui ${
+                viewMode === tab.id
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setViewMode(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      <div className="mt-4">
+      <Card title="Filters">
+        <div className="grid gap-3 md:grid-cols-3">
           <Select
             label="Academic year"
             options={years.map((y) => ({ value: y.id, label: y.name }))}
@@ -210,72 +263,107 @@ export default function AdminClassTeachersPage() {
               setClassId("");
             }}
           />
-          <Select
-            label="Class"
-            options={classOptions}
-            value={classId}
-            onChange={(e) => setClassId(e.target.value)}
-          />
+          {viewMode === "class" ? (
+            <Select
+              label="Class"
+              options={classOptions}
+              value={classId}
+              onChange={(e) => setClassId(e.target.value)}
+            />
+          ) : (
+            <Select
+              label="Teacher"
+              options={teacherOptions}
+              value={teacherId}
+              onChange={(e) => setTeacherId(e.target.value)}
+            />
+          )}
         </div>
-        {classOptions.length === 0 && academicYearId ? (
+        {viewMode === "class" && classOptions.length === 0 && academicYearId ? (
           <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
-            No {levelShortLabel(level)} classes for this year. Create them under{" "}
+            No {levelShortLabel(level)} classes for this year.{" "}
             <Link href={hrefWithLevel("/admin/academic/classes")} className="font-medium text-brand hover:underline">
-              Classes
+              Create classes
             </Link>
             .
           </p>
         ) : null}
       </Card>
+      </div>
 
-      <Card title="Assign teachers">
-        {staffLoading || loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : !classId ? (
-          <p className="text-sm text-muted-foreground">Select a class.</p>
-        ) : (
-          <>
-            <div className="mb-4 max-h-64 space-y-2 overflow-auto rounded-md border border-border p-3">
-              {teacherChecklist.map((t) => (
-                <label key={t.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className={CHECK}
-                    checked={selectedTeacherIds.includes(t.id)}
-                    onChange={(e) =>
-                      setSelectedTeacherIds((prev) =>
-                        e.target.checked ? [...prev, t.id] : prev.filter((id) => id !== t.id),
-                      )
-                    }
-                  />
-                  {t.fullName} ({t.role.replace(/_/g, " ")})
-                </label>
-              ))}
-            </div>
-            <Select
-              label="Homeroom (class head)"
-              options={[
-                { value: "", label: "— None —" },
-                ...selectedTeacherIds
-                  .map((id) => teacherChecklist.find((t) => t.id === id))
-                  .filter(Boolean)
-                  .map((t) => ({ value: t!.id, label: t!.fullName })),
-              ]}
-              value={homeroomTeacherId}
-              onChange={(e) => setHomeroomTeacherId(e.target.value)}
+      {viewMode === "teacher" ? (
+        <div className="mt-4">
+          <Card title={`${levelShortLabel(level)} classes for teacher`}>
+            <ClassTeachersByTeacherPanel
+              teacherId={teacherId}
+              teacherName={selectedTeacher?.fullName}
+              academicYearId={academicYearId}
+              level={level}
+              classes={classes}
+              hrefWithLevel={hrefWithLevel}
             />
-            <div className="mt-4 flex justify-end">
-              <Button type="button" loading={saving} onClick={() => void onSave()}>
-                Save class teachers
-              </Button>
-            </div>
-          </>
-        )}
-      </Card>
+          </Card>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4">
+            <Card title="Assign teachers to class">
+              {staffLoading || loading ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : !classId ? (
+                <p className="text-sm text-muted-foreground">Select a class.</p>
+              ) : (
+                <>
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    Pick all teachers attached to this class. Exactly one homeroom head leads reports and class
+                    leadership.
+                  </p>
+                  <div className="mb-4 max-h-64 space-y-2 overflow-auto rounded-md border border-border p-3">
+                    {classTeacherStaff.map((t) => (
+                      <label key={t.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          className={CHECK}
+                          checked={selectedTeacherIds.includes(t.id)}
+                          onChange={(e) =>
+                            setSelectedTeacherIds((prev) =>
+                              e.target.checked ? [...prev, t.id] : prev.filter((id) => id !== t.id),
+                            )
+                          }
+                        />
+                        {t.fullName} ({t.role.replace(/_/g, " ")})
+                      </label>
+                    ))}
+                  </div>
+                  <Select
+                    label="Homeroom (class head)"
+                    options={[
+                      { value: "", label: "— None —" },
+                      ...selectedTeacherIds
+                        .map((id) => classTeacherStaff.find((t) => t.id === id))
+                        .filter(Boolean)
+                        .map((t) => ({ value: t!.id, label: t!.fullName })),
+                    ]}
+                    value={homeroomTeacherId}
+                    onChange={(e) => setHomeroomTeacherId(e.target.value)}
+                  />
+                  <div className="mt-4 flex justify-end">
+                    <Button type="button" loading={saving} onClick={() => void onSave()}>
+                      Save class teachers
+                    </Button>
+                  </div>
+                </>
+              )}
+            </Card>
+          </div>
 
-      <Card title={`Current assignments (${assignments.length})`}>
-        <Table columns={columns} rows={assignments as Row[]} loading={loading} pageSize={100} />
-      </Card>
+          <div className="mt-4">
+            <Card title={`Current assignments (${assignments.length})`}>
+              <Table columns={columns} rows={assignments as Row[]} loading={loading} pageSize={100} />
+            </Card>
+          </div>
+        </>
+      )}
     </PageWrapper>
   );
 }

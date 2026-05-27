@@ -5,7 +5,8 @@ import type {
   UpdateUserInput,
 } from "@uganda-cbc-sms/shared";
 import bcrypt from "bcrypt";
-import { query } from "../../config/db";
+import { query, withTransaction } from "../../config/db";
+import { purgeStaffAssociations } from "./purgeStaffAssociations";
 import { HttpError } from "../../utils/httpError";
 import { toUserPublic } from "../../utils/userMapper";
 import { logUserAction } from "./audit.service";
@@ -325,21 +326,28 @@ export async function deleteUser(id: string, actorId: string) {
   try {
     const guard = await getUserGuardInfo(id);
     if (guard.system_account) throw new HttpError(400, "System accounts cannot be deleted");
-    const r = await query(
-      `UPDATE users
-       SET is_active = false,
-           deleted_at = NOW(),
-           deleted_by = $2,
-           updated_at = NOW()
-       WHERE id = $1 AND deleted_at IS NULL`,
-      [id, actorId],
-    );
-    if (r.rowCount === 0) throw new HttpError(404, "User not found");
+
+    const purgeSummary = await withTransaction(async (client) => {
+      const summary = await purgeStaffAssociations(id, client);
+      const r = await client.query(
+        `UPDATE users
+         SET is_active = false,
+             deleted_at = NOW(),
+             deleted_by = $2,
+             updated_at = NOW()
+         WHERE id = $1 AND deleted_at IS NULL`,
+        [id, actorId],
+      );
+      if (r.rowCount === 0) throw new HttpError(404, "User not found");
+      return summary;
+    });
+
     await logUserAction({
       userId: id,
       actorId,
       action: "USER_DELETED",
       changedFields: ["isActive", "deletedAt", "deletedBy"],
+      metadata: { purgeSummary },
     });
   } catch (e) {
     if (e instanceof HttpError) throw e;

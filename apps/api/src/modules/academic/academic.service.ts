@@ -1113,6 +1113,7 @@ export async function listClassTeacherAssignments(filters: {
   classId?: string;
   teacherId?: string;
   academicYearId?: string;
+  level?: string;
 }): Promise<ClassTeacherAssignmentRow[]> {
   const where: string[] = ["1=1"];
   const values: unknown[] = [];
@@ -1128,6 +1129,10 @@ export async function listClassTeacherAssignments(filters: {
   if (filters.academicYearId) {
     where.push(`cta.academic_year_id = $${i++}`);
     values.push(filters.academicYearId);
+  }
+  if (filters.level) {
+    where.push(`c.level = $${i++}`);
+    values.push(filters.level);
   }
   const { rows } = await query(
     `SELECT
@@ -1197,17 +1202,42 @@ export async function setClassTeacherAssignments(
 
   const teacherIds = [...unique.keys()];
   if (teacherIds.length > 0) {
-    const { rows: users } = await query(
-      `SELECT id, role FROM users WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL AND is_active = true`,
+    const { rows: users } = await query<{
+      id: string;
+      full_name: string;
+      role: string;
+      is_active: boolean;
+      deleted_at: string | null;
+    }>(
+      `SELECT id, full_name, role, is_active, deleted_at
+       FROM users
+       WHERE id = ANY($1::uuid[])`,
       [teacherIds],
     );
-    if (users.length !== teacherIds.length) {
-      throw new HttpError(400, "One or more teachers were not found or are inactive");
-    }
-    for (const u of users as { role: string }[]) {
-      if (!TEACHING_STAFF_ROLES.includes(u.role as (typeof TEACHING_STAFF_ROLES)[number])) {
-        throw new HttpError(400, `User role '${u.role}' cannot be assigned to a class`);
+    const byId = new Map(users.map((u) => [u.id, u]));
+    const problems: string[] = [];
+    for (const teacherId of teacherIds) {
+      const u = byId.get(teacherId);
+      if (!u) {
+        problems.push(`Teacher not found (invalid ID)`);
+        continue;
       }
+      if (u.deleted_at) {
+        problems.push(`${u.full_name} (deleted account)`);
+      } else if (!u.is_active) {
+        problems.push(`${u.full_name} (inactive account)`);
+      } else if (!TEACHING_STAFF_ROLES.includes(u.role as (typeof TEACHING_STAFF_ROLES)[number])) {
+        problems.push(
+          `${u.full_name} (role "${u.role.replace(/_/g, " ")}" cannot be assigned to a class)`,
+        );
+      }
+    }
+    if (problems.length > 0) {
+      const detail =
+        problems.length === 1
+          ? problems[0]
+          : problems.map((p, i) => `${i + 1}. ${p}`).join(" ");
+      throw new HttpError(400, `Cannot assign class teachers: ${detail}.`);
     }
   }
 

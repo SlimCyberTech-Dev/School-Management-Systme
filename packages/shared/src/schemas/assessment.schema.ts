@@ -172,6 +172,7 @@ export const classTeacherAssignmentsQuerySchema = z.object({
   classId: z.string().uuid().optional(),
   teacherId: z.string().uuid().optional(),
   academicYearId: z.string().uuid().optional(),
+  level: academicLevelQuerySchema,
 });
 
 export const setClassTeacherAssignmentsSchema = z.object({

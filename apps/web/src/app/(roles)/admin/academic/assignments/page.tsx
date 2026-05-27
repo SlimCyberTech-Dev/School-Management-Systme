@@ -123,8 +123,10 @@ export default function AdminTeachingAssignmentsPage() {
               staff to each class–subject slot.
             </li>
             <li>
-              <strong>Class teachers</strong> handle homeroom duties; <strong>subject teachers</strong> enter marks
-              only on slots assigned on that page.
+              <strong>Class teachers</strong> (step 1) — homeroom and class staffing only on the Class teachers page.
+            </li>
+            <li>
+              <strong>Subject teachers</strong> (step 3) — teachable subjects and class–subject slots on one page.
             </li>
           </ul>
         </Card>

@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import type { SchoolClass } from "@uganda-cbc-sms/shared";
 import { ALevelComments } from "@/components/assessment/ALevelComments";
 import { ALevelDivisionSummary } from "@/components/assessment/ALevelDivisionSummary";
 import { AsyncContent } from "@/components/feedback/AsyncContent";
@@ -14,9 +12,9 @@ import {
   useAlevelComments,
   useAlevelDivision,
 } from "@/hooks/useALevelAssessment";
-import { apiGet } from "@/lib/api";
-import { useAuthStore } from "@/store/authStore";
+import { useMyTeachingScope, type MyClassRow } from "@/hooks/useMyTeachingScope";
 import { manualStatus } from "@/lib/queryStatus";
+import { classDisplayName } from "@/lib/academicLevel";
 
 type CommentRow = {
   student_id: string;
@@ -32,31 +30,21 @@ export function TeacherClassAlevelHomeroomPanel({
   yearId: string;
   termId: string;
 }) {
-  const userId = useAuthStore((s) => s.user?.id);
   const [classId, setClassId] = useState("");
+  const scope = useMyTeachingScope();
 
-  const classesQ = useQuery({
-    queryKey: ["academic-classes"],
-    queryFn: () => apiGet<SchoolClass[]>("/academic/classes"),
-  });
-
-  const homeroomClasses = useMemo(() => {
-    if (!userId || !yearId) return [];
-    return (classesQ.data ?? []).filter(
-      (c) =>
-        c.academicYearId === yearId &&
-        c.level === "A_LEVEL" &&
-        c.classTeacherId === userId,
-    );
-  }, [classesQ.data, userId, yearId]);
+  const homeroomClasses: MyClassRow[] = useMemo(() => {
+    if (yearId && scope.yearId !== yearId) return [];
+    return scope.homeroomClasses.filter((c) => c.level === "A_LEVEL");
+  }, [scope.homeroomClasses, scope.yearId, yearId]);
 
   useEffect(() => {
     if (!homeroomClasses.length) {
       setClassId("");
       return;
     }
-    if (!classId || !homeroomClasses.some((c) => c.id === classId)) {
-      setClassId(homeroomClasses[0]!.id);
+    if (!classId || !homeroomClasses.some((c) => c.classId === classId)) {
+      setClassId(homeroomClasses[0]!.classId);
     }
   }, [homeroomClasses, classId]);
 
@@ -73,8 +61,8 @@ export function TeacherClassAlevelHomeroomPanel({
   const alevelActions = useAlevelActions();
 
   const panelStatus = manualStatus({
-    loading: classesQ.isLoading || (Boolean(classId) && (divisionQ.isLoading || commentsQ.isLoading)),
-    error: classesQ.error ?? divisionQ.error ?? commentsQ.error,
+    loading: scope.isLoading || (Boolean(classId) && (divisionQ.isLoading || commentsQ.isLoading)),
+    error: scope.error ?? divisionQ.error ?? commentsQ.error,
     data: homeroomClasses,
     isEmpty: (d) => Array.isArray(d) && d.length === 0,
   });
@@ -94,9 +82,9 @@ export function TeacherClassAlevelHomeroomPanel({
         error={
           <ErrorState
             message={
-              classesQ.error instanceof Error ? classesQ.error.message : "Could not load your A-Level classes."
+              scope.error instanceof Error ? scope.error.message : "Could not load your A-Level classes."
             }
-            onRetry={() => void classesQ.refetch()}
+            onRetry={() => void scope.refetch()}
           />
         }
         empty={
@@ -110,8 +98,8 @@ export function TeacherClassAlevelHomeroomPanel({
             <Select
               label="A-Level class"
               options={homeroomClasses.map((c) => ({
-                value: c.id,
-                label: `${c.name}${c.stream ? ` · ${c.stream}` : ""}`,
+                value: c.classId,
+                label: classDisplayName({ name: c.className, stream: c.classStream }),
               }))}
               value={classId}
               onChange={(e) => setClassId(e.target.value)}

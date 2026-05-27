@@ -304,9 +304,21 @@ export async function getClassTeacherAssignments(req: Request, res: Response): P
     classId?: string;
     teacherId?: string;
     academicYearId?: string;
+    level?: string;
   };
   const rows = await svc.listClassTeacherAssignments(queryParams);
   res.json({ success: true, data: rows, message: "Class teacher assignments loaded." });
+}
+
+export async function getTeacherClasses(req: Request, res: Response): Promise<void> {
+  const teacherId = req.params["teacherId"]!;
+  const academicYearId = req.query["academicYearId"] as string | undefined;
+  const level = req.query["level"] as string | undefined;
+  let rows = await svc.listTeacherClasses(teacherId, academicYearId);
+  if (level) {
+    rows = rows.filter((r) => r.level === level);
+  }
+  res.json({ success: true, data: rows, message: "Teacher class assignments loaded." });
 }
 
 export async function putClassTeacherAssignments(req: Request, res: Response): Promise<void> {

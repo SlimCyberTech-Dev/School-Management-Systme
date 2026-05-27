@@ -132,18 +132,31 @@ export default function AdminUsersEditPage() {
               />
             </div>
             {showSpecializations ? (
-              <div className="rounded-md border border-border bg-muted/20 p-3">
-                <p className="text-sm font-medium text-foreground">Teachable subjects & workload</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Manage O-Level and A-Level qualifications and class–subject assignments on the Subject teachers
-                  page — one place for all teacher–subject setup.
-                </p>
-                <Link
-                  href={`/admin/academic/teacher-assignments?teacherId=${encodeURIComponent(id)}`}
-                  className="mt-3 inline-flex text-sm font-medium text-brand hover:underline"
-                >
-                  Open Subject teachers →
-                </Link>
+              <div className="rounded-md border border-border bg-muted/20 p-3 space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Class assignments</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Homeroom and class teacher roles are managed on the Class teachers page (O-Level and A-Level).
+                  </p>
+                  <Link
+                    href={`/admin/academic/class-teachers?teacherId=${encodeURIComponent(id)}&view=teacher`}
+                    className="mt-2 inline-flex text-sm font-medium text-brand hover:underline"
+                  >
+                    Open Class teachers →
+                  </Link>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Subject assignments</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Teachable subjects and class–subject slots are on the Subject teachers page.
+                  </p>
+                  <Link
+                    href={`/admin/academic/teacher-assignments?teacherId=${encodeURIComponent(id)}`}
+                    className="mt-2 inline-flex text-sm font-medium text-brand hover:underline"
+                  >
+                    Open Subject teachers →
+                  </Link>
+                </div>
               </div>
             ) : null}
             <div>

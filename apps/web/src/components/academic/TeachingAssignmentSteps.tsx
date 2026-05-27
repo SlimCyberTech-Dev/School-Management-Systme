@@ -29,9 +29,9 @@ export function TeachingAssignmentSteps({
     {
       n: 1,
       title: "Class teachers (homeroom)",
-      body: `Set who leads each ${track} class — one homeroom teacher plus any additional class teachers for the year.`,
+      body: `Assign homeroom and class teachers for each ${track} class — the only place for class staffing (by class or by teacher).`,
       href: hrefWithLevel("/admin/academic/class-teachers", yearQ),
-      cta: "Assign class teachers",
+      cta: "Class teachers",
     },
     {
       n: 2,
