@@ -16,3 +16,15 @@ export async function putSchoolSettings(req: Request, res: Response): Promise<vo
   const data = await svc.updateSchoolSettings(body, req.user.id);
   res.json({ success: true, data, message: "School settings updated." });
 }
+
+export async function uploadSchoolLogo(req: Request, res: Response): Promise<void> {
+  if (!req.user) {
+    throw new HttpError(401, "Please sign in to continue.");
+  }
+  if (!req.file) {
+    throw new HttpError(400, "No logo file was uploaded.");
+  }
+  const logoUrl = `/uploads/settings/${req.file.filename}`;
+  const data = await svc.setSchoolLogo(logoUrl, req.user.id);
+  res.json({ success: true, data, message: "School logo uploaded." });
+}

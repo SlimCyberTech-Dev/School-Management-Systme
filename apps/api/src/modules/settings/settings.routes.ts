@@ -3,6 +3,7 @@ import { requireAuth } from "../../middleware/auth";
 import { requireRoles } from "../../middleware/rbac";
 import { asyncHandler } from "../../utils/asyncHandler";
 import * as c from "./settings.controller";
+import { schoolLogoUpload } from "./settings.upload";
 
 export const settingsRouter = Router();
 
@@ -13,3 +14,4 @@ const settingsEditors = requireRoles("admin");
 
 settingsRouter.get("/", settingsReaders, asyncHandler(c.getSchoolSettings));
 settingsRouter.put("/", settingsEditors, asyncHandler(c.putSchoolSettings));
+settingsRouter.post("/logo", settingsEditors, schoolLogoUpload.single("logo"), asyncHandler(c.uploadSchoolLogo));

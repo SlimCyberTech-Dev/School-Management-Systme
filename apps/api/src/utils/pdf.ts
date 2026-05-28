@@ -13,6 +13,7 @@ import {
   formatPercent,
   PDF_MARGIN,
   type ReportBranding,
+  type ReportLayoutOptions,
 } from "./pdf/reportCardLayout";
 
 function createReportDoc(): InstanceType<typeof PDFDocument> {
@@ -47,26 +48,30 @@ export function streamCbcReportCard(data: {
   headteacherComment: string;
   motto?: string | null;
   branding?: ReportBranding;
+  layout?: ReportLayoutOptions;
 }): Readable {
   const doc = createReportDoc();
   const pass = new PassThrough();
   doc.pipe(pass);
+  const schoolName = data.schoolName?.trim() || "School Report";
 
   drawReportFrame(doc);
 
   const classLabel = [data.className, data.stream].filter(Boolean).join(" · ");
   let y = drawReportHeader(doc, {
-    schoolName: data.schoolName,
+    schoolName,
     subtitle: "O-Level CBC Report Card",
     termLine: `${data.term} · Academic year ${data.year}`,
     motto: data.motto,
     branding: data.branding,
+    layout: data.layout,
   });
 
   y = drawStudentIdentityBlock(doc, y, {
     studentName: data.studentName,
     studentNumber: data.studentNumber,
     photoUrl: data.photoPath,
+    layout: data.layout,
     rows: [
       { label: "Class", value: classLabel || "—" },
       { label: "Term", value: data.term },
@@ -94,7 +99,12 @@ export function streamCbcReportCard(data: {
       s.rating,
       getCbcDescriptor(s.rating) || "—",
     ]);
-    y = drawDataTable(doc, y, cols, rows, { rowHeight: 16, fontSize: 7.5, branding: data.branding });
+    y = drawDataTable(doc, y, cols, rows, {
+      rowHeight: 16,
+      fontSize: 7.5,
+      branding: data.branding,
+      layout: data.layout,
+    });
   } else {
     y = drawSectionTitle(doc, y, "Term competency assessment (CBC)");
     doc.fillColor("#64748B").font("Helvetica").fontSize(9);
@@ -129,7 +139,7 @@ export function streamCbcReportCard(data: {
       s.grade,
       String(s.maxScore),
     ]);
-    y = drawDataTable(doc, y, examCols, examRows, { branding: data.branding });
+    y = drawDataTable(doc, y, examCols, examRows, { branding: data.branding, layout: data.layout });
   }
 
   y = drawSectionTitle(doc, y, "Comments");
@@ -171,25 +181,29 @@ export function streamAlevelReportCard(data: {
   headteacherRemark: string;
   motto?: string | null;
   branding?: ReportBranding;
+  layout?: ReportLayoutOptions;
 }): Readable {
   const doc = createReportDoc();
   const pass = new PassThrough();
   doc.pipe(pass);
+  const schoolName = data.schoolName?.trim() || "School Report";
 
   drawReportFrame(doc);
 
   let y = drawReportHeader(doc, {
-    schoolName: data.schoolName,
+    schoolName,
     subtitle: "A-Level UNEB Report Card",
     termLine: `${data.term} · Academic year ${data.year}`,
     motto: data.motto,
     branding: data.branding,
+    layout: data.layout,
   });
 
   y = drawStudentIdentityBlock(doc, y, {
     studentName: data.studentName,
     studentNumber: data.studentNumber,
     photoUrl: data.photoPath,
+    layout: data.layout,
     rows: [
       { label: "Class", value: data.className || "—" },
       { label: "Combination", value: data.combination || "—" },
@@ -223,7 +237,7 @@ export function streamAlevelReportCard(data: {
       s.grade,
       String(s.points),
     ]);
-    y = drawDataTable(doc, y, cols, rows, { branding: data.branding });
+    y = drawDataTable(doc, y, cols, rows, { branding: data.branding, layout: data.layout });
   } else {
     y = drawSectionTitle(doc, y, "Subject performance");
     doc.fillColor("#64748B").font("Helvetica").fontSize(9);

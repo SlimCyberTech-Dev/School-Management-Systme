@@ -16,7 +16,18 @@ type SchoolSettingsRow = {
   primary_color: string | null;
   secondary_color: string | null;
   report_footer_text: string | null;
+  report_layout: Record<string, unknown> | null;
   updated_at: string;
+};
+
+const DEFAULT_LAYOUT: NonNullable<SchoolSettings["reportLayout"]> = {
+  template: "modern",
+  density: "comfortable",
+  showStudentPhoto: true,
+  showTableStripes: true,
+  headerAlignment: "left",
+  cornerRadius: 4,
+  baseFontSize: 9,
 };
 
 const DEFAULT_SETTINGS: Omit<SchoolSettings, "updatedAt"> = {
@@ -33,6 +44,7 @@ const DEFAULT_SETTINGS: Omit<SchoolSettings, "updatedAt"> = {
   primaryColor: "#1D4ED8",
   secondaryColor: "#0F172A",
   reportFooterText: "This report is system-generated and valid without signature.",
+  reportLayout: DEFAULT_LAYOUT,
 };
 
 function mapRow(row: SchoolSettingsRow): SchoolSettings {
@@ -50,6 +62,10 @@ function mapRow(row: SchoolSettingsRow): SchoolSettings {
     primaryColor: row.primary_color,
     secondaryColor: row.secondary_color,
     reportFooterText: row.report_footer_text,
+    reportLayout: {
+      ...DEFAULT_LAYOUT,
+      ...(row.report_layout ?? {}),
+    } as SchoolSettings["reportLayout"],
     updatedAt: new Date(row.updated_at).toISOString(),
   };
 }
@@ -59,12 +75,12 @@ async function ensureSettingsRow(): Promise<void> {
     `INSERT INTO school_settings (
        singleton, school_name, motto, vision, mission, logo_url, contact_email,
        contact_phone, website_url, postal_address, physical_address,
-       primary_color, secondary_color, report_footer_text, updated_at
+       primary_color, secondary_color, report_footer_text, report_layout, updated_at
      )
      VALUES (
        TRUE, $1, $2, $3, $4, $5, $6,
        $7, $8, $9, $10,
-       $11, $12, $13, NOW()
+       $11, $12, $13, $14::jsonb, NOW()
      )
      ON CONFLICT (singleton) DO NOTHING`,
     [
@@ -81,6 +97,7 @@ async function ensureSettingsRow(): Promise<void> {
       DEFAULT_SETTINGS.primaryColor,
       DEFAULT_SETTINGS.secondaryColor,
       DEFAULT_SETTINGS.reportFooterText,
+      JSON.stringify(DEFAULT_SETTINGS.reportLayout),
     ],
   );
 }
@@ -91,7 +108,7 @@ export async function getSchoolSettings(): Promise<SchoolSettings> {
     `SELECT
        school_name, motto, vision, mission, logo_url, contact_email,
        contact_phone, website_url, postal_address, physical_address,
-       primary_color, secondary_color, report_footer_text, updated_at
+       primary_color, secondary_color, report_footer_text, report_layout, updated_at
      FROM school_settings
      WHERE singleton = TRUE
      LIMIT 1`,
@@ -100,10 +117,30 @@ export async function getSchoolSettings(): Promise<SchoolSettings> {
 }
 
 export async function updateSchoolSettings(
-  input: UpdateSchoolSettingsInput,
+  input: Partial<UpdateSchoolSettingsInput>,
   actorId: string,
 ): Promise<SchoolSettings> {
   await ensureSettingsRow();
+  const current = await getSchoolSettings();
+  const merged: Omit<SchoolSettings, "updatedAt"> = {
+    schoolName: input.schoolName?.trim() || current.schoolName,
+    motto: input.motto !== undefined ? input.motto : current.motto,
+    vision: input.vision !== undefined ? input.vision : current.vision,
+    mission: input.mission !== undefined ? input.mission : current.mission,
+    logoUrl: input.logoUrl !== undefined ? input.logoUrl : current.logoUrl,
+    contactEmail: input.contactEmail !== undefined ? input.contactEmail : current.contactEmail,
+    contactPhone: input.contactPhone !== undefined ? input.contactPhone : current.contactPhone,
+    websiteUrl: input.websiteUrl !== undefined ? input.websiteUrl : current.websiteUrl,
+    postalAddress: input.postalAddress !== undefined ? input.postalAddress : current.postalAddress,
+    physicalAddress: input.physicalAddress !== undefined ? input.physicalAddress : current.physicalAddress,
+    primaryColor: input.primaryColor !== undefined ? input.primaryColor : current.primaryColor,
+    secondaryColor: input.secondaryColor !== undefined ? input.secondaryColor : current.secondaryColor,
+    reportFooterText: input.reportFooterText !== undefined ? input.reportFooterText : current.reportFooterText,
+    reportLayout:
+      input.reportLayout !== undefined
+        ? { ...DEFAULT_LAYOUT, ...(current.reportLayout ?? {}), ...(input.reportLayout ?? {}) }
+        : (current.reportLayout ?? DEFAULT_LAYOUT),
+  };
   const { rows } = await query<SchoolSettingsRow>(
     `UPDATE school_settings
      SET
@@ -120,26 +157,28 @@ export async function updateSchoolSettings(
        primary_color = $11,
        secondary_color = $12,
        report_footer_text = $13,
+       report_layout = $14::jsonb,
        updated_at = NOW()
      WHERE singleton = TRUE
      RETURNING
        school_name, motto, vision, mission, logo_url, contact_email,
        contact_phone, website_url, postal_address, physical_address,
-       primary_color, secondary_color, report_footer_text, updated_at`,
+       primary_color, secondary_color, report_footer_text, report_layout, updated_at`,
     [
-      input.schoolName,
-      input.motto,
-      input.vision,
-      input.mission,
-      input.logoUrl,
-      input.contactEmail,
-      input.contactPhone,
-      input.websiteUrl,
-      input.postalAddress,
-      input.physicalAddress,
-      input.primaryColor,
-      input.secondaryColor,
-      input.reportFooterText,
+      merged.schoolName,
+      merged.motto,
+      merged.vision,
+      merged.mission,
+      merged.logoUrl,
+      merged.contactEmail,
+      merged.contactPhone,
+      merged.websiteUrl,
+      merged.postalAddress,
+      merged.physicalAddress,
+      merged.primaryColor,
+      merged.secondaryColor,
+      merged.reportFooterText,
+      JSON.stringify(merged.reportLayout ?? DEFAULT_LAYOUT),
     ],
   );
   const updated = mapRow(rows[0]!);
@@ -155,6 +194,32 @@ export async function updateSchoolSettings(
       schoolName: updated.schoolName,
       hasLogo: Boolean(updated.logoUrl),
     },
+  });
+  return updated;
+}
+
+export async function setSchoolLogo(logoUrl: string, actorId: string): Promise<SchoolSettings> {
+  await ensureSettingsRow();
+  const { rows } = await query<SchoolSettingsRow>(
+    `UPDATE school_settings
+     SET logo_url = $1, updated_at = NOW()
+     WHERE singleton = TRUE
+     RETURNING
+       school_name, motto, vision, mission, logo_url, contact_email,
+       contact_phone, website_url, postal_address, physical_address,
+       primary_color, secondary_color, report_footer_text, report_layout, updated_at`,
+    [logoUrl],
+  );
+  const updated = mapRow(rows[0]!);
+  await writeAuditLog({
+    category: "system",
+    severity: "info",
+    outcome: "success",
+    action: "SCHOOL_LOGO_UPDATED",
+    message: "School logo was updated",
+    actorId,
+    resourceType: "school_settings",
+    metadata: { logoUrl },
   });
   return updated;
 }

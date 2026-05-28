@@ -15,6 +15,7 @@ export const BRAND_TINT = "#E8F5EC";
 export const BORDER_COLOR = "#CBD5E1";
 export const MUTED_TEXT = "#64748B";
 export const HEADER_TEXT = "#FFFFFF";
+export const HEADER_TEXT_DARK = "#0F172A";
 
 export type ReportBranding = {
   logoUrl?: string | null;
@@ -23,10 +24,29 @@ export type ReportBranding = {
   footerText?: string | null;
 };
 
+export type ReportLayoutOptions = {
+  template?: "classic" | "modern";
+  density?: "compact" | "comfortable";
+  showStudentPhoto?: boolean;
+  showTableStripes?: boolean;
+  headerAlignment?: "left" | "center";
+  cornerRadius?: number;
+  baseFontSize?: number;
+};
+
 function normalizeColor(color: string | null | undefined, fallback: string): string {
   if (!color) return fallback;
   const t = color.trim();
   return /^#([0-9A-Fa-f]{6})$/.test(t) ? t.toUpperCase() : fallback;
+}
+
+function pickHeaderTextColor(backgroundHex: string): string {
+  const hex = backgroundHex.replace("#", "");
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance > 0.6 ? HEADER_TEXT_DARK : HEADER_TEXT;
 }
 
 const uploadRoot = process.env.UPLOAD_DIR ?? "./uploads";
@@ -68,21 +88,30 @@ export function drawReportFrame(doc: PdfDoc) {
 
 export function drawReportFrameWithBranding(doc: PdfDoc, branding?: ReportBranding) {
   const primary = normalizeColor(branding?.primaryColor, BRAND_GREEN);
+  const radius = 6;
   doc
     .lineWidth(1.2)
     .strokeColor(primary)
-    .roundedRect(PDF_MARGIN - 8, PDF_MARGIN - 8, PDF_CONTENT_WIDTH + 16, PDF_PAGE_HEIGHT - (PDF_MARGIN - 8) * 2, 6)
+    .roundedRect(PDF_MARGIN - 8, PDF_MARGIN - 8, PDF_CONTENT_WIDTH + 16, PDF_PAGE_HEIGHT - (PDF_MARGIN - 8) * 2, radius)
     .stroke();
 }
 
 export function drawReportHeader(
   doc: PdfDoc,
-  opts: { schoolName: string; subtitle: string; termLine: string; motto?: string | null; branding?: ReportBranding },
+  opts: {
+    schoolName: string;
+    subtitle: string;
+    termLine: string;
+    motto?: string | null;
+    branding?: ReportBranding;
+    layout?: ReportLayoutOptions;
+  },
 ): number {
   const headerTop = PDF_MARGIN;
   const headerHeight = opts.motto?.trim() ? 90 : 78;
   const primary = normalizeColor(opts.branding?.primaryColor, BRAND_GREEN);
-  const secondary = normalizeColor(opts.branding?.secondaryColor, BRAND_GREEN_DARK);
+  const headerText = pickHeaderTextColor(primary);
+  const termText = headerText === HEADER_TEXT ? "#D1FAE5" : "#334155";
 
   doc.save();
   doc.roundedRect(PDF_MARGIN, headerTop, PDF_CONTENT_WIDTH, headerHeight, 4).fill(primary);
@@ -99,27 +128,32 @@ export function drawReportHeader(
     }
   }
 
-  doc.fillColor(HEADER_TEXT).font("Helvetica-Bold").fontSize(16);
-  doc.text(opts.schoolName, titleX, headerTop + 14, {
-    width: PDF_CONTENT_WIDTH - (titleX - PDF_MARGIN) - 12,
-    align: logoPath ? "left" : "center",
+  const name = opts.schoolName.trim() || "School Report";
+  doc.fillColor(headerText).font("Helvetica-Bold").fontSize(16);
+  const leftPreferred = opts.layout?.headerAlignment !== "center";
+  const align = leftPreferred ? (logoPath ? "left" : "center") : "center";
+  const textX = align === "center" ? PDF_MARGIN + 12 : titleX;
+  const textW = align === "center" ? PDF_CONTENT_WIDTH - 24 : PDF_CONTENT_WIDTH - (titleX - PDF_MARGIN) - 12;
+  doc.text(name, textX, headerTop + 14, {
+    width: textW,
+    align,
   });
 
   doc.font("Helvetica").fontSize(11);
-  doc.text(opts.subtitle, titleX, headerTop + 36, {
-    width: PDF_CONTENT_WIDTH - (titleX - PDF_MARGIN) - 12,
-    align: logoPath ? "left" : "center",
+  doc.text(opts.subtitle, textX, headerTop + 36, {
+    width: textW,
+    align,
   });
 
   if (opts.motto?.trim()) {
-    doc.font("Helvetica-Oblique").fontSize(8).fillColor("#D1FAE5");
-    doc.text(opts.motto.trim(), titleX, headerTop + 52, {
-      width: PDF_CONTENT_WIDTH - (titleX - PDF_MARGIN) - 12,
-      align: logoPath ? "left" : "center",
+    doc.font("Helvetica-Oblique").fontSize(8).fillColor(termText);
+    doc.text(opts.motto.trim(), textX, headerTop + 52, {
+      width: textW,
+      align,
     });
   }
 
-  doc.font("Helvetica").fontSize(9).fillColor("#D1FAE5");
+  doc.font("Helvetica").fontSize(9).fillColor(termText);
   doc.text(opts.termLine, PDF_MARGIN, headerTop + (opts.motto?.trim() ? 70 : 58), {
     width: PDF_CONTENT_WIDTH,
     align: "center",
@@ -136,13 +170,15 @@ export function drawStudentIdentityBlock(
     studentNumber: string;
     rows: Array<{ label: string; value: string }>;
     photoUrl?: string | null;
+    layout?: ReportLayoutOptions;
   },
 ): number {
   const panelTop = startY;
   const panelHeight = 108;
-  const photoW = 76;
+  const showPhoto = opts.layout?.showStudentPhoto !== false;
+  const photoW = showPhoto ? 76 : 0;
   const photoH = 96;
-  const photoX = PDF_MARGIN + PDF_CONTENT_WIDTH - photoW - 12;
+  const photoX = showPhoto ? PDF_MARGIN + PDF_CONTENT_WIDTH - photoW - 12 : PDF_MARGIN + PDF_CONTENT_WIDTH;
   const textWidth = photoX - PDF_MARGIN - 20;
 
   doc.save();
@@ -167,26 +203,28 @@ export function drawStudentIdentityBlock(
     rowY += 16;
   }
 
-  const photoPath = resolveUploadFilePath(opts.photoUrl);
-  const boxX = photoX;
-  const boxY = panelTop + 6;
+  if (showPhoto) {
+    const photoPath = resolveUploadFilePath(opts.photoUrl);
+    const boxX = photoX;
+    const boxY = panelTop + 6;
 
-  doc.roundedRect(boxX, boxY, photoW, photoH, 4).lineWidth(0.75).strokeColor(BORDER_COLOR).stroke();
-  if (photoPath) {
-    try {
-      doc.save();
-      doc.roundedRect(boxX, boxY, photoW, photoH, 4).clip();
-      doc.image(photoPath, boxX, boxY, { width: photoW, height: photoH });
-      doc.restore();
-    } catch {
+    doc.roundedRect(boxX, boxY, photoW, photoH, 4).lineWidth(0.75).strokeColor(BORDER_COLOR).stroke();
+    if (photoPath) {
+      try {
+        doc.save();
+        doc.roundedRect(boxX, boxY, photoW, photoH, 4).clip();
+        doc.image(photoPath, boxX, boxY, { width: photoW, height: photoH });
+        doc.restore();
+      } catch {
+        drawPhotoPlaceholder(doc, boxX, boxY, photoW, photoH, opts.studentName);
+      }
+    } else {
       drawPhotoPlaceholder(doc, boxX, boxY, photoW, photoH, opts.studentName);
     }
-  } else {
-    drawPhotoPlaceholder(doc, boxX, boxY, photoW, photoH, opts.studentName);
-  }
 
-  doc.fillColor(MUTED_TEXT).font("Helvetica").fontSize(7);
-  doc.text("Passport photo", boxX, boxY + photoH + 2, { width: photoW, align: "center" });
+    doc.fillColor(MUTED_TEXT).font("Helvetica").fontSize(7);
+    doc.text("Passport photo", boxX, boxY + photoH + 2, { width: photoW, align: "center" });
+  }
 
   return panelTop + panelHeight + 14;
 }
@@ -241,14 +279,15 @@ export function drawDataTable(
   startY: number,
   columns: TableColumn[],
   rows: string[][],
-  options?: { rowHeight?: number; fontSize?: number; branding?: ReportBranding },
+  options?: { rowHeight?: number; fontSize?: number; branding?: ReportBranding; layout?: ReportLayoutOptions },
 ): number {
   const primary = normalizeColor(options?.branding?.primaryColor, BRAND_GREEN);
   const secondary = normalizeColor(options?.branding?.secondaryColor, BRAND_GREEN_DARK);
   const tint = `${primary}22`;
 
-  const rowHeight = options?.rowHeight ?? 17;
-  const fontSize = options?.fontSize ?? 8;
+  const density = options?.layout?.density ?? "comfortable";
+  const rowHeight = options?.rowHeight ?? (density === "compact" ? 14 : 17);
+  const fontSize = options?.fontSize ?? Number(options?.layout?.baseFontSize ?? 8);
   const headerHeight = 20;
   let y = ensurePageSpace(doc, startY, headerHeight + Math.min(rows.length, 1) * rowHeight + 8);
 
@@ -276,7 +315,7 @@ export function drawDataTable(
     y = ensurePageSpace(doc, y, rowHeight + 4);
     if (y === PDF_MARGIN) drawHeader();
 
-    if (i % 2 === 1) {
+    if (options?.layout?.showTableStripes !== false && i % 2 === 1) {
       doc.save();
       doc.rect(offsetX, y, tableW, rowHeight).fill("#F8FAFC");
       doc.restore();

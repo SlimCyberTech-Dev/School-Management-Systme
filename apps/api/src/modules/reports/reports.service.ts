@@ -32,13 +32,14 @@ type PdfBrandingSettings = {
   primary_color: string | null;
   secondary_color: string | null;
   report_footer_text: string | null;
+  report_layout: Record<string, unknown> | null;
 };
 
 async function loadPdfBrandingSettings() {
   let s: PdfBrandingSettings | undefined;
   try {
     const { rows } = await query<PdfBrandingSettings>(
-      `SELECT motto, logo_url, primary_color, secondary_color, report_footer_text
+      `SELECT motto, logo_url, primary_color, secondary_color, report_footer_text, report_layout
        FROM school_settings
        WHERE singleton = TRUE
        LIMIT 1`,
@@ -55,6 +56,17 @@ async function loadPdfBrandingSettings() {
       secondaryColor: s?.secondary_color ?? null,
       footerText: s?.report_footer_text ?? null,
     },
+    layout: (s?.report_layout ?? null) as
+      | {
+          template?: "classic" | "modern";
+          density?: "compact" | "comfortable";
+          showStudentPhoto?: boolean;
+          showTableStripes?: boolean;
+          headerAlignment?: "left" | "center";
+          cornerRadius?: number;
+          baseFontSize?: number;
+        }
+      | null,
   };
 }
 
@@ -230,11 +242,15 @@ async function upsertCbcReport(
   academicYearId: string,
   payload: CbcReportPayload,
 ) {
-  const ex = await query<{ id: string; is_approved: boolean }>(
-    `SELECT id, is_approved FROM cbc_report_cards WHERE student_id = $1 AND term_id = $2`,
+  const ex = await query<{ id: string; is_approved: boolean; payload: unknown | null }>(
+    `SELECT id, is_approved, payload FROM cbc_report_cards WHERE student_id = $1 AND term_id = $2`,
     [studentId, termId],
   );
-  if (ex.rows[0]?.is_approved) {
+  const existing = ex.rows[0];
+  const existingExamId = examIdFromPayload(existing?.payload);
+  const incomingExamId = examIdFromPayload(payload);
+  const sameSource = existingExamId === incomingExamId;
+  if (existing?.is_approved && sameSource) {
     throw new HttpError(
       400,
       `Report for ${payload.studentName} is already approved. Unlock or create a new term before regenerating.`,
@@ -251,6 +267,9 @@ async function upsertCbcReport(
          payload = $3::jsonb,
          computed_at = NOW(),
          updated_at = NOW(),
+         is_approved = false,
+         approved_by = NULL,
+         approved_at = NULL,
          teacher_comment = COALESCE($4, teacher_comment),
          headteacher_comment = COALESCE($5, headteacher_comment)
        WHERE id = $1`,
@@ -276,11 +295,15 @@ async function upsertAlevelReport(
   academicYearId: string,
   payload: AlevelReportPayload,
 ) {
-  const ex = await query<{ id: string; is_approved: boolean }>(
-    `SELECT id, is_approved FROM alevel_results WHERE student_id = $1 AND term_id = $2`,
+  const ex = await query<{ id: string; is_approved: boolean; payload: unknown | null }>(
+    `SELECT id, is_approved, payload FROM alevel_results WHERE student_id = $1 AND term_id = $2`,
     [studentId, termId],
   );
-  if (ex.rows[0]?.is_approved) {
+  const existing = ex.rows[0];
+  const existingExamId = examIdFromPayload(existing?.payload);
+  const incomingExamId = examIdFromPayload(payload);
+  const sameSource = existingExamId === incomingExamId;
+  if (existing?.is_approved && sameSource) {
     throw new HttpError(
       400,
       `Report for ${payload.studentName} is already approved. You cannot overwrite an approved report card.`,
@@ -299,6 +322,9 @@ async function upsertAlevelReport(
          payload = $5::jsonb,
          computed_at = NOW(),
          updated_at = NOW(),
+         is_approved = false,
+         approved_by = NULL,
+         approved_at = NULL,
          teacher_comment = COALESCE($6, teacher_comment),
          headteacher_remark = COALESCE($7, headteacher_remark)
        WHERE id = $1`,
@@ -616,6 +642,7 @@ async function payloadToCbcPdf(payload: CbcReportPayload): Promise<Readable> {
     headteacherComment: payload.headteacherComment,
     motto: settings.motto,
     branding: settings.branding,
+    layout: settings.layout ?? undefined,
   });
 }
 
@@ -644,6 +671,7 @@ async function payloadToAlevelPdf(payload: AlevelReportPayload): Promise<Readabl
     headteacherRemark: payload.headteacherRemark,
     motto: settings.motto,
     branding: settings.branding,
+    layout: settings.layout ?? undefined,
   });
 }
 

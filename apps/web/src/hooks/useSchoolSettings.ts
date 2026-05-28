@@ -14,7 +14,7 @@ export function useSchoolSettings() {
 export function useSchoolSettingsActions() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: UpdateSchoolSettingsInput) => apiPut<SchoolSettings>("/settings", payload),
+    mutationFn: (payload: Partial<UpdateSchoolSettingsInput>) => apiPut<SchoolSettings>("/settings", payload),
     onSuccess: (data) => {
       qc.setQueryData(["school-settings"], data);
       void qc.invalidateQueries({ queryKey: ["school-settings"] });
