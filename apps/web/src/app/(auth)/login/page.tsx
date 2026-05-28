@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Role } from "@uganda-cbc-sms/shared";
 import {
   Eye,
@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { apiPost, getApiErrorMessage } from "@/lib/api";
-import type { AuthUser } from "@/store/authStore";
+import { sessionInactivityMinutes } from "@/lib/sessionConfig";
+import type { AuthUser, SessionInfo } from "@/store/authStore";
 import { useAuthStore } from "@/store/authStore";
 
 type AuthView = "login" | "register";
@@ -108,6 +109,7 @@ function dashboardForRole(role: Role): string {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const loginToStore = useAuthStore((s) => s.login);
   const [view, setView] = useState<AuthView>("login");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -117,6 +119,11 @@ export default function LoginPage() {
   const [registerShake, setRegisterShake] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  const timeoutNotice =
+    searchParams.get("reason") === "timeout"
+      ? `Your session ended after ${sessionInactivityMinutes()} minutes of inactivity. Please sign in again.`
+      : null;
 
   const [loginState, setLoginState] = useState<LoginState>({
     email: "",
@@ -182,11 +189,14 @@ export default function LoginPage() {
     }
     try {
       setLoginLoading(true);
-      const data = await apiPost<{ token: string; user: AuthUser }>("/auth/login", {
-        email: loginState.email,
-        password: loginState.password,
-      });
-      loginToStore(data.user, data.token);
+      const data = await apiPost<{ token: string; user: AuthUser; session?: SessionInfo }>(
+        "/auth/login",
+        {
+          email: loginState.email,
+          password: loginState.password,
+        },
+      );
+      loginToStore(data.user, data.token, data.session);
       router.replace(dashboardForRole(data.user.role));
     } catch (error) {
       setLoginError(getApiErrorMessage(error));
@@ -318,6 +328,11 @@ export default function LoginPage() {
                   {loginLoading ? "Signing in..." : "Sign In"}
                 </motion.button>
               </motion.div>
+              {timeoutNotice ? (
+                <motion.p variants={fieldItem} className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+                  {timeoutNotice}
+                </motion.p>
+              ) : null}
               {loginError ? (
                 <motion.p variants={fieldItem} className="mt-2 text-sm text-red-600">
                   {loginError}

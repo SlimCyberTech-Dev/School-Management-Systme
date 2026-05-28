@@ -49,7 +49,7 @@ export function ShellHeader({ config, onToggleMobileNav }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
+  const logoutRemote = useAuthStore((s) => s.logoutRemote);
   const { startNavigation } = useNavigationLoading();
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -95,8 +95,7 @@ export function ShellHeader({ config, onToggleMobileNav }: Props) {
   }, []);
 
   const signOut = () => {
-    logout();
-    router.push("/login");
+    void logoutRemote().then(() => router.push("/login"));
   };
 
   const openSearch = () => setSearchOpen(true);

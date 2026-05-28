@@ -13,6 +13,7 @@ Copy `.env.example` and set:
 | `JWT_EXPIRY` | No | Default `8h` |
 | `ALLOWED_ORIGINS` | Yes | Comma-separated CORS origins (e.g. `https://app.school.ug`) |
 | `REDIS_URL` | No | Rate limits + JWT blacklist use in-memory fallback if unset |
+| `SESSION_INACTIVITY_MINUTES` | No | Default `15` — idle sessions revoked server-side |
 | `MAX_LOGIN_ATTEMPTS` | No | Default `5` → 30 min lockout, HTTP 423 |
 | `AUTO_BLOCK_THRESHOLD` | No | Default `500` requests / 5 min per IP → 24h block |
 | `REQUEST_LOG_SAMPLE_RATE` | No | `0`–`1`, default `1` (full logging) |
@@ -62,6 +63,12 @@ See [`deploy/nginx.conf`](../deploy/nginx.conf) for reference `limit_req`, body 
 ## Admin security endpoints
 
 `POST /api/security/block-ip`, `GET /api/security/audit-log`, `GET /api/security/metrics/api-usage` — admin role only.
+
+## Session inactivity
+
+Authenticated requests update `auth_sessions.last_activity_at` (throttled). If no activity occurs within `SESSION_INACTIVITY_MINUTES` (default **15**), the session is revoked and the API returns **401** with `code: SESSION_EXPIRED`.
+
+The web app mirrors this with a client idle timer (`NEXT_PUBLIC_SESSION_INACTIVITY_MINUTES`, same value) so users are signed out even when the tab is open but idle.
 
 ## School-hours expectations
 

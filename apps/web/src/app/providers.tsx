@@ -3,6 +3,7 @@
 import { ThemeProvider } from "next-themes";
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { SessionIdleGuard } from "@/components/auth/SessionIdleGuard";
 import { ToastHost } from "@/components/ui/ToastHost";
 import { useAuthStore } from "@/store/authStore";
 
@@ -33,6 +34,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         storageKey="uganda-cbc-sms-theme"
       >
         {children}
+        <SessionIdleGuard />
         <ToastHost />
       </ThemeProvider>
     </QueryClientProvider>

@@ -19,6 +19,10 @@ import { signToken, verifyToken, tokenRemainingSeconds } from "../../utils/jwt";
 import { blacklistToken } from "../../utils/tokenBlacklist.js";
 import { toUserPublic } from "../../utils/userMapper";
 import { logUserAction } from "../users/audit.service";
+import {
+  idleExpiresAtFrom,
+  sessionInactivityMinutes,
+} from "./session.service.js";
 
 type LoginMeta = {
   ipAddress?: string | null;
@@ -49,7 +53,11 @@ function computeExpiryDate(token: string): Date {
 export async function login(
   input: LoginInput,
   meta: LoginMeta = {},
-): Promise<{ token: string; user: ReturnType<typeof toUserPublic> }> {
+): Promise<{
+  token: string;
+  user: ReturnType<typeof toUserPublic>;
+  session: { inactivityMinutes: number; idleExpiresAt: string };
+}> {
   try {
     const { rows } = await query<{
       id: string;
@@ -155,9 +163,13 @@ export async function login(
     const tokenHash = hashSecret(token);
     const expiresAt = computeExpiryDate(token);
 
+    const now = new Date();
     await query(
-      `INSERT INTO auth_sessions (id, user_id, token_hash, device_info, ip_address, user_agent, expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO auth_sessions (
+         id, user_id, token_hash, device_info, ip_address, user_agent,
+         expires_at, last_activity_at
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         sessionId,
         user.id,
@@ -166,11 +178,19 @@ export async function login(
         meta.ipAddress ?? null,
         meta.userAgent ?? null,
         expiresAt,
+        now,
       ],
     );
 
+    const inactivityMinutes = sessionInactivityMinutes();
+    const idleExpiresAt = idleExpiresAtFrom(now, inactivityMinutes);
+
     return {
       token,
+      session: {
+        inactivityMinutes,
+        idleExpiresAt: idleExpiresAt.toISOString(),
+      },
       user: toUserPublic({
         id: user.id,
         full_name: user.full_name,

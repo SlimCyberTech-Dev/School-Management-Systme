@@ -15,15 +15,25 @@ export type AuthUser = {
   photoUrl?: string | null;
 };
 
+export type SessionInfo = {
+  inactivityMinutes: number;
+  idleExpiresAt: string;
+};
+
 type AuthState = {
   user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
   hydrated: boolean;
-  login: (user: AuthUser, token: string) => void;
+  /** Unix ms — local idle deadline (synced from API headers when available). */
+  idleExpiresAt: number | null;
+  login: (user: AuthUser, token: string, session?: SessionInfo) => void;
   logout: () => void;
+  logoutRemote: () => Promise<void>;
   hydrate: () => Promise<void>;
   setToken: (token: string | null) => void;
+  setIdleExpiresAt: (unixMs: number) => void;
+  bumpIdleExpiry: (inactivityMs: number) => void;
   updateUser: (patch: Partial<AuthUser>) => void;
   hasRole: (role: Role | Role[]) => boolean;
 };
@@ -51,11 +61,18 @@ function parseUser(data: unknown): AuthUser | null {
   return null;
 }
 
+function idleDeadlineFromSession(session?: SessionInfo): number | null {
+  if (!session?.idleExpiresAt) return null;
+  const ms = Date.parse(session.idleExpiresAt);
+  return Number.isFinite(ms) ? ms : null;
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   isAuthenticated: false,
   hydrated: false,
+  idleExpiresAt: null,
 
   hasRole: (role) => {
     const u = get().user;
@@ -71,7 +88,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       user: state.user ? { ...state.user, ...patch } : null,
     })),
 
-  login: (user, token) => {
+  setIdleExpiresAt: (unixMs) => set({ idleExpiresAt: unixMs }),
+
+  bumpIdleExpiry: (inactivityMs) =>
+    set({ idleExpiresAt: Date.now() + inactivityMs }),
+
+  login: (user, token, session) => {
     const maxAge = jwtCookieMaxAge(token);
     setSmsTokenCookie(token, maxAge);
     set({
@@ -79,6 +101,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       token,
       isAuthenticated: true,
       hydrated: true,
+      idleExpiresAt: idleDeadlineFromSession(session) ?? Date.now() + 15 * 60_000,
     });
   },
 
@@ -89,7 +112,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       token: null,
       isAuthenticated: false,
       hydrated: true,
+      idleExpiresAt: null,
     });
+  },
+
+  logoutRemote: async () => {
+    const token = get().token;
+    if (token) {
+      try {
+        await fetch(`${baseUrl.replace(/\/$/, "")}/auth/logout`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        /* best-effort */
+      }
+    }
+    get().logout();
   },
 
   hydrate: async () => {
@@ -100,6 +139,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         token: null,
         isAuthenticated: false,
         hydrated: true,
+        idleExpiresAt: null,
       });
       return;
     }
@@ -115,9 +155,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           token: null,
           isAuthenticated: false,
           hydrated: true,
+          idleExpiresAt: null,
         });
         return;
       }
+      const idleHeader = res.headers.get("x-session-idle-expires-at");
+      const idleUnix = idleHeader ? Number(idleHeader) : NaN;
       const envelope = (await res.json()) as {
         success?: boolean;
         data?: unknown;
@@ -130,6 +173,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           token: null,
           isAuthenticated: false,
           hydrated: true,
+          idleExpiresAt: null,
         });
         return;
       }
@@ -138,6 +182,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         user,
         isAuthenticated: true,
         hydrated: true,
+        idleExpiresAt: Number.isFinite(idleUnix) ? idleUnix * 1000 : Date.now() + 15 * 60_000,
       });
     } catch {
       deleteSmsTokenCookie();
@@ -146,6 +191,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         token: null,
         isAuthenticated: false,
         hydrated: true,
+        idleExpiresAt: null,
       });
     }
   },

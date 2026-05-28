@@ -34,8 +34,21 @@ function secondsUntilRateLimitReset(headers: Record<string, unknown> | undefined
   return null;
 }
 
+function syncSessionIdleFromHeaders(headers: Record<string, unknown> | undefined): void {
+  if (!headers || typeof window === "undefined") return;
+  const raw = headers["x-session-idle-expires-at"];
+  const unix =
+    typeof raw === "string" ? Number(raw) : typeof raw === "number" ? raw : NaN;
+  if (Number.isFinite(unix) && unix > 0) {
+    useAuthStore.getState().setIdleExpiresAt(unix * 1000);
+  }
+}
+
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    syncSessionIdleFromHeaders(res.headers as Record<string, unknown>);
+    return res;
+  },
   (err) => {
     const cfg = err.config;
     const path = `${cfg?.baseURL ?? ""}${cfg?.url ?? ""}`;
@@ -61,9 +74,11 @@ api.interceptors.response.use(
       if (!auth.hydrated && !auth.token) {
         return Promise.reject(err);
       }
+      const body = err.response?.data as { code?: string } | undefined;
+      const isIdleTimeout = body?.code === "SESSION_EXPIRED";
       auth.logout();
       if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+        window.location.href = isIdleTimeout ? "/login?reason=timeout" : "/login";
       }
     }
     return Promise.reject(err);
@@ -168,6 +183,10 @@ function axiosFailureToMessage(err: AxiosError<unknown>): string {
   if (typeof raw === "string" && raw.trim()) return raw.trim();
 
   if (status === 401) {
+    const code = (err.response?.data as { code?: string } | undefined)?.code;
+    if (code === "SESSION_EXPIRED") {
+      return "Your session ended after a period of inactivity. Please sign in again.";
+    }
     return "You need to sign in to continue, or your session has expired.";
   }
   if (status === 403) {

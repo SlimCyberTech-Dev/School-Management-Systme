@@ -26,6 +26,7 @@ const envSchema = z.object({
   REPORT_CACHE_DIR: z.string().default("./cache/reports"),
   REQUEST_LOG_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(1),
   UPLOAD_DIR: z.string().default("./uploads"),
+  SESSION_INACTIVITY_MINUTES: z.coerce.number().min(1).max(480).default(15),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -59,6 +60,7 @@ export function loadEnv(): Env {
     REPORT_CACHE_DIR: process.env.REPORT_CACHE_DIR,
     REQUEST_LOG_SAMPLE_RATE: process.env.REQUEST_LOG_SAMPLE_RATE,
     UPLOAD_DIR: process.env.UPLOAD_DIR,
+    SESSION_INACTIVITY_MINUTES: process.env.SESSION_INACTIVITY_MINUTES,
   });
 
   if (!parsed.success) {

@@ -4,6 +4,10 @@ import { query } from "../config/db.js";
 import type { Role } from "@uganda-cbc-sms/shared";
 import { verifyToken, type JwtPayload } from "../utils/jwt.js";
 import { isTokenBlacklisted } from "../utils/tokenBlacklist.js";
+import {
+  sessionInactivityMinutes,
+  validateAndTouchSession,
+} from "../modules/auth/session.service.js";
 
 const ROLE_RECHECK_SECONDS = 30 * 60;
 
@@ -17,6 +21,12 @@ async function resolveRole(payload: JwtPayload): Promise<Role> {
   );
   if (!rows[0]) throw new Error("User not found");
   return rows[0].role;
+}
+
+function setSessionIdleHeaders(res: Response, idleExpiresAt: Date): void {
+  const unix = Math.floor(idleExpiresAt.getTime() / 1000);
+  res.setHeader("X-Session-Idle-Expires-At", String(unix));
+  res.setHeader("X-Session-Inactivity-Minutes", String(sessionInactivityMinutes()));
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -42,20 +52,17 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     const tokenHash = createHash("sha256").update(token).digest("hex");
-    const session = await query<{ id: string }>(
-      `SELECT id FROM auth_sessions
-       WHERE id = $1 AND user_id = $2 AND token_hash = $3
-         AND revoked_at IS NULL AND expires_at > NOW()`,
-      [payload.sid, payload.sub, tokenHash],
-    );
-    if (session.rowCount === 0) {
+    const session = await validateAndTouchSession(payload.sid, payload.sub, tokenHash);
+    if (!session) {
       res.status(401).json({
         success: false,
-        error: "Your session has expired or you signed out elsewhere. Please sign in again.",
-        code: "UNAUTHORIZED",
+        error: "Your session ended due to inactivity. Please sign in again.",
+        code: "SESSION_EXPIRED",
       });
       return;
     }
+
+    setSessionIdleHeaders(res, session.idleExpiresAt);
 
     const role = await resolveRole(payload);
     req.user = { id: payload.sub, role, sessionId: payload.sid };

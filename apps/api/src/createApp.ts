@@ -56,6 +56,8 @@ export function createApp(): Express {
         "RateLimit-Remaining",
         "RateLimit-Reset",
         "Retry-After",
+        "X-Session-Idle-Expires-At",
+        "X-Session-Inactivity-Minutes",
       ],
       maxAge: 86400,
     }),
