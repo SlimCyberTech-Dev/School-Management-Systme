@@ -25,3 +25,10 @@ export const feePaymentSchema = z.object({
 export type FeeStructureInput = z.infer<typeof feeStructureSchema>;
 export type FeeInvoiceInput = z.infer<typeof feeInvoiceSchema>;
 export type FeePaymentInput = z.infer<typeof feePaymentSchema>;
+
+export const feeBulkInvoiceSchema = z.object({
+  classId: z.string().uuid(),
+  termId: z.string().uuid(),
+});
+
+export type FeeBulkInvoiceInput = z.infer<typeof feeBulkInvoiceSchema>;

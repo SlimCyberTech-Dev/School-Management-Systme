@@ -1,47 +1,69 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { AsyncContent } from "@/components/feedback/AsyncContent";
+import { ErrorState } from "@/components/feedback/ErrorState";
+import { FormSkeleton } from "@/components/feedback/FormSkeleton";
+import { BulkInvoiceForm } from "@/components/fees/BulkInvoiceForm";
+import { FeeInvoicesTable } from "@/components/fees/FeeInvoicesTable";
+import { InvoiceCreateForm } from "@/components/fees/InvoiceCreateForm";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { Card } from "@/components/ui/Card";
-import { apiGet } from "@/lib/api";
-
-type Inv = { id: string; student_id?: string; balance?: string; total_amount?: string };
+import { useFeeInvoices } from "@/hooks/useFees";
+import { queryStatus } from "@/lib/queryStatus";
 
 export default function BursarInvoicesListPage() {
-  const [rows, setRows] = useState<Inv[]>([]);
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const data = await apiGet<Inv[]>("/fees/invoices");
-        setRows(data);
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : "Failed");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  const invoicesQ = useFeeInvoices();
+  const status = queryStatus(invoicesQ);
+  const [tab, setTab] = useState<"list" | "create" | "bulk">("list");
 
   return (
-    <PageWrapper title="Invoices" description="All fee invoices">
-      {err ? <p className="text-red-600">{err}</p> : null}
-      {loading ? <p className="text-slate-600">Loading…</p> : null}
-      <Card title={`Total (${rows.length})`}>
-        <ul className="space-y-2 text-sm">
-          {rows.map((r) => (
-            <li key={r.id}>
-              <Link className="text-brand underline" href={`/bursar/fees/invoices/${r.id}`}>
-                {r.id.slice(0, 8)}…
-              </Link>{" "}
-              — balance {String(r.balance ?? "—")} UGX
-            </li>
-          ))}
-        </ul>
-      </Card>
+    <PageWrapper title="Invoices" description="Create, bill, and track student fee invoices by term.">
+      <div className="mb-4 flex flex-wrap gap-2 border-b border-border pb-2">
+        {(
+          [
+            ["list", "All invoices"],
+            ["create", "New invoice"],
+            ["bulk", "Bill class"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-ui ${
+              tab === key ? "bg-brand text-white" : "text-muted-foreground hover:bg-accent/50"
+            }`}
+            onClick={() => setTab(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "create" ? (
+        <Card title="Create invoice for one student">
+          <InvoiceCreateForm onCreated={() => void invoicesQ.refetch()} />
+        </Card>
+      ) : tab === "bulk" ? (
+        <Card title="Bill entire class">
+          <BulkInvoiceForm onDone={() => void invoicesQ.refetch()} />
+        </Card>
+      ) : (
+        <Card title={`Invoices (${invoicesQ.data?.length ?? 0})`}>
+          <AsyncContent
+            status={status}
+            loading={<FormSkeleton fields={4} />}
+            error={
+              <ErrorState
+                message={invoicesQ.error instanceof Error ? invoicesQ.error.message : "Could not load invoices."}
+                onRetry={() => void invoicesQ.refetch()}
+              />
+            }
+          >
+            <FeeInvoicesTable rows={invoicesQ.data ?? []} />
+          </AsyncContent>
+        </Card>
+      )}
     </PageWrapper>
   );
 }

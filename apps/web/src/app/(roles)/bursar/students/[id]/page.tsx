@@ -1,77 +1,84 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PaymentForm } from "@/components/fees/PaymentForm";
+import { BursarStudentFinancePanel } from "@/components/fees/BursarStudentFinancePanel";
+import { AsyncContent } from "@/components/feedback/AsyncContent";
+import { ErrorState } from "@/components/feedback/ErrorState";
+import { FormSkeleton } from "@/components/feedback/FormSkeleton";
 import { PageWrapper } from "@/components/layout/PageWrapper";
-import { FeeBalanceCard } from "@/components/fees/FeeBalanceCard";
+import { StudentAvatar } from "@/components/students/StudentAvatar";
+import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { apiGet } from "@/lib/api";
+import { useEntityDetail } from "@/hooks/useEntityDetail";
 
 type StudentView = {
   id: string;
   studentNumber: string;
   fullName: string;
-  dateOfBirth: string;
-  gender: string;
   guardianName: string;
   guardianContact: string;
   photoUrl: string | null;
   status: string;
+  className?: string | null;
+  classStream?: string | null;
 };
 
 export default function BursarStudentProfilePage() {
   const params = useParams();
   const id = String(params["id"]);
-  const [st, setSt] = useState<StudentView | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const row = await apiGet<StudentView>(`/students/${encodeURIComponent(id)}`);
-        setSt(row);
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : "Failed to load");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [id]);
+  const studentQ = useEntityDetail<StudentView>("students", id);
 
   return (
-    <PageWrapper title="Student" description="Fees and profile">
-      {loading ? <p className="text-slate-600">Loading…</p> : null}
-      {err ? <p className="text-red-600">{err}</p> : null}
-      {st ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card title="Bio">
-            <dl className="space-y-2 text-sm">
-              <div>
-                <dt className="text-slate-500">Student #</dt>
-                <dd className="font-medium">{st.studentNumber}</dd>
+    <PageWrapper title="Student account" description="Fees, invoices, and payment history">
+      <div className="mb-4">
+        <Link className="text-sm text-brand hover:underline" href="/bursar/students">
+          ← Back to students
+        </Link>
+      </div>
+      <AsyncContent
+        status={studentQ.status}
+        loading={<FormSkeleton fields={6} />}
+        error={
+          studentQ.notFound ? (
+            <ErrorState message="We could not find this student." />
+          ) : (
+            <ErrorState
+              message={studentQ.error instanceof Error ? studentQ.error.message : "Failed to load student."}
+              onRetry={() => void studentQ.refetch()}
+            />
+          )
+        }
+      >
+        {studentQ.data ? (
+          <div className="space-y-6">
+            <Card title="Student profile">
+              <div className="flex flex-wrap items-start gap-4">
+                <StudentAvatar fullName={studentQ.data.fullName} photoUrl={studentQ.data.photoUrl} size="lg" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-xl font-semibold text-foreground">{studentQ.data.fullName}</h2>
+                    <Badge tone={studentQ.data.status === "active" ? "success" : "neutral"}>
+                      {studentQ.data.status}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">#{studentQ.data.studentNumber}</p>
+                  {studentQ.data.className ? (
+                    <p className="text-sm text-foreground">
+                      Class: {studentQ.data.className}
+                      {studentQ.data.classStream ? ` · ${studentQ.data.classStream}` : ""}
+                    </p>
+                  ) : null}
+                  <p className="text-sm text-muted-foreground">
+                    Guardian: {studentQ.data.guardianName} · {studentQ.data.guardianContact}
+                  </p>
+                </div>
               </div>
-              <div>
-                <dt className="text-slate-500">Name</dt>
-                <dd className="font-medium">{st.fullName}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Guardian</dt>
-                <dd>
-                  {st.guardianName} ({st.guardianContact})
-                </dd>
-              </div>
-            </dl>
-          </Card>
-          <FeeBalanceCard studentId={st.id} />
-          <div className="lg:col-span-2">
-            <Card title="Record payment">
-              <PaymentForm studentId={st.id} />
             </Card>
+            <BursarStudentFinancePanel studentId={studentQ.data.id} />
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </AsyncContent>
     </PageWrapper>
   );
 }

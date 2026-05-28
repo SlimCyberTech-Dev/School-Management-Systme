@@ -194,7 +194,8 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
     productLabel: PRODUCT_LABEL,
     items: [
       { href: "/bursar/dashboard", label: "Dashboard", icon: "home" },
-      { href: "/bursar/fees", label: "Fee Overview", icon: "creditCard", exactMatch: true },
+      { href: "/bursar/students", label: "Students", icon: "users", activePrefix: "/bursar/students" },
+      { href: "/bursar/fees", label: "Fee overview", icon: "creditCard", exactMatch: true },
       {
         href: "/bursar/fees/invoices",
         label: "Invoices",
@@ -203,13 +204,19 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
       },
       {
         href: "/bursar/fees/payments",
-        label: "Record Payment",
+        label: "Record payment",
         icon: "creditCard",
         activePrefix: "/bursar/fees/payments",
       },
       {
+        href: "/bursar/fees/payments/history",
+        label: "Payment history",
+        icon: "fileText",
+        activePrefix: "/bursar/fees/payments/history",
+      },
+      {
         href: "/bursar/fees/reports",
-        label: "Financial Reports",
+        label: "Financial reports",
         icon: "fileBarChart2",
         activePrefix: "/bursar/fees/reports",
       },

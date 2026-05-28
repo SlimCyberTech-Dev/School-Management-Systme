@@ -189,3 +189,12 @@ export interface FeeInvoiceRow {
 }
 
 export type { Role };
+export type {
+  FeeInvoice,
+  FeePayment,
+  FeePaymentResult,
+  FeeBalance,
+  FeeStructure,
+  FeeTermReport,
+  BulkInvoiceResult,
+} from "./fees";

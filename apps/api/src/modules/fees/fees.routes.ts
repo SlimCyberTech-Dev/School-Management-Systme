@@ -8,6 +8,7 @@ const admin = requireRoles("admin");
 const bursarTeam = requireRoles("bursar", "admin");
 const financeReaders = requireRoles("bursar", "admin");
 const financeReportsReaders = requireRoles("bursar", "admin", "headteacher");
+const balanceReaders = requireRoles("bursar", "admin", "headteacher");
 
 export const feesRouter = Router();
 
@@ -16,8 +17,10 @@ feesRouter.use(requireAuth);
 feesRouter.post("/structure", admin, asyncHandler(c.postStructure));
 feesRouter.get("/structure", financeReportsReaders, asyncHandler(c.getStructure));
 feesRouter.post("/invoices", bursarTeam, asyncHandler(c.postInvoice));
+feesRouter.post("/invoices/bulk", bursarTeam, asyncHandler(c.postBulkInvoices));
+feesRouter.get("/invoices/:invoiceId", financeReaders, asyncHandler(c.getInvoice));
 feesRouter.get("/invoices", financeReaders, asyncHandler(c.getInvoices));
 feesRouter.post("/payments", bursarTeam, asyncHandler(c.postPayment));
 feesRouter.get("/payments", financeReaders, asyncHandler(c.getPayments));
-feesRouter.get("/balance/:studentId", financeReaders, asyncHandler(c.getBalance));
+feesRouter.get("/balance/:studentId", balanceReaders, asyncHandler(c.getBalance));
 feesRouter.get("/reports", financeReportsReaders, asyncHandler(c.getReports));

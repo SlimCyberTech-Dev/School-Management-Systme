@@ -2,78 +2,101 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import { PaymentForm } from "@/components/fees/PaymentForm";
+import { AsyncContent } from "@/components/feedback/AsyncContent";
+import { ErrorState } from "@/components/feedback/ErrorState";
+import { FormSkeleton } from "@/components/feedback/FormSkeleton";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { Alert } from "@/components/ui/Alert";
+import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { apiGet } from "@/lib/api";
-
-type Inv = {
-  id: string;
-  student_id: string;
-  term_id?: string;
-  total_amount?: string;
-  amount_paid?: string;
-  balance?: string;
-};
+import { useFeeInvoice } from "@/hooks/useFees";
+import { formatUgx } from "@/lib/formatMoney";
+import { queryStatus } from "@/lib/queryStatus";
 
 export default function BursarInvoiceDetailPage() {
   const params = useParams();
-  const invoiceId = String(params["invoiceId"] ?? "");
-  const [invoice, setInvoice] = useState<Inv | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const rows = await apiGet<Inv[]>("/fees/invoices");
-        const found = rows.find((r) => r.id === invoiceId) ?? null;
-        setInvoice(found);
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : "Failed");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [invoiceId]);
+  const invoiceId = String(params["invoiceId"]);
+  const invoiceQ = useFeeInvoice(invoiceId);
+  const status = queryStatus(invoiceQ);
+  const inv = invoiceQ.data;
+  const balance = Number(inv?.balance ?? 0);
 
   return (
-    <PageWrapper title="Invoice detail" description="Record payments against this invoice">
-      {loading ? <p className="text-slate-600">Loading…</p> : null}
-      {err ? <p className="text-red-600">{err}</p> : null}
-      {!invoice && !loading ? (
-        <p className="text-red-600">Invoice not found.</p>
-      ) : null}
-      {invoice ? (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card title="Invoice">
-            <dl className="space-y-2 text-sm">
-              <div>
-                <dt className="text-slate-500">ID</dt>
-                <dd className="font-mono text-xs">{invoice.id}</dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Student</dt>
-                <dd>
-                  <Link className="text-brand underline" href={`/bursar/students/${invoice.student_id}`}>
-                    {invoice.student_id}
-                  </Link>
-                </dd>
-              </div>
-              <div>
-                <dt className="text-slate-500">Total / Paid / Balance</dt>
-                <dd>
-                  {invoice.total_amount} / {invoice.amount_paid} / {invoice.balance}
-                </dd>
-              </div>
-            </dl>
-          </Card>
-          <Card title="Record payment">
-            <PaymentForm studentId={invoice.student_id} />
-          </Card>
-        </div>
-      ) : null}
+    <PageWrapper title="Invoice detail" description="View billing and record payments against this invoice.">
+      <div className="mb-4">
+        <Link className="text-sm text-brand hover:underline" href="/bursar/fees/invoices">
+          ← Back to invoices
+        </Link>
+      </div>
+      <AsyncContent
+        status={status}
+        loading={<FormSkeleton fields={5} />}
+        error={
+          <ErrorState
+            message={invoiceQ.error instanceof Error ? invoiceQ.error.message : "Could not load invoice."}
+            onRetry={() => void invoiceQ.refetch()}
+          />
+        }
+      >
+        {inv ? (
+          <div className="space-y-6">
+            <Card title="Invoice summary">
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-muted-foreground">Student</dt>
+                  <dd>
+                    <Link className="font-medium text-brand hover:underline" href={`/bursar/students/${inv.studentId}`}>
+                      {inv.studentName ?? "Student"}
+                    </Link>
+                    {inv.studentNumber ? (
+                      <span className="ml-2 text-muted-foreground">#{inv.studentNumber}</span>
+                    ) : null}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Term</dt>
+                  <dd>
+                    {inv.termLabel}
+                    {inv.yearName ? ` · ${inv.yearName}` : ""}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Total billed</dt>
+                  <dd className="tabular-nums font-medium">{formatUgx(inv.totalAmount)} UGX</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Amount paid</dt>
+                  <dd className="tabular-nums">{formatUgx(inv.amountPaid)} UGX</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Balance</dt>
+                  <dd className="tabular-nums font-semibold">{formatUgx(inv.balance)} UGX</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Status</dt>
+                  <dd>
+                    {balance <= 0 ? (
+                      <Badge tone="success">Paid in full</Badge>
+                    ) : inv.isFlagged ? (
+                      <Badge tone="warning">Arrears</Badge>
+                    ) : (
+                      <Badge tone="neutral">Outstanding</Badge>
+                    )}
+                  </dd>
+                </div>
+              </dl>
+            </Card>
+            {balance > 0 ? (
+              <Card title="Record payment">
+                <PaymentForm studentId={inv.studentId} />
+              </Card>
+            ) : (
+              <Alert tone="success">This invoice is fully paid.</Alert>
+            )}
+          </div>
+        ) : null}
+      </AsyncContent>
     </PageWrapper>
   );
 }
