@@ -41,6 +41,16 @@ export async function listReports(req: Request, res: Response): Promise<void> {
   res.json({ success: true, data });
 }
 
+export async function getClassRankings(req: Request, res: Response): Promise<void> {
+  const classId = req.query.classId as string | undefined;
+  const termId = req.query.termId as string | undefined;
+  if (!classId || !termId) {
+    throw new HttpError(400, "Please select a class and term to view rankings.");
+  }
+  const data = await svc.getClassRankingLeaderboard(classId, termId);
+  res.json({ success: true, data });
+}
+
 export async function getTermReportDefault(req: Request, res: Response): Promise<void> {
   const classId = req.query.classId as string | undefined;
   const termId = req.query.termId as string | undefined;

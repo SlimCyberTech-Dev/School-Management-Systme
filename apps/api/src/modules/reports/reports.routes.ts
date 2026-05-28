@@ -17,6 +17,7 @@ reportsRouter.get("/exam-options", reporters, asyncHandler(c.getExamOptions));
 reportsRouter.get("/term-default", reporters, asyncHandler(c.getTermReportDefault));
 reportsRouter.put("/term-default", requireRoles("admin", "headteacher"), asyncHandler(c.putTermReportDefault));
 reportsRouter.get("/list", reporters, asyncHandler(c.listReports));
+reportsRouter.get("/class-rankings", reporters, asyncHandler(c.getClassRankings));
 reportsRouter.post("/generate", reporters, asyncHandler(c.generate));
 reportsRouter.post("/regenerate", reporters, asyncHandler(c.regenerate));
 reportsRouter.post("/cbc/generate", reporters, asyncHandler(c.generateCbc));

@@ -49,6 +49,7 @@ export function streamCbcReportCard(data: {
   motto?: string | null;
   branding?: ReportBranding;
   layout?: ReportLayoutOptions;
+  ranking?: { positionDisplay: string; aggregateLabel: string };
 }): Readable {
   const doc = createReportDoc();
   const pass = new PassThrough();
@@ -58,6 +59,22 @@ export function streamCbcReportCard(data: {
   drawReportFrame(doc);
 
   const classLabel = [data.className, data.stream].filter(Boolean).join(" · ");
+  const identityRows: { label: string; value: string }[] = [
+    { label: "Class", value: classLabel || "—" },
+    { label: "Term", value: data.term },
+    { label: "Year", value: data.year },
+  ];
+  if (data.ranking) {
+    identityRows.push({
+      label: "Class position",
+      value: `${data.ranking.positionDisplay} · ${data.ranking.aggregateLabel}`,
+    });
+  }
+  identityRows.push({
+    label: "Attendance",
+    value: `${data.daysAttended} / ${data.totalDays} days (${formatPercent(data.daysAttended, data.totalDays)})`,
+  });
+
   let y = drawReportHeader(doc, {
     schoolName,
     subtitle: "O-Level CBC Report Card",
@@ -72,15 +89,7 @@ export function streamCbcReportCard(data: {
     studentNumber: data.studentNumber,
     photoUrl: data.photoPath,
     layout: data.layout,
-    rows: [
-      { label: "Class", value: classLabel || "—" },
-      { label: "Term", value: data.term },
-      { label: "Year", value: data.year },
-      {
-        label: "Attendance",
-        value: `${data.daysAttended} / ${data.totalDays} days (${formatPercent(data.daysAttended, data.totalDays)})`,
-      },
-    ],
+    rows: identityRows,
   });
 
   if (data.subjects.length > 0) {
@@ -182,6 +191,7 @@ export function streamAlevelReportCard(data: {
   motto?: string | null;
   branding?: ReportBranding;
   layout?: ReportLayoutOptions;
+  ranking?: { positionDisplay: string; aggregateLabel: string };
 }): Readable {
   const doc = createReportDoc();
   const pass = new PassThrough();
@@ -189,6 +199,19 @@ export function streamAlevelReportCard(data: {
   const schoolName = data.schoolName?.trim() || "School Report";
 
   drawReportFrame(doc);
+
+  const identityRows: { label: string; value: string }[] = [
+    { label: "Class", value: data.className || "—" },
+    { label: "Combination", value: data.combination || "—" },
+    { label: "Term", value: data.term },
+    { label: "Year", value: data.year },
+  ];
+  if (data.ranking) {
+    identityRows.push({
+      label: "Class position",
+      value: `${data.ranking.positionDisplay} · ${data.ranking.aggregateLabel}`,
+    });
+  }
 
   let y = drawReportHeader(doc, {
     schoolName,
@@ -204,12 +227,7 @@ export function streamAlevelReportCard(data: {
     studentNumber: data.studentNumber,
     photoUrl: data.photoPath,
     layout: data.layout,
-    rows: [
-      { label: "Class", value: data.className || "—" },
-      { label: "Combination", value: data.combination || "—" },
-      { label: "Term", value: data.term },
-      { label: "Year", value: data.year },
-    ],
+    rows: identityRows,
   });
 
   if (data.sourceExamName) {
@@ -245,16 +263,18 @@ export function streamAlevelReportCard(data: {
     y += 22;
   }
 
-  y = drawSummaryStrip(
-    doc,
-    y,
-    [
-      { label: "Total points (best 3)", value: data.totalPoints != null ? String(data.totalPoints) : "—" },
-      { label: "Division", value: data.division ?? "—" },
-      { label: "Subjects", value: String(data.subjects.length) },
-    ],
-    data.branding,
-  );
+  const summaryCells: { label: string; value: string }[] = [
+    { label: "Total points (best 3)", value: data.totalPoints != null ? String(data.totalPoints) : "—" },
+    { label: "Division", value: data.division ?? "—" },
+    { label: "Subjects", value: String(data.subjects.length) },
+  ];
+  if (data.ranking) {
+    summaryCells.unshift({
+      label: "Class position",
+      value: data.ranking.positionDisplay,
+    });
+  }
+  y = drawSummaryStrip(doc, y, summaryCells, data.branding);
 
   y = drawSectionTitle(doc, y, "Comments");
   y = drawCommentBlocks(

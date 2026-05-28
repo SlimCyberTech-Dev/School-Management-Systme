@@ -1,5 +1,6 @@
 "use client";
 
+import type { RankingMethod, ReportRankingSnapshot } from "@uganda-cbc-sms/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPatch, apiPost, apiPut } from "@/lib/api";
 
@@ -94,6 +95,16 @@ export type ClassReportRow = {
   reportSourceType?: "term" | "exam" | null;
   reportSourceLabel?: string;
   payloadGeneratedAt?: string | null;
+  ranking?: ReportRankingSnapshot | null;
+  rankingLabel?: string | null;
+  aggregateLabel?: string | null;
+};
+
+export type ClassRankingsResponse = {
+  track: "cbc" | "alevel";
+  classSize: number;
+  method: RankingMethod | null;
+  leaderboard: ClassReportRow[];
 };
 
 export type GenerateReportsResult = {
@@ -153,12 +164,24 @@ export function useClassReports(classId: string | undefined, termId: string | un
   });
 }
 
+export function useClassRankings(classId: string | undefined, termId: string | undefined) {
+  return useQuery({
+    queryKey: ["reports-class-rankings", classId, termId],
+    queryFn: () =>
+      apiGet<ClassRankingsResponse>(
+        `/reports/class-rankings?classId=${encodeURIComponent(classId!)}&termId=${encodeURIComponent(termId!)}`,
+      ),
+    enabled: Boolean(classId && termId),
+  });
+}
+
 export function useReportActions() {
   const qc = useQueryClient();
   const invalidate = async (classId?: string, termId?: string) => {
     await qc.invalidateQueries({ queryKey: ["reports-exam-options"] });
     await qc.invalidateQueries({ queryKey: ["reports-readiness"] });
     await qc.invalidateQueries({ queryKey: ["reports-list"] });
+    await qc.invalidateQueries({ queryKey: ["reports-class-rankings"] });
     await qc.invalidateQueries({ queryKey: ["reports-analytics"] });
     await qc.invalidateQueries({ queryKey: ["reports-overview"] });
     if (classId && termId) {

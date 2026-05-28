@@ -1,0 +1,144 @@
+import {
+  assignCompetitionRanks,
+  cbcCompetencyAverage,
+  computeBestNPointsAggregate,
+  computeExamAveragePercent,
+  type RankableStudent,
+  type RankingMethod,
+  type ReportRankingSnapshot,
+} from "@uganda-cbc-sms/shared";
+import type { AlevelReportPayload, CbcReportPayload, ReportTrack } from "./reportTypes";
+
+function lowerIsBetterForMethod(method: RankingMethod): boolean {
+  return method === "alevel_best3_points" || method === "olevel_best8_points";
+}
+
+export function rankableFromAlevelPayload(
+  studentId: string,
+  payload: AlevelReportPayload,
+): RankableStudent | null {
+  const points = payload.subjects.map((s) => s.points).filter((p) => !Number.isNaN(p));
+  if (points.length < 3) return null;
+  const best3 = [...points].sort((a, b) => a - b).slice(0, 3);
+  const aggregate = best3.reduce((s, p) => s + p, 0);
+  return {
+    studentId,
+    sortKey: aggregate,
+    aggregateValue: aggregate,
+    aggregateLabel: `Best 3: ${aggregate} pts · Division ${payload.division}`,
+    method: "alevel_best3_points",
+    subjectsCounted: best3.length,
+  };
+}
+
+export function rankableFromCbcPayload(
+  studentId: string,
+  payload: CbcReportPayload,
+): RankableStudent | null {
+  const examSubjects = payload.formalExam?.subjects ?? [];
+  const examPoints = examSubjects
+    .map((s) => s.points)
+    .filter((p): p is number => p != null && !Number.isNaN(p));
+
+  if (examPoints.length >= 3) {
+    const { aggregate, subjectsUsed } = computeBestNPointsAggregate(examPoints, 8);
+    if (subjectsUsed === 0) return null;
+    return {
+      studentId,
+      sortKey: aggregate,
+      aggregateValue: aggregate,
+      aggregateLabel: `Aggregate ${aggregate} (best ${subjectsUsed} of ${examPoints.length} papers)`,
+      method: "olevel_best8_points",
+      subjectsCounted: subjectsUsed,
+    };
+  }
+
+  if (examSubjects.length >= 1) {
+    const avg = computeExamAveragePercent(
+      examSubjects.map((s) => ({ score: s.score, maxScore: s.maxScore })),
+    );
+    if (avg == null) return null;
+    return {
+      studentId,
+      sortKey: avg,
+      aggregateValue: avg,
+      aggregateLabel: `Exam average ${avg}%`,
+      method: "exam_average_percent",
+      subjectsCounted: examSubjects.length,
+    };
+  }
+
+  const ratings = payload.subjects.map((s) => s.rating).filter(Boolean);
+  const avg = cbcCompetencyAverage(ratings);
+  if (avg == null) return null;
+  return {
+    studentId,
+    sortKey: avg,
+    aggregateValue: Math.round(avg * 100) / 100,
+    aggregateLabel: `CBC average ${avg.toFixed(2)} / 4`,
+    method: "cbc_competency_average",
+    subjectsCounted: ratings.length,
+  };
+}
+
+export type CompiledReportEntry =
+  | { studentId: string; track: "alevel"; payload: AlevelReportPayload }
+  | { studentId: string; track: "cbc"; payload: CbcReportPayload };
+
+export function attachClassRankings(entries: CompiledReportEntry[]): CompiledReportEntry[] {
+  if (entries.length === 0) return entries;
+
+  const track = entries[0]!.track;
+  const rankables: RankableStudent[] = [];
+
+  for (const entry of entries) {
+    const row =
+      entry.track === "alevel"
+        ? rankableFromAlevelPayload(entry.studentId, entry.payload)
+        : rankableFromCbcPayload(entry.studentId, entry.payload);
+    if (row) rankables.push(row);
+  }
+
+  const method = rankables[0]?.method ?? (track === "alevel" ? "alevel_best3_points" : "cbc_competency_average");
+  const lowerIsBetter = lowerIsBetterForMethod(method);
+  const rankMap = assignCompetitionRanks(rankables, lowerIsBetter);
+
+  return entries.map((entry) => {
+    const ranking = rankMap.get(entry.studentId);
+    if (entry.track === "alevel") {
+      return { ...entry, payload: { ...entry.payload, ranking } };
+    }
+    return { ...entry, payload: { ...entry.payload, ranking } };
+  });
+}
+
+export function listClassRankingLeaderboard(
+  entries: CompiledReportEntry[],
+): Array<{
+  studentId: string;
+  studentName: string;
+  studentNumber: string;
+  ranking: ReportRankingSnapshot | null;
+  division?: string | null;
+  totalPoints?: number | null;
+}> {
+  const withMeta = entries.map((e) => {
+    const base = {
+      studentId: e.studentId,
+      studentName: e.payload.studentName,
+      studentNumber: e.payload.studentNumber,
+      ranking: e.payload.ranking ?? null,
+    };
+    if (e.track === "alevel") {
+      return { ...base, division: e.payload.division, totalPoints: e.payload.totalPoints };
+    }
+    return base;
+  });
+
+  return withMeta.sort((a, b) => {
+    const pa = a.ranking?.position ?? 9999;
+    const pb = b.ranking?.position ?? 9999;
+    if (pa !== pb) return pa - pb;
+    return a.studentName.localeCompare(b.studentName);
+  });
+}

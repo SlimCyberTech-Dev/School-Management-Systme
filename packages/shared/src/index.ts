@@ -1,4 +1,5 @@
 export * from "./utils/academicLevel";
+export * from "./utils/reportRanking";
 export * from "./constants/roles";
 export * from "./constants/grading";
 export * from "./constants/assessmentGradingScales";

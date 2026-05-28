@@ -7,6 +7,7 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { FormSkeleton } from "@/components/feedback/FormSkeleton";
 import { MarksSubmissionTracker } from "@/components/reports/MarksSubmissionTracker";
 import { ReportCardPreview } from "@/components/reports/ReportCardPreview";
+import { ClassRankingLeaderboard } from "@/components/reports/ClassRankingLeaderboard";
 import { ReportReleaseSteps } from "@/components/reports/ReportReleaseSteps";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
@@ -164,12 +165,24 @@ export function ReportGeneratePanel({
   const selectedExam = examInList ? exams.find((e) => e.id === examId) : undefined;
   const examNotClosed = !useTermOnly && Boolean(readinessQ.data?.examNotClosed);
   const examReadyForRelease = Boolean(selectedExam?.readyForReports);
-  const reports = listQ.data?.reports ?? [];
+  const reports = useMemo(() => {
+    const rows = listQ.data?.reports ?? [];
+    const withRank = rows.some((r) => r.ranking != null);
+    if (!withRank) return rows;
+    return [...rows].sort((a, b) => {
+      const pa = a.ranking?.position ?? 9999;
+      const pb = b.ranking?.position ?? 9999;
+      if (pa !== pb) return pa - pb;
+      return a.studentName.localeCompare(b.studentName);
+    });
+  }, [listQ.data?.reports]);
+  const hasGenerated = reports.some((r) => r.computedAt);
+  const reportsMissingRanking =
+    hasGenerated && reports.length > 0 && !reports.some((r) => r.ranking != null);
   const reportsLinkedToDeletedExam = reports.some((r) => r.examLinkStatus === "deleted");
   const staleDraftReports = reports.filter(
     (r) => r.computedAt && !r.isApproved && r.examLinkStatus === "deleted",
   );
-  const hasGenerated = reports.some((r) => r.computedAt);
   const hasActiveExams = examsLoaded && exams.length > 0;
   const termOnlyNoExam = useTermOnly && !hasActiveExams;
 
@@ -212,6 +225,27 @@ export function ReportGeneratePanel({
           </span>
         );
       },
+    },
+    {
+      key: "position",
+      header: "Position",
+      render: (r) =>
+        r.rankingLabel ? (
+          <span className="font-medium tabular-nums">{r.rankingLabel}</span>
+        ) : r.computedAt ? (
+          <span className="text-xs text-muted-foreground" title="Regenerate report cards to compute ranking">
+            —
+          </span>
+        ) : (
+          "—"
+        ),
+    },
+    {
+      key: "aggregate",
+      header: "Ranking basis",
+      render: (r) => (
+        <span className="text-xs text-foreground">{r.aggregateLabel ?? (r.computedAt ? "—" : "")}</span>
+      ),
     },
     ...(isAlevel
       ? [
@@ -597,7 +631,18 @@ export function ReportGeneratePanel({
         </div>
       </Card>
 
+      <ClassRankingLeaderboard classId={classId} termId={termId} hasGenerated={hasGenerated} />
+
       <Card title="Released reports">
+        {reportsMissingRanking ? (
+          <div className="mb-3">
+            <Alert tone="info">
+              These report cards were generated before class ranking was enabled. Use{" "}
+              <strong>Release report cards</strong> again (or regenerate stale drafts) to compute positions
+              and aggregates.
+            </Alert>
+          </div>
+        ) : null}
         <AsyncContent
           status={listStatus}
           loading={<FormSkeleton fields={4} />}

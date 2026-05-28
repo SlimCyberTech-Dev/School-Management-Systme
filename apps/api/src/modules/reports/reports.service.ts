@@ -17,6 +17,10 @@ import {
 } from "./reportReadiness";
 import type { AlevelReportPayload, CbcReportPayload, ReportTrack } from "./reportTypes";
 import {
+  attachClassRankings,
+  type CompiledReportEntry,
+} from "./classReportRanking";
+import {
   assertExamReadyForReports,
   compileAlevelReportFromExam,
   compileCbcReportWithExam,
@@ -433,6 +437,8 @@ export async function generateReportsForClass(
     // A-Level from active exam only — term assessment scores not required
   }
 
+  const compiled: CompiledReportEntry[] = [];
+
   for (const student of students) {
     try {
       if (ctx.track === "cbc") {
@@ -459,8 +465,7 @@ export async function generateReportsForClass(
         if (exam && !hasExamMarks) {
           warnings.push(`${student.full_name}: no marks on exam "${exam.name}" for this student.`);
         }
-        const id = await upsertCbcReport(student.id, termId, ctx.academicYearId, payload);
-        reportIds.push(id);
+        compiled.push({ studentId: student.id, track: "cbc", payload });
       } else {
         let payload = exam
           ? await compileAlevelReportFromExam(student.id, termId, ctx.academicYearId, exam)
@@ -482,8 +487,7 @@ export async function generateReportsForClass(
             `${student.full_name}: fewer than three subjects with points — division marked Incomplete.`,
           );
         }
-        const id = await upsertAlevelReport(student.id, termId, ctx.academicYearId, payload);
-        reportIds.push(id);
+        compiled.push({ studentId: student.id, track: "alevel", payload });
       }
     } catch (e) {
       if (e instanceof HttpError) throw e;
@@ -491,6 +495,18 @@ export async function generateReportsForClass(
         500,
         `Could not compile a report for ${student.full_name}. ${e instanceof Error ? e.message : "Please try again."}`,
       );
+    }
+  }
+
+  const ranked = attachClassRankings(compiled);
+
+  for (const entry of ranked) {
+    if (entry.track === "cbc") {
+      const id = await upsertCbcReport(entry.studentId, termId, ctx.academicYearId, entry.payload);
+      reportIds.push(id);
+    } else {
+      const id = await upsertAlevelReport(entry.studentId, termId, ctx.academicYearId, entry.payload);
+      reportIds.push(id);
     }
   }
 
@@ -643,6 +659,12 @@ async function payloadToCbcPdf(payload: CbcReportPayload): Promise<Readable> {
     motto: settings.motto,
     branding: settings.branding,
     layout: settings.layout ?? undefined,
+    ranking: payload.ranking
+      ? {
+          positionDisplay: payload.ranking.positionDisplay,
+          aggregateLabel: payload.ranking.aggregateLabel,
+        }
+      : undefined,
   });
 }
 
@@ -672,6 +694,12 @@ async function payloadToAlevelPdf(payload: AlevelReportPayload): Promise<Readabl
     motto: settings.motto,
     branding: settings.branding,
     layout: settings.layout ?? undefined,
+    ranking: payload.ranking
+      ? {
+          positionDisplay: payload.ranking.positionDisplay,
+          aggregateLabel: payload.ranking.aggregateLabel,
+        }
+      : undefined,
   });
 }
 
@@ -747,6 +775,9 @@ export async function listClassReports(classId: string, termId: string) {
           reportSourceType: source.sourceType,
           reportSourceLabel: source.sourceLabel,
           payloadGeneratedAt: source.generatedAt,
+          ranking: r.payload?.ranking ?? null,
+          rankingLabel: r.payload?.ranking?.positionDisplay ?? null,
+          aggregateLabel: r.payload?.ranking?.aggregateLabel ?? null,
         };
       }),
     };
@@ -792,7 +823,28 @@ export async function listClassReports(classId: string, termId: string) {
         reportSourceType: source.sourceType,
         reportSourceLabel: source.sourceLabel,
         payloadGeneratedAt: source.generatedAt,
+        ranking: r.payload?.ranking ?? null,
+        rankingLabel: r.payload?.ranking?.positionDisplay ?? null,
+        aggregateLabel: r.payload?.ranking?.aggregateLabel ?? null,
       };
     }),
+  };
+}
+
+export async function getClassRankingLeaderboard(classId: string, termId: string) {
+  const listed = await listClassReports(classId, termId);
+  const ranked = listed.reports
+    .filter((r) => r.ranking != null)
+    .sort((a, b) => {
+      const pa = a.ranking!.position;
+      const pb = b.ranking!.position;
+      if (pa !== pb) return pa - pb;
+      return a.studentName.localeCompare(b.studentName);
+    });
+  return {
+    track: listed.track,
+    classSize: ranked[0]?.ranking?.classSize ?? listed.reports.length,
+    method: ranked[0]?.ranking?.method ?? null,
+    leaderboard: ranked,
   };
 }

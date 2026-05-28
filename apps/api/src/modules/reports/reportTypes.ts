@@ -1,4 +1,8 @@
-export const REPORT_PAYLOAD_VERSION = 1;
+import type { ReportRankingSnapshot } from "@uganda-cbc-sms/shared";
+
+export const REPORT_PAYLOAD_VERSION = 2;
+
+export type { ReportRankingSnapshot };
 
 export type ReportSourceType = "term" | "exam";
 
@@ -42,6 +46,8 @@ export type CbcReportPayload = {
   totalDays: number;
   teacherComment: string;
   headteacherComment: string;
+  /** Class position after batch report generation (competition ranking). */
+  ranking?: ReportRankingSnapshot;
   /** Present when generated with a linked formal exam (CBC annex). */
   formalExam?: ReportFormalExamSection;
   /** Snapshot metadata — set at generation time. */
@@ -74,6 +80,7 @@ export type AlevelReportPayload = {
   division: string;
   teacherComment: string;
   headteacherRemark: string;
+  ranking?: ReportRankingSnapshot;
   sourceType?: ReportSourceType;
   /** Set when report scores were compiled from a formal exam. */
   sourceExamId?: string;
