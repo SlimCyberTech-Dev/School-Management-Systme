@@ -3,7 +3,16 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
-import { Calendar, FileDown } from "lucide-react";
+import {
+  BarChart3,
+  BookOpen,
+  Calendar,
+  ClipboardCheck,
+  FileBarChart2,
+  FileText,
+  GraduationCap,
+  Users,
+} from "lucide-react";
 import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -17,33 +26,51 @@ import {
 import { apiGet } from "@/lib/api";
 import { combineQueryStatus } from "@/lib/queryStatus";
 
-type Kpis = { activeStudents: string; totalFeesDue: string; totalFeesPaid: string };
+type Kpis = {
+  activeStudents: string;
+  totalFeesDue: string;
+  totalFeesPaid: string;
+  averageCbcNumeric: string;
+  averageAlevelScore: string;
+};
 type TermRow = { id: string; termNumber?: number; startDate?: string; endDate?: string; isActive?: boolean };
-type InvRow = Record<string, unknown>;
+
+const QUICK_LINKS = [
+  { href: "/headteacher/attendance", label: "School attendance", icon: Calendar },
+  { href: "/headteacher/exams", label: "Exams & marking", icon: FileText },
+  { href: "/headteacher/assessment", label: "Assessment oversight", icon: ClipboardCheck },
+  { href: "/headteacher/reports", label: "Report cards", icon: FileBarChart2 },
+  { href: "/headteacher/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/headteacher/students", label: "Students", icon: Users },
+  { href: "/headteacher/users", label: "Staff accounts", icon: GraduationCap },
+  { href: "/headteacher/academic", label: "Academic structure", icon: BookOpen },
+  { href: "/headteacher/academic/timetable", label: "School timetable", icon: Calendar },
+];
+
+function formatScore(raw: string, decimals = 1): string {
+  const n = Number(raw);
+  if (Number.isNaN(n)) return "—";
+  return n.toFixed(decimals);
+}
 
 export default function HeadteacherDashboardPage() {
-  const [kpisQ, termsQ, invoicesQ] = useQueries({
+  const [kpisQ, termsQ] = useQueries({
     queries: [
       { queryKey: ["dashboard-kpis"], queryFn: () => apiGet<Kpis>("/analytics/dashboard") },
       { queryKey: ["terms"], queryFn: () => apiGet<TermRow[]>("/academic/terms") },
-      { queryKey: ["fees-invoices"], queryFn: () => apiGet<InvRow[]>("/fees/invoices") },
     ],
   });
 
-  const queries = [kpisQ, termsQ, invoicesQ];
+  const queries = [kpisQ, termsQ];
   const status = combineQueryStatus(queries);
   const isFetching = queries.some((q) => q.isFetching && !q.isPending);
   const errorMessage =
-    (kpisQ.error ?? termsQ.error ?? invoicesQ.error) instanceof Error
-      ? (kpisQ.error ?? termsQ.error ?? invoicesQ.error)!.message
+    (kpisQ.error ?? termsQ.error) instanceof Error
+      ? (kpisQ.error ?? termsQ.error)!.message
       : "Failed to load dashboard";
 
   const kpis = kpisQ.data;
   const terms = termsQ.data ?? [];
-  const flagged = useMemo(
-    () => (invoicesQ.data ?? []).filter((r) => r.is_flagged === true || r["is_flagged"] === true).length,
-    [invoicesQ.data],
-  );
 
   const current = terms.find((x) => x.isActive);
   const daysRemaining = (() => {
@@ -52,14 +79,29 @@ export default function HeadteacherDashboardPage() {
     return Math.max(0, Math.ceil((end - Date.now()) / 86400000));
   })();
 
+  const cbcAvg = kpis ? formatScore(kpis.averageCbcNumeric) : "—";
+  const alAvg = kpis ? formatScore(kpis.averageAlevelScore) : "—";
+
   const metrics = kpis
     ? [
-        { label: "Active students", value: kpis.activeStudents, delta: "Enrolled", deltaTone: "positive" as const },
         {
-          label: "Fees collected",
-          value: kpis.totalFeesPaid,
-          helper: `Due ${kpis.totalFeesDue} UGX`,
-          delta: "This term",
+          label: "Active students",
+          value: kpis.activeStudents,
+          delta: "Enrolled",
+          deltaTone: "positive" as const,
+        },
+        {
+          label: "Avg CBC rating",
+          value: cbcAvg,
+          helper: "School-wide (A=4 scale)",
+          delta: "O-Level",
+          deltaTone: "neutral" as const,
+        },
+        {
+          label: "Avg A-Level score",
+          value: alAvg,
+          helper: "Across entered marks",
+          delta: "A-Level",
           deltaTone: "neutral" as const,
         },
         {
@@ -69,20 +111,16 @@ export default function HeadteacherDashboardPage() {
           deltaTone: current ? ("positive" as const) : ("negative" as const),
           helper: daysRemaining !== null ? `${daysRemaining} days remaining` : "Set active term",
         },
-        {
-          label: "Flagged invoices",
-          value: String(flagged),
-          delta: flagged > 0 ? "Action needed" : "All clear",
-          deltaTone: flagged > 0 ? ("negative" as const) : ("positive" as const),
-        },
       ]
     : [];
+
+  const termRows = useMemo(() => terms.slice(0, 6), [terms]);
 
   return (
     <div className="space-y-6">
       <DashboardHeader
         title="Headteacher Dashboard"
-        description="Academic and financial oversight for school leadership."
+        description="Oversight of academic progress, assessments, exams, attendance, and report cards."
       />
       <AsyncContent
         status={status}
@@ -99,15 +137,6 @@ export default function HeadteacherDashboardPage() {
         <DashboardTwoColumn
           primary={
             <DashboardPanel title="Current terms" subtitle="Academic calendar status">
-              <div className="mb-3 flex items-center justify-end">
-                <button
-                  type="button"
-                  className="transition-ui inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent/50"
-                >
-                  <FileDown className="h-4 w-4 stroke-[1.5]" />
-                  Export
-                </button>
-              </div>
               <div className="overflow-x-auto rounded-lg border border-border/50">
                 <table className="w-full border-collapse text-sm">
                   <thead>
@@ -127,8 +156,8 @@ export default function HeadteacherDashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {terms.length ? (
-                      terms.map((term) => (
+                    {termRows.length ? (
+                      termRows.map((term) => (
                         <tr
                           key={term.id}
                           className="transition-ui border-t border-border/50 hover:bg-muted/40 dark:hover:bg-muted/30"
@@ -173,21 +202,20 @@ export default function HeadteacherDashboardPage() {
             </DashboardPanel>
           }
           secondary={
-            <DashboardPanel title="Leadership actions">
-              <div className="space-y-2 text-sm">
-                <Link href="/headteacher/reports" className="block text-blue-600 hover:underline dark:text-blue-400">
-                  Review report cards
-                </Link>
-                <Link
-                  href="/headteacher/assessment/cbc/unlock"
-                  className="block text-blue-600 hover:underline dark:text-blue-400"
-                >
-                  Unlock CBC assessments
-                </Link>
-                <Link href="/headteacher/analytics" className="block text-blue-600 hover:underline dark:text-blue-400">
-                  Open analytics
-                </Link>
-              </div>
+            <DashboardPanel title="Leadership shortcuts">
+              <ul className="space-y-2">
+                {QUICK_LINKS.map(({ href, label, icon: Icon }) => (
+                  <li key={href}>
+                    <Link
+                      href={href}
+                      className="transition-ui flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-brand hover:bg-accent/50"
+                    >
+                      <Icon className="h-4 w-4 shrink-0 opacity-80" />
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </DashboardPanel>
           }
         />

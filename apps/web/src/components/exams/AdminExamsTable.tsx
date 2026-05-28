@@ -16,6 +16,7 @@ function classLabel(exam: ExamSummary): string {
 
 type Props = {
   exams: ExamSummary[];
+  examsBasePath?: string;
   archivedView: boolean;
   busy: boolean;
   onEdit: (exam: ExamSummary) => void;
@@ -29,6 +30,7 @@ type Props = {
 
 export function AdminExamsTable({
   exams,
+  examsBasePath = "/admin/exams",
   archivedView,
   busy,
   onEdit,
@@ -83,7 +85,7 @@ export function AdminExamsTable({
               <td className="px-4 py-3 align-middle">
                 <div className="min-w-[10rem]">
                   <Link
-                    href={`/admin/exams/${exam.id}${exam.isArchived ? "?archived=1" : ""}`}
+                    href={`${examsBasePath}/${exam.id}${exam.isArchived ? "?archived=1" : ""}`}
                     className="font-medium text-foreground hover:text-brand hover:underline"
                   >
                     {exam.name}
@@ -123,6 +125,7 @@ export function AdminExamsTable({
               <td className="px-4 py-3 align-middle">
                 <AdminExamRowActions
                   exam={exam}
+                  examsBasePath={examsBasePath}
                   archivedView={archivedView}
                   busy={busy}
                   onEdit={onEdit}

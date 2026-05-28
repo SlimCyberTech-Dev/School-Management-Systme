@@ -46,7 +46,12 @@ export function ResetPasswordModal({ open, onClose, onSubmit }: Props) {
       <div className="space-y-3">
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <Input label="New password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-        <Input label="Confirm password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+        <Input
+          label="Confirm password"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+        />
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -56,8 +61,12 @@ export function ResetPasswordModal({ open, onClose, onSubmit }: Props) {
           Force user to change password on next login
         </label>
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button loading={busy} onClick={() => void submit()}>Reset password</Button>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button loading={busy} onClick={() => void submit()}>
+            Reset password
+          </Button>
         </div>
       </div>
     </Modal>

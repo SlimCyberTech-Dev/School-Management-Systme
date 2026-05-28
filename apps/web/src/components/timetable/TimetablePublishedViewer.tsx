@@ -27,9 +27,16 @@ type Props = {
   academicYearId: string;
   termId: string;
   level: AcademicLevel;
+  /** Shown when no published schedules exist for the current filters */
+  emptyDescription?: string;
 };
 
-export function TimetablePublishedViewer({ academicYearId, termId, level }: Props) {
+export function TimetablePublishedViewer({
+  academicYearId,
+  termId,
+  level,
+  emptyDescription = "Publish a draft from the Setup, By class, or Publish tabs for this year, term, and level.",
+}: Props) {
   const [status, setStatus] = useState<StatusFilter>("active");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("class");
@@ -272,10 +279,7 @@ export function TimetablePublishedViewer({ academicYearId, termId, level }: Prop
           }
         >
           {browseQ.data?.length === 0 ? (
-            <EmptyState
-              title="No published timetables"
-              description="Publish a draft from the Setup, By class, or Publish tabs for this year, term, and level."
-            />
+            <EmptyState title="No published timetables" description={emptyDescription} />
           ) : (
             <AsyncContent
               status={gridStatus}

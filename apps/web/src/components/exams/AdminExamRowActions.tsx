@@ -10,6 +10,7 @@ const menuDanger =
 
 type Props = {
   exam: ExamSummary;
+  examsBasePath?: string;
   onEdit: (exam: ExamSummary) => void;
   onArchive: (exam: ExamSummary) => void;
   onOpen: (exam: ExamSummary) => void;
@@ -21,6 +22,7 @@ type Props = {
 
 export function AdminExamRowActions({
   exam,
+  examsBasePath = "/admin/exams",
   onEdit,
   onArchive,
   onOpen,
@@ -29,7 +31,7 @@ export function AdminExamRowActions({
   busy,
   archivedView,
 }: Props) {
-  const detailHref = `/admin/exams/${exam.id}${archivedView || exam.isArchived ? "?archived=1" : ""}`;
+  const detailHref = `${examsBasePath}/${exam.id}${archivedView || exam.isArchived ? "?archived=1" : ""}`;
 
   if (archivedView || exam.isArchived) {
     return (

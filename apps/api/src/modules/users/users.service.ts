@@ -23,6 +23,8 @@ type ListUsersParams = {
   search?: string;
   role?: string;
   status?: "active" | "inactive" | "locked";
+  /** When set, users with these roles are omitted from results (e.g. headteacher list view). */
+  excludeRoles?: string[];
 };
 
 type UserDetailsRow = {
@@ -126,6 +128,10 @@ export async function listUsers(params: ListUsersParams) {
     if (params.status === "active") where.push("is_active = true");
     if (params.status === "inactive") where.push("is_active = false");
     if (params.status === "locked") where.push("(locked_until IS NOT NULL AND locked_until > NOW())");
+    if (params.excludeRoles?.length) {
+      values.push(params.excludeRoles);
+      where.push(`role <> ALL($${values.length}::text[])`);
+    }
 
     const { rows } = await query(
       `SELECT id, full_name, email, role, is_active, created_at, locked_until, force_password_change, system_account

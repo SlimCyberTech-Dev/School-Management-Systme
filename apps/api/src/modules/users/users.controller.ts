@@ -4,6 +4,7 @@ import * as sharedSchemas from "@uganda-cbc-sms/shared";
 import type { CreateUserInput, ResetPasswordInput, UpdateProfileInput, UpdateUserInput } from "@uganda-cbc-sms/shared";
 import { z } from "zod";
 import * as svc from "./users.service";
+import * as policy from "./userManagerPolicy";
 
 const sharedRuntime =
   ((sharedSchemas as Record<string, unknown>).default as Record<string, unknown> | undefined) ??
@@ -46,6 +47,9 @@ export async function create(req: Request, res: Response): Promise<void> {
     notes?: string;
     forcePasswordChange?: boolean;
   };
+  if (req.user.role === "headteacher") {
+    policy.assertHeadteacherCanAssignRole(body.role);
+  }
   const user = await svc.createUser(body, {
     actorId: req.user.id,
     ipAddress: req.ip ?? null,
@@ -56,7 +60,9 @@ export async function create(req: Request, res: Response): Promise<void> {
 
 export async function list(req: Request, res: Response): Promise<void> {
   const query = listUsersQuerySchema.parse(req.query);
-  const users = await svc.listUsers(query);
+  const excludeRoles =
+    req.user?.role === "headteacher" ? [...policy.PRIVILEGED_USER_ROLES] : undefined;
+  const users = await svc.listUsers({ ...query, excludeRoles });
   res.json({ success: true, data: users });
 }
 
@@ -65,6 +71,7 @@ export async function deactivate(req: Request, res: Response): Promise<void> {
     res.status(401).json({ success: false, error: "Unauthorized" });
     return;
   }
+  await policy.assertActorCanManageUser(req.user, req.params.id!);
   await svc.deactivateUser(req.params.id!, req.user.id, {
     ipAddress: req.ip ?? null,
     userAgent: req.headers["user-agent"] ?? null,
@@ -80,6 +87,7 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
   const body = resetPasswordAdminSchema.parse(req.body) as ResetPasswordInput & {
     forcePasswordChange?: boolean;
   };
+  await policy.assertActorCanManageUser(req.user, req.params.id!);
   await svc.resetUserPassword(req.params.id!, body, req.user.id, {
     ipAddress: req.ip ?? null,
     userAgent: req.headers["user-agent"] ?? null,
@@ -121,6 +129,9 @@ export async function uploadMyPhoto(req: Request, res: Response): Promise<void> 
 }
 
 export async function getOne(req: Request, res: Response): Promise<void> {
+  if (req.user) {
+    await policy.assertActorCanManageUser(req.user, req.params.id!);
+  }
   const user = await svc.getUserById(req.params.id!);
   res.json({ success: true, data: user });
 }
@@ -131,6 +142,10 @@ export async function update(req: Request, res: Response): Promise<void> {
     return;
   }
   const body = updateUserSchema.parse(req.body) as UpdateUserInput;
+  await policy.assertActorCanManageUser(req.user, req.params.id!);
+  if (req.user.role === "headteacher" && body.role) {
+    policy.assertHeadteacherCanAssignRole(body.role);
+  }
   const user = await svc.updateUser(req.params.id!, body, req.user.id);
   res.json({ success: true, data: user, message: "User updated" });
 }
@@ -140,6 +155,7 @@ export async function destroy(req: Request, res: Response): Promise<void> {
     res.status(401).json({ success: false, error: "Unauthorized" });
     return;
   }
+  await policy.assertActorCanManageUser(req.user, req.params.id!);
   await svc.deleteUser(req.params.id!, req.user.id);
   res.json({ success: true, data: { deleted: true }, message: "User deleted" });
 }
@@ -149,6 +165,7 @@ export async function activate(req: Request, res: Response): Promise<void> {
     res.status(401).json({ success: false, error: "Unauthorized" });
     return;
   }
+  await policy.assertActorCanManageUser(req.user, req.params.id!);
   await svc.activateUser(req.params.id!, req.user.id, {
     ipAddress: req.ip ?? null,
     userAgent: req.headers["user-agent"] ?? null,
@@ -161,6 +178,7 @@ export async function unlock(req: Request, res: Response): Promise<void> {
     res.status(401).json({ success: false, error: "Unauthorized" });
     return;
   }
+  await policy.assertActorCanManageUser(req.user, req.params.id!);
   await svc.unlockUser(req.params.id!, req.user.id, {
     ipAddress: req.ip ?? null,
     userAgent: req.headers["user-agent"] ?? null,
@@ -174,6 +192,7 @@ export async function updateNotes(req: Request, res: Response): Promise<void> {
     return;
   }
   const body = notesSchema.parse(req.body);
+  await policy.assertActorCanManageUser(req.user, req.params.id!);
   await svc.updateUserNotes(req.params.id!, body.notes, req.user.id, {
     ipAddress: req.ip ?? null,
     userAgent: req.headers["user-agent"] ?? null,
@@ -182,6 +201,9 @@ export async function updateNotes(req: Request, res: Response): Promise<void> {
 }
 
 export async function auditLogs(req: Request, res: Response): Promise<void> {
+  if (req.user) {
+    await policy.assertActorCanManageUser(req.user, req.params.id!);
+  }
   const limit = z.coerce.number().int().min(1).max(200).default(50).parse(req.query.limit ?? "50");
   const logs = await svc.getUserAuditLogs(req.params.id!, limit);
   res.json({ success: true, data: logs });
@@ -193,6 +215,9 @@ export async function bulkActivate(req: Request, res: Response): Promise<void> {
     return;
   }
   const body = idListSchema.parse(req.body);
+  if (req.user.role === "headteacher") {
+    for (const id of body.ids) await policy.assertActorCanManageUser(req.user, id);
+  }
   const result = await svc.bulkActivateUsers(body.ids, req.user.id);
   res.json({ success: true, data: result, message: "Bulk activate complete" });
 }
@@ -203,6 +228,9 @@ export async function bulkDeactivate(req: Request, res: Response): Promise<void>
     return;
   }
   const body = idListSchema.parse(req.body);
+  if (req.user.role === "headteacher") {
+    for (const id of body.ids) await policy.assertActorCanManageUser(req.user, id);
+  }
   const result = await svc.bulkDeactivateUsers(body.ids, req.user.id);
   res.json({ success: true, data: result, message: "Bulk deactivate complete" });
 }
@@ -213,6 +241,9 @@ export async function bulkDelete(req: Request, res: Response): Promise<void> {
     return;
   }
   const body = idListSchema.parse(req.body);
+  if (req.user.role === "headteacher") {
+    for (const id of body.ids) await policy.assertActorCanManageUser(req.user, id);
+  }
   const result = await svc.bulkDeleteUsers(body.ids, req.user.id);
   res.json({ success: true, data: result, message: "Bulk delete complete" });
 }

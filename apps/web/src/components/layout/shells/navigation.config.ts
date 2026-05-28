@@ -61,10 +61,22 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
         activePrefix: "/headteacher/academic",
       },
       {
-        href: "/headteacher/assessment/cbc",
+        href: "/headteacher/academic/timetable",
+        label: "Timetable",
+        icon: "bookOpen",
+        activePrefix: "/headteacher/academic/timetable",
+      },
+      {
+        href: "/headteacher/assessment",
         label: "Assessments",
         icon: "clipboardCheck",
         activePrefix: "/headteacher/assessment",
+      },
+      {
+        href: "/headteacher/exams",
+        label: "Exams",
+        icon: "fileText",
+        activePrefix: "/headteacher/exams",
       },
       {
         href: "/headteacher/reports",
@@ -81,8 +93,14 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
       {
         href: "/headteacher/attendance",
         label: "Attendance",
-        icon: "clipboardCheck",
+        icon: "calendar",
         activePrefix: "/headteacher/attendance",
+      },
+      {
+        href: "/headteacher/users",
+        label: "Users",
+        icon: "graduationCap",
+        activePrefix: "/headteacher/users",
       },
     ],
   },

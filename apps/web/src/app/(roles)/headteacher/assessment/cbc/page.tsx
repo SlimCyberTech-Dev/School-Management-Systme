@@ -2,20 +2,40 @@
 
 import Link from "next/link";
 import { PageWrapper } from "@/components/layout/PageWrapper";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { HeadteacherAssessmentStatusPanel } from "@/components/headteacher/HeadteacherAssessmentStatusPanel";
+import type { HeadteacherPeriodValue } from "@/components/headteacher/HeadteacherPeriodFilters";
+import { useCbcActions } from "@/hooks/useCBCAssessment";
 
-export default function HeadteacherCbcOverviewPage() {
+export default function HeadteacherCbcAssessmentPage() {
+  const { unlock } = useCbcActions();
+
+  const handleUnlock = async (subjectId: string, filters: HeadteacherPeriodValue) => {
+    await unlock.mutateAsync({
+      subjectId,
+      classId: filters.classId,
+      termId: filters.termId,
+      yearId: filters.yearId,
+    });
+  };
+
   return (
-    <PageWrapper title="CBC assessments" description="Submitted scores and unlock workflow">
-      <Card title="Unlock locked submissions">
-        <p className="mb-4 text-sm text-slate-600">
-          Teachers submit CBC competency ratings per strand. When locked, only the headteacher can unlock for edits.
-        </p>
-        <Link href="/headteacher/assessment/cbc/unlock">
-          <Button>Open unlock tool</Button>
+    <PageWrapper
+      title="CBC assessments"
+      description="O-Level competency ratings — submission status and unlock"
+    >
+      <p className="-mt-2 mb-4 text-sm text-muted-foreground">
+        <Link href="/headteacher/assessment" className="font-medium text-brand hover:underline">
+          ← Assessment hub
         </Link>
-      </Card>
+      </p>
+      <HeadteacherAssessmentStatusPanel
+        track="cbc"
+        title="CBC subject progress"
+        description="Each subject teacher submits strand ratings for their class. Unlock only when you approve corrections to a locked sheet."
+        statusPath="/assessments/cbc/status"
+        canUnlock
+        onUnlock={handleUnlock}
+      />
     </PageWrapper>
   );
 }

@@ -67,39 +67,48 @@ export default function HeadteacherAnalyticsPage() {
 
   const filtersReady = Boolean(filters.classId && filters.termId && filters.yearId);
   const data = overviewQ.data;
+  const hasOverview = Boolean(data?.pipeline);
   const showCbc = filters.track === "all" || filters.track === "cbc";
   const showAlevel = filters.track === "all" || filters.track === "alevel";
-  const overviewStatus = filtersReady ? queryStatus(overviewQ) : ("success" as const);
-  const overviewFetching = filtersReady && overviewQ.isFetching && !overviewQ.isPending;
+  const overviewStatus = !filtersReady
+    ? ("success" as const)
+    : overviewQ.isError
+      ? ("error" as const)
+      : !hasOverview
+        ? ("loading" as const)
+        : queryStatus(overviewQ);
+  const overviewFetching = filtersReady && overviewQ.isFetching && hasOverview;
 
-  const kpis = data
-    ? [
-        {
-          label: "Class students",
-          value: String(data.pipeline.activeStudents),
-          delta: "Active enrolment",
-          deltaTone: "neutral" as const,
-        },
-        {
-          label: "CBC approved",
-          value: `${data.pipeline.cbc.approved}/${data.pipeline.cbc.generated || data.pipeline.activeStudents}`,
-          delta: `${data.pipeline.cbc.pendingApproval} pending`,
-          deltaTone: data.pipeline.cbc.pendingApproval > 0 ? ("negative" as const) : ("positive" as const),
-        },
-        {
-          label: "A-Level approved",
-          value: `${data.pipeline.alevel.approved}/${data.pipeline.alevel.generated || data.pipeline.activeStudents}`,
-          delta: `${data.pipeline.alevel.pendingApproval} pending`,
-          deltaTone: data.pipeline.alevel.pendingApproval > 0 ? ("negative" as const) : ("positive" as const),
-        },
-        {
-          label: "School A-Level avg",
-          value: Number(data.kpis.averageAlevelScore) > 0 ? Number(data.kpis.averageAlevelScore).toFixed(1) : "—",
-          delta: "All classes",
-          deltaTone: "neutral" as const,
-        },
-      ]
-    : [];
+  const kpis = useMemo(() => {
+    if (!data?.pipeline) return [];
+    const { pipeline } = data;
+    return [
+      {
+        label: "Class students",
+        value: String(pipeline.activeStudents),
+        delta: "Active enrolment",
+        deltaTone: "neutral" as const,
+      },
+      {
+        label: "CBC approved",
+        value: `${pipeline.cbc.approved}/${pipeline.cbc.generated || pipeline.activeStudents}`,
+        delta: `${pipeline.cbc.pendingApproval} pending`,
+        deltaTone: pipeline.cbc.pendingApproval > 0 ? ("negative" as const) : ("positive" as const),
+      },
+      {
+        label: "A-Level approved",
+        value: `${pipeline.alevel.approved}/${pipeline.alevel.generated || pipeline.activeStudents}`,
+        delta: `${pipeline.alevel.pendingApproval} pending`,
+        deltaTone: pipeline.alevel.pendingApproval > 0 ? ("negative" as const) : ("positive" as const),
+      },
+      {
+        label: "School A-Level avg",
+        value: Number(data.kpis?.averageAlevelScore) > 0 ? Number(data.kpis.averageAlevelScore).toFixed(1) : "—",
+        delta: "All classes",
+        deltaTone: "neutral" as const,
+      },
+    ];
+  }, [data]);
 
   return (
     <PageWrapper title="Analytics" description="Class performance, report pipeline, and assessment readiness">
@@ -134,40 +143,44 @@ export default function HeadteacherAnalyticsPage() {
           }
           className="mt-6 space-y-8"
         >
-          <KpiGrid metrics={kpis} />
-          <section>
-            <h2 className="mb-3 text-lg font-semibold">Report pipeline</h2>
-            <ReportPipelineCharts
-              pipeline={{
-                ...data!.pipeline,
-                cbc: showCbc
-                  ? data!.pipeline.cbc
-                  : { generated: 0, approved: 0, pendingApproval: 0, notGenerated: 0 },
-                alevel: showAlevel
-                  ? data!.pipeline.alevel
-                  : { generated: 0, approved: 0, pendingApproval: 0, notGenerated: 0 },
-              }}
-            />
-          </section>
-          <section>
-            <h2 className="mb-3 text-lg font-semibold">Performance</h2>
-            <PerformanceCharts
-              cbc={showCbc ? data!.performance.cbc : []}
-              alevel={showAlevel ? data!.performance.alevel : []}
-            />
-            {showAlevel ? (
-              <div className="mt-4">
-                <DivisionChart divisions={data!.divisions} />
-              </div>
-            ) : null}
-          </section>
-          <section>
-            <h2 className="mb-3 text-lg font-semibold">Assessment readiness</h2>
-            <ReadinessCharts
-              cbc={showCbc ? data!.readiness.cbc : []}
-              alevel={showAlevel ? data!.readiness.alevel : []}
-            />
-          </section>
+          {hasOverview && data ? (
+            <>
+              <KpiGrid metrics={kpis} />
+              <section>
+                <h2 className="mb-3 text-lg font-semibold">Report pipeline</h2>
+                <ReportPipelineCharts
+                  pipeline={{
+                    ...data.pipeline,
+                    cbc: showCbc
+                      ? data.pipeline.cbc
+                      : { generated: 0, approved: 0, pendingApproval: 0, notGenerated: 0 },
+                    alevel: showAlevel
+                      ? data.pipeline.alevel
+                      : { generated: 0, approved: 0, pendingApproval: 0, notGenerated: 0 },
+                  }}
+                />
+              </section>
+              <section>
+                <h2 className="mb-3 text-lg font-semibold">Performance</h2>
+                <PerformanceCharts
+                  cbc={showCbc ? (data.performance?.cbc ?? []) : []}
+                  alevel={showAlevel ? (data.performance?.alevel ?? []) : []}
+                />
+                {showAlevel ? (
+                  <div className="mt-4">
+                    <DivisionChart divisions={data.divisions ?? []} />
+                  </div>
+                ) : null}
+              </section>
+              <section>
+                <h2 className="mb-3 text-lg font-semibold">Assessment readiness</h2>
+                <ReadinessCharts
+                  cbc={showCbc ? (data.readiness?.cbc ?? []) : []}
+                  alevel={showAlevel ? (data.readiness?.alevel ?? []) : []}
+                />
+              </section>
+            </>
+          ) : null}
         </AsyncContent>
       )}
     </PageWrapper>
