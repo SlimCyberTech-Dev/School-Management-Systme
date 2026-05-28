@@ -224,6 +224,7 @@ export async function compileAlevelReportPayload(
     combination: st.combination_code ?? st.combination_name ?? "",
     termLabel: `Term ${st.term_number}`,
     yearName: st.year_name,
+    photoUrl: st.photo_url,
     subjects,
     totalPoints,
     division,

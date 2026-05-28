@@ -1,3 +1,4 @@
+import { normalizeClassLevel } from "../../utils/classLevel";
 import { query } from "../../config/db";
 import { HttpError } from "../../utils/httpError";
 import { resolveConfiguredGrade } from "../../utils/gradingScales";
@@ -251,20 +252,16 @@ async function formalExamSectionForStudent(
     `SELECT level FROM classes WHERE id = $1`,
     [exam.class_id],
   );
-  const level = classRow[0]?.level === "A_LEVEL" ? "A_LEVEL" : "O_LEVEL";
+  const level = normalizeClassLevel(classRow[0]?.level);
 
   const subjects: ReportFormalExamSection["subjects"] = [];
   for (const r of rows) {
     if (r.score == null) continue;
     const score = Number(r.score);
     if (Number.isNaN(score)) continue;
-    let grade = r.grade ?? "";
-    let points = r.points;
-    if (!grade || points == null) {
-      const resolved = await resolveConfiguredGrade(score, level);
-      grade = resolved.grade;
-      points = resolved.points;
-    }
+    const resolved = await resolveConfiguredGrade(score, level);
+    const grade = resolved.grade;
+    const points = resolved.points;
     subjects.push({
       name: r.subject_name,
       code: r.subject_code,

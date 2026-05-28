@@ -154,12 +154,27 @@ export function TeacherExamMarksPanel({
               <span className="text-sm text-muted-foreground">· Max {examQ.data.maxScore}</span>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
-              Grades and points use the <strong className="text-foreground">{levelLabel(level)}</strong>{" "}
-              scale. Term {level === "A_LEVEL" ? "UNEB scores" : "CBC competencies"} are entered under{" "}
-              <Link href={termAssessmentHref} className="font-medium text-brand hover:underline">
-                {level === "A_LEVEL" ? "A-Level Assessment" : "CBC Assessment"}
-              </Link>
-              , not here.
+              {level === "A_LEVEL" ? (
+                <>
+                  Enter numeric scores (0–max). Grades and points use the{" "}
+                  <strong className="text-foreground">A-Level</strong> grading scale. Term UNEB scores are
+                  also entered under{" "}
+                  <Link href={termAssessmentHref} className="font-medium text-brand hover:underline">
+                    A-Level Assessment
+                  </Link>
+                  .
+                </>
+              ) : (
+                <>
+                  Enter numeric <strong className="text-foreground">exam scores</strong> (0–max). Grades use
+                  the <strong className="text-foreground">O-Level</strong> numeric scale — not CBC competency
+                  ratings (A–D). Term CBC competencies are entered separately under{" "}
+                  <Link href={termAssessmentHref} className="font-medium text-brand hover:underline">
+                    CBC Assessment
+                  </Link>{" "}
+                  for report cards.
+                </>
+              )}
             </p>
           </Card>
         ) : null}

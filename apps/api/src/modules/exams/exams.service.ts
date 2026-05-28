@@ -7,6 +7,7 @@ import type {
 import { query } from "../../config/db";
 import { writeAuditLog } from "../audit/audit.service";
 import { HttpError } from "../../utils/httpError";
+import { normalizeClassLevel } from "../../utils/classLevel";
 import { resolveConfiguredGrade } from "../../utils/gradingScales";
 import {
   assertTeacherIsAssignedSubjectTeacher,
@@ -141,12 +142,6 @@ async function assertSubjectsBelongToClass(classId: string, academicYearId: stri
       "One or more subjects are not assigned to this class for the selected academic year. Choose subjects from the class timetable.",
     );
   }
-}
-
-function normalizeClassLevel(level: string | null | undefined): "O_LEVEL" | "A_LEVEL" {
-  const normalized = (level ?? "").trim().toUpperCase().replace(/-/g, "_");
-  if (normalized === "A_LEVEL" || normalized === "ALEVEL") return "A_LEVEL";
-  return "O_LEVEL";
 }
 
 async function gradingLevelForClass(classId: string): Promise<"O_LEVEL" | "A_LEVEL"> {
@@ -426,7 +421,29 @@ export async function closeExam(id: string, options?: { force?: boolean }) {
     `UPDATE exams SET status = 'closed', closed_at = NOW(), updated_at = NOW() WHERE id = $1`,
     [id],
   );
+  await recalculateExamMarkGrades(id);
   return getExamById(id);
+}
+
+/** Re-apply the class grading scale to all saved exam marks (fixes legacy mis-graded rows). */
+export async function recalculateExamMarkGrades(examId: string) {
+  const exam = await getExamRow(examId);
+  const level = await gradingLevelForClass(exam.class_id);
+  const { rows } = await query<{ id: string; score: string }>(
+    `SELECT id, score::text AS score FROM exam_marks WHERE exam_id = $1`,
+    [examId],
+  );
+  for (const row of rows) {
+    const score = Number(row.score);
+    if (Number.isNaN(score)) continue;
+    const { grade, points } = await resolveConfiguredGrade(score, level);
+    await query(`UPDATE exam_marks SET grade = $2, points = $3, updated_at = NOW() WHERE id = $1`, [
+      row.id,
+      grade,
+      points,
+    ]);
+  }
+  return { updated: rows.length, level };
 }
 
 export async function reopenExam(id: string) {

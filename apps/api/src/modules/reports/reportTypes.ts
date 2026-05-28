@@ -68,6 +68,7 @@ export type AlevelReportPayload = {
   combination: string;
   termLabel: string;
   yearName: string;
+  photoUrl?: string | null;
   subjects: AlevelReportSubjectLine[];
   totalPoints: number;
   division: string;

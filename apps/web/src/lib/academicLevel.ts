@@ -1,4 +1,5 @@
 import type { SchoolClass, Subject } from "@uganda-cbc-sms/shared";
+import { normalizeClassLevel as normalizeLevel } from "@uganda-cbc-sms/shared";
 
 export type AcademicLevel = "O_LEVEL" | "A_LEVEL";
 
@@ -13,9 +14,7 @@ export function levelShortLabel(level: AcademicLevel | string): string {
 }
 
 export function parseAcademicLevel(raw: string | null | undefined): AcademicLevel {
-  const normalized = (raw ?? "").trim().toUpperCase().replace(/-/g, "_");
-  if (normalized === "A_LEVEL" || normalized === "ALEVEL") return "A_LEVEL";
-  return "O_LEVEL";
+  return normalizeLevel(raw);
 }
 
 export function filterClassesByLevel(classes: SchoolClass[], level: AcademicLevel, yearId?: string) {

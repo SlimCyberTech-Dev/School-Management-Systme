@@ -1,3 +1,4 @@
+import { normalizeClassLevel, classTrackFromLevel } from "../../utils/classLevel";
 import { query } from "../../config/db";
 import { HttpError } from "../../utils/httpError";
 
@@ -60,12 +61,13 @@ export async function getClassContext(classId: string, termId: string) {
     );
   }
 
-  const track = cls.level === "A_LEVEL" ? ("alevel" as const) : ("cbc" as const);
+  const classLevel = normalizeClassLevel(cls.level);
+  const track = classTrackFromLevel(classLevel);
   return {
     classId,
     termId,
     academicYearId: cls.academic_year_id,
-    classLevel: cls.level,
+    classLevel,
     className: cls.name,
     termNumber: term.term_number,
     track,

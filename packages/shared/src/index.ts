@@ -1,3 +1,4 @@
+export * from "./utils/academicLevel";
 export * from "./constants/roles";
 export * from "./constants/grading";
 export * from "./constants/assessmentGradingScales";

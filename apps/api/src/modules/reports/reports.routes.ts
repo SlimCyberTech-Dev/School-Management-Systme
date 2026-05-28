@@ -4,7 +4,7 @@ import { requireRoles } from "../../middleware/rbac";
 import { asyncHandler } from "../../utils/asyncHandler";
 import * as c from "./reports.controller";
 
-const headteacher = requireRoles("headteacher");
+const reportApprovers = requireRoles("headteacher", "admin");
 const reporters = requireRoles("headteacher", "admin", "class_teacher");
 const reportReaders = requireRoles("headteacher", "admin", "class_teacher", "subject_teacher", "bursar");
 
@@ -21,5 +21,5 @@ reportsRouter.post("/generate", reporters, asyncHandler(c.generate));
 reportsRouter.post("/regenerate", reporters, asyncHandler(c.regenerate));
 reportsRouter.post("/cbc/generate", reporters, asyncHandler(c.generateCbc));
 reportsRouter.post("/alevel/generate", reporters, asyncHandler(c.generateAlevel));
-reportsRouter.patch("/:id/approve", headteacher, asyncHandler(c.approve));
+reportsRouter.patch("/:id/approve", reportApprovers, asyncHandler(c.approve));
 reportsRouter.get("/:id/pdf", reportReaders, asyncHandler(c.getPdf));

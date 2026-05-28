@@ -65,8 +65,9 @@ export function ExamScoreGrid({
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Enter scores from 0 to {maxScore}. Letter grades and points preview use the{" "}
-        {level === "A_LEVEL" ? "A-Level" : "O-Level"} grading scale for this class.
+        Enter scores from 0 to {maxScore}. Letter grades and points use the{" "}
+        {level === "A_LEVEL" ? "A-Level (UNEB)" : "O-Level numeric"} grading scale
+        {level === "O_LEVEL" ? " — not CBC competency ratings" : ""}.
       </p>
       <div className="overflow-x-auto rounded border border-border">
         <table className="min-w-full text-sm">

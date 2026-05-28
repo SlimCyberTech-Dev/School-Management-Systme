@@ -2,6 +2,7 @@ import type { Readable } from "stream";
 import { query } from "../../config/db";
 import { HttpError } from "../../utils/httpError";
 import { streamAlevelReportCard, streamCbcReportCard } from "../../utils/pdf";
+import { recalculateExamMarkGrades } from "../exams/exams.service";
 import {
   compileAlevelReportPayload,
   compileCbcReportPayload,
@@ -362,6 +363,7 @@ export async function generateReportsForClass(
       );
     } else {
       await assertExamReadyForReports(exam.id, activeStudents);
+      await recalculateExamMarkGrades(exam.id);
     }
   }
 
@@ -383,11 +385,20 @@ export async function generateReportsForClass(
           payload,
           exam ? { type: "exam", examId: exam.id, examName: exam.name } : { type: "term" },
         );
-        if (payload.subjects.length === 0) {
-          warnings.push(`${student.full_name}: no CBC competency marks found for this term.`);
+        const hasCbc = payload.subjects.length > 0;
+        const hasExamMarks = (payload.formalExam?.subjects.length ?? 0) > 0;
+        if (!hasCbc && !hasExamMarks) {
+          warnings.push(
+            `${student.full_name}: no term CBC competency ratings and no formal exam marks on file.`,
+          );
           continue;
         }
-        if (exam && !payload.formalExam?.subjects.length) {
+        if (!hasCbc && hasExamMarks) {
+          warnings.push(
+            `${student.full_name}: formal exam marks only — no term CBC competency ratings for other subjects.`,
+          );
+        }
+        if (exam && !hasExamMarks) {
           warnings.push(`${student.full_name}: no marks on exam "${exam.name}" for this student.`);
         }
         const id = await upsertCbcReport(student.id, termId, ctx.academicYearId, payload);
@@ -428,9 +439,11 @@ export async function generateReportsForClass(
   if (reportIds.length === 0) {
     throw new HttpError(
       400,
-      exam
-        ? "No report cards were created. Ensure students have marks on the selected exam (and CBC competencies for O-Level)."
-        : "No report cards were created. Ensure students have submitted assessment marks for this term.",
+      exam && ctx.track === "cbc"
+        ? "No report cards were created. For O-Level: students need formal exam marks on the closed exam, and term CBC competency ratings (A–D) for subjects not on that exam — enter those under Assessment → CBC."
+        : exam
+          ? "No report cards were created. Ensure every student has marks on the selected closed exam."
+          : "No report cards were created. Ensure students have submitted assessment marks for this term.",
     );
   }
 
@@ -580,9 +593,11 @@ function payloadToAlevelPdf(payload: AlevelReportPayload): Readable {
     combination: payload.combination,
     term: payload.termLabel,
     year: payload.yearName,
+    photoPath: payload.photoUrl ?? null,
     sourceExamName: payload.sourceExamName,
     subjects: payload.subjects.map((s) => ({
       name: s.name,
+      code: s.code,
       score: String(s.score),
       grade: s.grade,
       points: s.points,
