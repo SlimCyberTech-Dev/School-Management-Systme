@@ -21,15 +21,17 @@ export function AppShell({ config, children }: Props) {
       <ShellSidebar config={config} />
       {mobileOpen ? (
         <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] lg:hidden"
           onClick={() => setMobileOpen(false)}
-          aria-hidden
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation menu"
         >
           <div
-            className="h-full w-[var(--sidebar-width)] border-r border-sidebar-border bg-sidebar shadow-xl transition-ui"
+            className="h-full w-[min(100vw,var(--sidebar-width))] shadow-2xl transition-ui"
             onClick={(e) => e.stopPropagation()}
           >
-            <ShellSidebar config={config} mobile />
+            <ShellSidebar config={config} mobile onNavigate={() => setMobileOpen(false)} />
           </div>
         </div>
       ) : null}

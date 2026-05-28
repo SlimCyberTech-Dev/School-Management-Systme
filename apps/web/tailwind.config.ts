@@ -26,6 +26,8 @@ const config: Config = {
           DEFAULT: "var(--sidebar)",
           foreground: "var(--sidebar-foreground)",
           border: "var(--sidebar-border)",
+          accent: "var(--sidebar-accent)",
+          muted: "var(--sidebar-muted)",
         },
         accent: {
           DEFAULT: "var(--accent)",
