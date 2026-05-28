@@ -53,6 +53,11 @@ export default function AdminFeesOverviewPage() {
           bursar portal
         </Link>
         . Configure rates under{" "}
+        <Link className="font-medium text-brand hover:underline" href="/admin/fees/publish">
+          publish & bill
+        </Link>
+        {" "}
+        and{" "}
         <Link className="font-medium text-brand hover:underline" href="/admin/fees/structure">
           fee structure
         </Link>

@@ -22,10 +22,12 @@ const CATEGORY_OTHER = "__other__";
 export function FeeStructureForm({
   defaultClassId,
   defaultTermId,
+  disabled,
   onCreated,
 }: {
   defaultClassId?: string;
   defaultTermId?: string;
+  disabled?: boolean;
   onCreated?: () => void;
 }) {
   const actions = useFeeActions();
@@ -92,6 +94,7 @@ export function FeeStructureForm({
   );
 
   const onSubmit = async (values: Form) => {
+    if (disabled) return;
     const category =
       categoryMode === CATEGORY_OTHER ? customCategory.trim() : categoryMode;
     if (!category) {
@@ -169,7 +172,7 @@ export function FeeStructureForm({
         {...form.register("amount")}
         error={form.formState.errors.amount?.message}
       />
-      <Button type="submit" loading={actions.createStructure.isPending}>
+      <Button type="submit" disabled={disabled} loading={actions.createStructure.isPending}>
         Add fee category
       </Button>
     </form>

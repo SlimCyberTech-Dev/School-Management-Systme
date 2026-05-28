@@ -32,7 +32,7 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
         activePrefix: "/admin/attendance",
       },
       {
-        href: "/admin/fees/structure",
+        href: "/admin/fees/publish",
         label: "Fees",
         icon: "creditCard",
         activePrefix: "/admin/fees",

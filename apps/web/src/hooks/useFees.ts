@@ -1,11 +1,13 @@
 "use client";
 
 import type {
+  BulkInvoicePreview,
   BulkInvoiceResult,
   FeeBalance,
   FeeInvoice,
   FeePayment,
   FeePaymentResult,
+  FeeScheduleRelease,
   FeeStructure,
   FeeStructureCopyResult,
   FeeTermReport,
@@ -14,6 +16,7 @@ import {
   feeBulkInvoiceSchema,
   feeInvoiceSchema,
   feePaymentSchema,
+  feeScheduleClassTermSchema,
   feeStructureCopySchema,
   feeStructurePatchSchema,
   feeStructureSchema,
@@ -27,6 +30,8 @@ export type FeeStructureFilters = {
   termId?: string;
 };
 
+export type FeeScheduleFilters = FeeStructureFilters;
+
 export const feesKeys = {
   all: ["fees"] as const,
   invoices: (studentId?: string) => ["fees", "invoices", studentId ?? "all"] as const,
@@ -36,6 +41,12 @@ export const feesKeys = {
   report: (termId: string) => ["fees", "report", termId] as const,
   structures: (filters?: FeeStructureFilters) =>
     ["fees", "structures", filters?.classId ?? "", filters?.termId ?? ""] as const,
+  schedules: (filters?: FeeScheduleFilters) =>
+    ["fees", "schedules", filters?.classId ?? "", filters?.termId ?? ""] as const,
+  scheduleSummary: (classId: string, termId: string) =>
+    ["fees", "scheduleSummary", classId, termId] as const,
+  bulkPreview: (classId: string, termId: string) =>
+    ["fees", "bulkPreview", classId, termId] as const,
 };
 
 function structureQuery(filters?: FeeStructureFilters): string {
@@ -88,6 +99,34 @@ export function useFeeStructures(filters?: FeeStructureFilters) {
   });
 }
 
+function scheduleQuery(filters?: FeeScheduleFilters): string {
+  const p = new URLSearchParams();
+  if (filters?.classId) p.set("classId", filters.classId);
+  if (filters?.termId) p.set("termId", filters.termId);
+  const qs = p.toString();
+  return `/fees/schedules${qs ? `?${qs}` : ""}`;
+}
+
+export function useFeeScheduleReleases(filters?: FeeScheduleFilters) {
+  return useQuery({
+    queryKey: feesKeys.schedules(filters),
+    queryFn: () => apiGet<FeeScheduleRelease[]>(scheduleQuery(filters)),
+    staleTime: 30_000,
+  });
+}
+
+export function useFeeScheduleSummary(classId: string | undefined, termId: string | undefined) {
+  return useQuery({
+    queryKey: feesKeys.scheduleSummary(classId ?? "", termId ?? ""),
+    queryFn: () =>
+      apiGet<FeeScheduleRelease>(
+        `/fees/schedules/summary?classId=${encodeURIComponent(classId!)}&termId=${encodeURIComponent(termId!)}`,
+      ),
+    enabled: Boolean(classId && termId),
+    staleTime: 15_000,
+  });
+}
+
 export function useFeeTermReport(termId: string | undefined) {
   return useQuery({
     queryKey: feesKeys.report(termId ?? ""),
@@ -111,6 +150,9 @@ export function useFeeActions() {
 
   const invalidateStructures = async () => {
     await qc.invalidateQueries({ queryKey: ["fees", "structures"] });
+    await qc.invalidateQueries({ queryKey: ["fees", "schedules"] });
+    await qc.invalidateQueries({ queryKey: ["fees", "scheduleSummary"] });
+    await qc.invalidateQueries({ queryKey: ["fees", "bulkPreview"] });
   };
 
   const createInvoice = useMutation({
@@ -122,7 +164,10 @@ export function useFeeActions() {
   const bulkInvoices = useMutation({
     mutationFn: (body: z.infer<typeof feeBulkInvoiceSchema>) =>
       apiPost<BulkInvoiceResult>("/fees/invoices/bulk", body),
-    onSuccess: () => void invalidateFinance(),
+    onSuccess: async () => {
+      await invalidateFinance();
+      await invalidateStructures();
+    },
   });
 
   const recordPayment = useMutation({
@@ -160,6 +205,23 @@ export function useFeeActions() {
     onSuccess: () => void invalidateStructures(),
   });
 
+  const publishSchedule = useMutation({
+    mutationFn: (body: z.infer<typeof feeScheduleClassTermSchema>) =>
+      apiPost<FeeScheduleRelease>("/fees/schedules/publish", body),
+    onSuccess: () => void invalidateStructures(),
+  });
+
+  const unpublishSchedule = useMutation({
+    mutationFn: (body: z.infer<typeof feeScheduleClassTermSchema>) =>
+      apiPost<FeeScheduleRelease>("/fees/schedules/unpublish", body),
+    onSuccess: () => void invalidateStructures(),
+  });
+
+  const previewBulkInvoices = useMutation({
+    mutationFn: (body: z.infer<typeof feeScheduleClassTermSchema>) =>
+      apiPost<BulkInvoicePreview>("/fees/invoices/bulk/preview", body),
+  });
+
   return {
     createInvoice,
     bulkInvoices,
@@ -168,6 +230,9 @@ export function useFeeActions() {
     updateStructure,
     deleteStructure,
     copyStructure,
+    publishSchedule,
+    unpublishSchedule,
+    previewBulkInvoices,
     invalidateFinance,
     invalidateStructures,
   };

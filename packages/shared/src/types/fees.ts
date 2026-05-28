@@ -72,3 +72,42 @@ export type BulkInvoiceResult = {
   skipped: number;
   totalAmount: string;
 };
+
+export type FeeScheduleStatus = "draft" | "published" | "billed";
+
+export type FeeScheduleRelease = {
+  id: string;
+  classId: string;
+  termId: string;
+  status: FeeScheduleStatus;
+  publishedAt: string | null;
+  billedAt: string | null;
+  className?: string;
+  classStream?: string | null;
+  termLabel?: string;
+  yearName?: string;
+  categoryCount: number;
+  totalPerStudent: string;
+  activeStudentCount: number;
+  invoicedStudentCount: number;
+};
+
+export type BulkInvoicePreviewStudent = {
+  studentId: string;
+  studentName: string;
+  studentNumber: string;
+  hasInvoice: boolean;
+};
+
+export type BulkInvoicePreview = {
+  classId: string;
+  termId: string;
+  scheduleStatus: FeeScheduleStatus;
+  totalPerStudent: string;
+  categoryCount: number;
+  activeStudentCount: number;
+  wouldCreate: number;
+  wouldSkip: number;
+  alreadyInvoiced: number;
+  students: BulkInvoicePreviewStudent[];
+};

@@ -198,4 +198,8 @@ export type {
   FeeStructureCopyResult,
   FeeTermReport,
   BulkInvoiceResult,
+  FeeScheduleStatus,
+  FeeScheduleRelease,
+  BulkInvoicePreview,
+  BulkInvoicePreviewStudent,
 } from "./fees";

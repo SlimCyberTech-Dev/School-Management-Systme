@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { FeeStructure } from "@uganda-cbc-sms/shared";
+import type { FeeScheduleStatus, FeeStructure } from "@uganda-cbc-sms/shared";
 import {
   FeeStructureFilters,
   type FeeStructureFilterValues,
@@ -10,10 +10,12 @@ import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { FormSkeleton } from "@/components/feedback/FormSkeleton";
 import { Alert } from "@/components/ui/Alert";
+import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Table, type Column } from "@/components/ui/Table";
 import { useClassEnrollmentSummary } from "@/hooks/useStudentsBrowse";
-import { useFeeStructures } from "@/hooks/useFees";
+import { useFeeScheduleReleases, useFeeStructures } from "@/hooks/useFees";
+import { feeScheduleStatusLabel, feeScheduleStatusTone } from "@/lib/feeSchedule";
 import { formatUgx } from "@/lib/formatMoney";
 import { queryStatus } from "@/lib/queryStatus";
 
@@ -38,8 +40,23 @@ export function FeeStructureReadPanel() {
   );
 
   const structuresQ = useFeeStructures(apiFilters);
+  const schedulesQ = useFeeScheduleReleases(
+    filters.termId ? { termId: filters.termId, classId: filters.classId || undefined } : undefined,
+  );
   const enrollmentQ = useClassEnrollmentSummary();
   const status = queryStatus(structuresQ);
+
+  const scheduleByKey = useMemo(() => {
+    const m = new Map<string, FeeScheduleStatus>();
+    for (const r of schedulesQ.data ?? []) {
+      m.set(`${r.classId}:${r.termId}`, r.status);
+    }
+    for (const row of structuresQ.data ?? []) {
+      const key = `${row.classId}:${row.termId}`;
+      if (!m.has(key)) m.set(key, "draft");
+    }
+    return m;
+  }, [schedulesQ.data, structuresQ.data]);
 
   const enrollmentByClass = useMemo(() => {
     const m = new Map<string, number>();
@@ -58,15 +75,17 @@ export function FeeStructureReadPanel() {
     return [...map.entries()].map(([key, items]) => {
       const total = items.reduce((s, i) => s + Number(i.amount), 0);
       const first = items[0]!;
+      const scheduleStatus = scheduleByKey.get(key) ?? "draft";
       return {
         key,
         items,
         total,
         label: `${classLabel(first)} · ${first.termLabel ?? "Term"}${first.yearName ? ` (${first.yearName})` : ""}`,
         studentCount: enrollmentByClass.get(first.classId) ?? 0,
+        scheduleStatus,
       };
     });
-  }, [structuresQ.data, enrollmentByClass]);
+  }, [structuresQ.data, enrollmentByClass, scheduleByKey]);
 
   const columns: Column<FeeStructure>[] = [
     { key: "category", header: "Category", render: (r) => r.category },
@@ -109,6 +128,16 @@ export function FeeStructureReadPanel() {
           <div className="space-y-4">
             {groups.map((g) => (
               <Card key={g.key} title={g.label}>
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Badge tone={feeScheduleStatusTone(g.scheduleStatus)}>
+                    {feeScheduleStatusLabel(g.scheduleStatus)}
+                  </Badge>
+                  {g.scheduleStatus === "draft" ? (
+                    <span className="text-sm text-muted-foreground">
+                      Waiting for administrator to publish before class billing.
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mb-3 text-sm text-muted-foreground">
                   {g.studentCount} active student{g.studentCount === 1 ? "" : "s"} · Expected per student:{" "}
                   <span className="font-semibold tabular-nums text-foreground">

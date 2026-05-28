@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import * as sharedSchemas from "@uganda-cbc-sms/shared";
 import { HttpError } from "../../utils/httpError";
+import * as scheduleSvc from "./feeSchedule.service";
 import * as svc from "./fees.service";
 
 const {
@@ -10,6 +11,7 @@ const {
   feeStructurePatchSchema,
   feeStructureCopySchema,
   feeBulkInvoiceSchema,
+  feeScheduleClassTermSchema,
 } = sharedSchemas;
 
 export async function postStructure(req: Request, res: Response): Promise<void> {
@@ -53,8 +55,9 @@ export async function postInvoice(req: Request, res: Response): Promise<void> {
 }
 
 export async function postBulkInvoices(req: Request, res: Response): Promise<void> {
+  if (!req.user) throw new HttpError(401, "Please sign in to continue.");
   const body = feeBulkInvoiceSchema.parse(req.body);
-  const result = await svc.generateInvoicesFromStructure(body);
+  const result = await svc.generateInvoicesFromStructure(body, req.user.id);
   const message =
     result.created === 0
       ? `No new invoices created (${result.skipped} already had invoices).`
@@ -102,4 +105,47 @@ export async function getReports(req: Request, res: Response): Promise<void> {
   }
   const row = await svc.feeTermReport(termId);
   res.json({ success: true, data: row });
+}
+
+export async function getSchedules(req: Request, res: Response): Promise<void> {
+  const classId = req.query["classId"] as string | undefined;
+  const termId = req.query["termId"] as string | undefined;
+  const rows = await scheduleSvc.listScheduleReleases({ classId, termId });
+  res.json({ success: true, data: rows });
+}
+
+export async function getScheduleSummary(req: Request, res: Response): Promise<void> {
+  const input = feeScheduleClassTermSchema.parse({
+    classId: req.query["classId"],
+    termId: req.query["termId"],
+  });
+  const summary = await scheduleSvc.buildReleaseSummary(input.classId, input.termId);
+  res.json({ success: true, data: summary });
+}
+
+export async function postSchedulePublish(req: Request, res: Response): Promise<void> {
+  if (!req.user) throw new HttpError(401, "Please sign in to continue.");
+  const body = feeScheduleClassTermSchema.parse(req.body);
+  const data = await scheduleSvc.publishSchedule(body, req.user.id);
+  res.json({
+    success: true,
+    data,
+    message: "Fee schedule published. Bursars can now bill students for this class and term.",
+  });
+}
+
+export async function postScheduleUnpublish(req: Request, res: Response): Promise<void> {
+  const body = feeScheduleClassTermSchema.parse(req.body);
+  const data = await scheduleSvc.unpublishSchedule(body);
+  res.json({
+    success: true,
+    data,
+    message: "Fee schedule returned to draft. You can edit categories again.",
+  });
+}
+
+export async function postBulkInvoicePreview(req: Request, res: Response): Promise<void> {
+  const body = feeScheduleClassTermSchema.parse(req.body);
+  const data = await scheduleSvc.previewBulkInvoices(body);
+  res.json({ success: true, data });
 }

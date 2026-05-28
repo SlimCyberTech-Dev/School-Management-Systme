@@ -47,3 +47,10 @@ export const feeStructureCopySchema = z.object({
 
 export type FeeStructurePatchInput = z.infer<typeof feeStructurePatchSchema>;
 export type FeeStructureCopyInput = z.infer<typeof feeStructureCopySchema>;
+
+export const feeScheduleClassTermSchema = z.object({
+  classId: z.string().uuid(),
+  termId: z.string().uuid(),
+});
+
+export type FeeScheduleClassTermInput = z.infer<typeof feeScheduleClassTermSchema>;

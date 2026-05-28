@@ -11,6 +11,13 @@ import { query, withTransaction } from "../../config/db";
 import { HttpError } from "../../utils/httpError";
 import { nextSequence, padNumber } from "../../utils/sequences";
 import {
+  assertPublishedForBilling,
+  assertStructureEditable,
+  ensureDraftRelease,
+  hasInvoicesForClassTerm,
+  markScheduleBilled,
+} from "./feeSchedule.service";
+import {
   mapFeeBalance,
   mapFeeInvoice,
   mapFeePayment,
@@ -60,16 +67,6 @@ function parseAmount(v: string | number): number {
   return n;
 }
 
-async function hasInvoicesForClassTerm(classId: string, termId: string): Promise<boolean> {
-  const { rows } = await query<{ n: string }>(
-    `SELECT COUNT(*)::text AS n FROM fee_invoices fi
-     JOIN students s ON s.id = fi.student_id
-     WHERE s.class_id = $1 AND fi.term_id = $2`,
-    [classId, termId],
-  );
-  return Number(rows[0]?.n ?? 0) > 0;
-}
-
 async function getFeeStructureById(structureId: string) {
   const { rows } = await query(`${STRUCTURE_SELECT} WHERE fs.id = $1`, [structureId]);
   if (rows.length === 0) {
@@ -87,6 +84,7 @@ export async function createFeeStructure(input: FeeStructureInput) {
        RETURNING id`,
       [input.classId, input.termId, input.category.trim(), amt(input.amount)],
     );
+    await ensureDraftRelease(input.classId, input.termId);
     return getFeeStructureById(String(rows[0]!.id));
   } catch (e: unknown) {
     const err = e as { code?: string };
@@ -127,16 +125,7 @@ export async function updateFeeStructure(structureId: string, input: FeeStructur
     throw new HttpError(404, "We could not find that fee structure row.");
   }
   const row = existing.rows[0]!;
-  const invoiced = await hasInvoicesForClassTerm(row.class_id, row.term_id);
-
-  if (input.category != null && input.category.trim() !== row.category) {
-    if (invoiced) {
-      throw new HttpError(
-        409,
-        "Cannot change the category after invoices have been issued for this class and term.",
-      );
-    }
-  }
+  await assertStructureEditable(row.class_id, row.term_id);
 
   parseAmount(input.amount);
   const category = input.category?.trim() ?? row.category;
@@ -166,12 +155,7 @@ export async function deleteFeeStructure(structureId: string) {
     throw new HttpError(404, "We could not find that fee structure row.");
   }
   const row = existing.rows[0]!;
-  if (await hasInvoicesForClassTerm(row.class_id, row.term_id)) {
-    throw new HttpError(
-      409,
-      "Cannot remove fee categories after invoices have been issued for this class and term.",
-    );
-  }
+  await assertStructureEditable(row.class_id, row.term_id);
   await query(`DELETE FROM fee_structures WHERE id = $1`, [structureId]);
 }
 
@@ -179,6 +163,7 @@ export async function copyFeeStructures(input: FeeStructureCopyInput) {
   if (input.sourceClassId === input.targetClassId && input.sourceTermId === input.targetTermId) {
     throw new HttpError(400, "Source and target class/term must be different.");
   }
+  await assertStructureEditable(input.targetClassId, input.targetTermId);
 
   const { rows: sourceRows } = await query<{ category: string; amount: string }>(
     `SELECT category, amount::text AS amount FROM fee_structures
@@ -210,6 +195,7 @@ export async function copyFeeStructures(input: FeeStructureCopyInput) {
     }
   });
 
+  await ensureDraftRelease(input.targetClassId, input.targetTermId);
   return { created, skipped };
 }
 
@@ -260,18 +246,9 @@ export async function listInvoices(studentId?: string) {
   return rows.map((r) => mapFeeInvoice(r as Record<string, unknown>));
 }
 
-export async function generateInvoicesFromStructure(input: FeeBulkInvoiceInput) {
-  const { rows: structureRows } = await query<{ amount: string }>(
-    `SELECT amount FROM fee_structures WHERE class_id = $1 AND term_id = $2`,
-    [input.classId, input.termId],
-  );
-  if (structureRows.length === 0) {
-    throw new HttpError(
-      400,
-      "No fee structure is configured for this class and term. Ask an administrator to set it up first.",
-    );
-  }
-  const totalAmount = structureRows.reduce((sum, r) => sum + Number(r.amount), 0);
+export async function generateInvoicesFromStructure(input: FeeBulkInvoiceInput, billedBy: string) {
+  const summary = await assertPublishedForBilling(input.classId, input.termId);
+  const totalAmount = Number(summary.totalPerStudent);
   if (totalAmount <= 0) {
     throw new HttpError(400, "The fee structure total must be greater than zero.");
   }
@@ -304,6 +281,9 @@ export async function generateInvoicesFromStructure(input: FeeBulkInvoiceInput) 
         [st.id, input.termId, totalStr],
       );
       created += 1;
+    }
+    if (created > 0 || (await hasInvoicesForClassTerm(input.classId, input.termId))) {
+      await markScheduleBilled(input.classId, input.termId, billedBy, client);
     }
   });
 

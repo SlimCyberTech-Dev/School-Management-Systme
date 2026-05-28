@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
+  { href: "/admin/fees/publish", label: "Publish & bill" },
   { href: "/admin/fees/structure", label: "Fee structure" },
   { href: "/admin/fees/overview", label: "Billing overview" },
   { href: "/admin/fees/reports", label: "Financial reports" },
@@ -15,9 +16,7 @@ export function AdminFeesSubNav() {
   return (
     <nav className="mb-6 flex flex-wrap gap-2 border-b border-border pb-3">
       {TABS.map((tab) => {
-        const active =
-          pathname === tab.href ||
-          (tab.href !== "/admin/fees/structure" && pathname.startsWith(tab.href));
+        const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
         return (
           <Link
             key={tab.href}

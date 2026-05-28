@@ -12,7 +12,8 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { useClassEnrollmentSummary } from "@/hooks/useStudentsBrowse";
-import { useFeeActions, useFeeStructures } from "@/hooks/useFees";
+import { useFeeActions, useFeeScheduleSummary, useFeeStructures } from "@/hooks/useFees";
+import { feeScheduleStatusLabel } from "@/lib/feeSchedule";
 import { apiGet } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api";
 import { formatUgx } from "@/lib/formatMoney";
@@ -45,6 +46,7 @@ export function BulkInvoiceForm({ onDone }: { onDone?: () => void }) {
   const structureQ = useFeeStructures(
     classId && termId ? { classId, termId } : undefined,
   );
+  const scheduleQ = useFeeScheduleSummary(classId, termId);
 
   const structureTotal = useMemo(
     () => (structureQ.data ?? []).reduce((s, r) => s + Number(r.amount), 0),
@@ -81,11 +83,23 @@ export function BulkInvoiceForm({ onDone }: { onDone?: () => void }) {
   const classLabel = classOptions.find((o) => o.value === classId)?.label ?? "this class";
   const termLabel = termOptions.find((o) => o.value === termId)?.label ?? "this term";
 
+  const scheduleStatus = scheduleQ.data?.status;
+  const canBill =
+    Boolean(classId && termId && structureTotal > 0) &&
+    (scheduleStatus === "published" || scheduleStatus === "billed");
+
   const onSubmit = async (values: Form) => {
     if (structureTotal <= 0) {
       toast.error(
         "No fee schedule exists for this class and term. Ask an administrator to configure it first.",
         "Cannot bill class",
+      );
+      return;
+    }
+    if (scheduleStatus === "draft") {
+      toast.error(
+        "This fee schedule is still in draft. Ask an administrator to publish it before billing students.",
+        "Schedule not published",
       );
       return;
     }
@@ -144,13 +158,22 @@ export function BulkInvoiceForm({ onDone }: { onDone?: () => void }) {
         error={form.formState.errors.classId?.message}
       />
       {classId && termId ? (
-        structureQ.isLoading ? (
+        structureQ.isLoading || scheduleQ.isLoading ? (
           <p className="text-sm text-muted-foreground">Loading fee schedule…</p>
         ) : structureTotal > 0 ? (
-          <Alert tone="info">
-            Schedule total: <strong className="tabular-nums">{formatUgx(structureTotal)} UGX</strong> per
-            student ({structureQ.data?.length ?? 0} categories).
-          </Alert>
+          scheduleStatus === "draft" ? (
+            <Alert tone="info">
+              Schedule total: <strong className="tabular-nums">{formatUgx(structureTotal)} UGX</strong> per
+              student — status: <strong>{feeScheduleStatusLabel("draft")}</strong>. An administrator must publish
+              this schedule before you can bill the class.
+            </Alert>
+          ) : (
+            <Alert tone="info">
+              Schedule total: <strong className="tabular-nums">{formatUgx(structureTotal)} UGX</strong> per
+              student ({structureQ.data?.length ?? 0} categories) —{" "}
+              <strong>{feeScheduleStatusLabel(scheduleStatus ?? "published")}</strong>, ready to bill.
+            </Alert>
+          )
         ) : (
           <Alert tone="info">
             No fee schedule for this class and term.{" "}
@@ -164,7 +187,7 @@ export function BulkInvoiceForm({ onDone }: { onDone?: () => void }) {
       <Button
         type="submit"
         loading={actions.bulkInvoices.isPending}
-        disabled={!classId || !termId || structureTotal <= 0}
+        disabled={!canBill}
       >
         Generate class invoices
       </Button>

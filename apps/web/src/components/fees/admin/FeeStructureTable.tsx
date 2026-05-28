@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import type { FeeStructure } from "@uganda-cbc-sms/shared";
+import type { FeeScheduleStatus, FeeStructure } from "@uganda-cbc-sms/shared";
 import type { ClassEnrollmentSummary } from "@uganda-cbc-sms/shared";
 import { Alert } from "@/components/ui/Alert";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -11,6 +13,7 @@ import { Table, type Column } from "@/components/ui/Table";
 import { useFeeActions } from "@/hooks/useFees";
 import { formatUgx } from "@/lib/formatMoney";
 import { getApiErrorMessage } from "@/lib/api";
+import { feeScheduleStatusLabel, feeScheduleStatusTone, isFeeStructureLocked } from "@/lib/feeSchedule";
 import { toast } from "@/lib/toast";
 
 function classLabel(row: FeeStructure) {
@@ -21,12 +24,16 @@ function classLabel(row: FeeStructure) {
 export function FeeStructureTable({
   rows,
   enrollment,
-  lockedClassTerms,
+  scheduleByKey,
+  yearId,
+  onPublished,
 }: {
   rows: FeeStructure[];
   enrollment: ClassEnrollmentSummary[];
-  /** classId:termId keys that already have invoices */
-  lockedClassTerms?: Set<string>;
+  /** classId:termId → publish workflow status */
+  scheduleByKey?: Map<string, FeeScheduleStatus>;
+  yearId?: string;
+  onPublished?: () => void;
 }) {
   const actions = useFeeActions();
   const [editing, setEditing] = useState<FeeStructure | null>(null);
@@ -49,17 +56,46 @@ export function FeeStructureTable({
     return [...map.entries()].map(([key, items]) => {
       const total = items.reduce((s, i) => s + Number(i.amount), 0);
       const first = items[0]!;
-      const locked = lockedClassTerms?.has(key) ?? false;
+      const scheduleStatus = scheduleByKey?.get(key) ?? "draft";
+      const locked = isFeeStructureLocked(scheduleStatus);
       return {
         key,
+        classId: first.classId,
+        termId: first.termId,
         items,
         total,
         label: `${classLabel(first)} · ${first.termLabel ?? "Term"}${first.yearName ? ` (${first.yearName})` : ""}`,
         studentCount: enrollmentByClass.get(first.classId) ?? 0,
         locked,
+        scheduleStatus,
       };
     });
-  }, [rows, enrollmentByClass, lockedClassTerms]);
+  }, [rows, enrollmentByClass, scheduleByKey]);
+
+  const publishHref = (classId: string, termId: string) => {
+    const p = new URLSearchParams();
+    if (yearId) p.set("yearId", yearId);
+    p.set("termId", termId);
+    p.set("classId", classId);
+    return `/admin/fees/publish?${p.toString()}`;
+  };
+
+  const publishGroup = (g: (typeof groups)[number]) => {
+    toast.confirm({
+      title: "Publish fee schedule?",
+      description: `Publish ${g.label} so bursars can bill students at ${formatUgx(g.total)} UGX each?`,
+      confirmLabel: "Publish now",
+      onConfirm: async () => {
+        try {
+          await actions.publishSchedule.mutateAsync({ classId: g.classId, termId: g.termId });
+          toast.success("Published. Bursars can bill this class.", "Done");
+          onPublished?.();
+        } catch (e) {
+          toast.error(getApiErrorMessage(e), "Could not publish");
+        }
+      },
+    });
+  };
 
   const openEdit = (row: FeeStructure) => {
     setEditing(row);
@@ -82,9 +118,12 @@ export function FeeStructureTable({
 
   const confirmDelete = (row: FeeStructure) => {
     const key = `${row.classId}:${row.termId}`;
-    if (lockedClassTerms?.has(key)) {
+    const scheduleStatus = scheduleByKey?.get(key);
+    if (isFeeStructureLocked(scheduleStatus)) {
       toast.error(
-        "Invoices have already been issued for this class and term. You cannot remove fee categories.",
+        scheduleStatus === "published"
+          ? "This schedule is published. Unpublish from Publish & bill before removing categories."
+          : "Invoices have been issued for this class and term. Fee categories can no longer be removed.",
         "Structure locked",
       );
       return;
@@ -115,10 +154,15 @@ export function FeeStructureTable({
       key: "actions",
       header: "",
       render: (r) => {
-        const locked = lockedClassTerms?.has(`${r.classId}:${r.termId}`) ?? false;
+        const locked = isFeeStructureLocked(scheduleByKey?.get(`${r.classId}:${r.termId}`));
         return (
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" className="!px-2 !py-1 text-xs" onClick={() => openEdit(r)}>
+            <Button
+              variant="secondary"
+              className="!px-2 !py-1 text-xs"
+              disabled={locked}
+              onClick={() => openEdit(r)}
+            >
               Edit
             </Button>
             <Button
@@ -143,17 +187,52 @@ export function FeeStructureTable({
     <div className="space-y-6">
       {groups.map((g) => (
         <div key={g.key} className="rounded-lg border border-border">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-4 py-3">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-muted/30 px-4 py-3">
             <div>
-              <p className="font-medium text-foreground">{g.label}</p>
-              <p className="text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-medium text-foreground">{g.label}</p>
+                <Badge tone={feeScheduleStatusTone(g.scheduleStatus)}>
+                  {feeScheduleStatusLabel(g.scheduleStatus)}
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
                 {g.studentCount} active student{g.studentCount === 1 ? "" : "s"} · Total per student:{" "}
                 <span className="font-semibold tabular-nums">{formatUgx(g.total)} UGX</span>
               </p>
             </div>
-            {g.locked ? (
-              <Alert tone="info">Invoices issued — structure locked for edits/deletes</Alert>
-            ) : null}
+            <div className="flex max-w-md shrink-0 flex-col items-end gap-2">
+              {g.scheduleStatus === "draft" ? (
+                <Button
+                  className="!px-3 !py-1.5 text-sm"
+                  loading={actions.publishSchedule.isPending}
+                  onClick={() => publishGroup(g)}
+                >
+                  Publish for bursars
+                </Button>
+              ) : null}
+              {g.scheduleStatus === "published" ? (
+                <Link
+                  href={publishHref(g.classId, g.termId)}
+                  className="text-sm font-medium text-brand hover:underline"
+                >
+                  Bill class →
+                </Link>
+              ) : null}
+              {g.locked ? (
+                <Alert tone="info">
+                  {g.scheduleStatus === "published"
+                    ? "Published — bursars can bill"
+                    : "Billed — locked for edits"}
+                </Alert>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  Draft —{" "}
+                  <Link href={publishHref(g.classId, g.termId)} className="text-brand hover:underline">
+                    publish when ready
+                  </Link>
+                </span>
+              )}
+            </div>
           </div>
           <div className="p-2">
             <Table
