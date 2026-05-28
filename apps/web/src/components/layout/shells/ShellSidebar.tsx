@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState, useTransition, type MouseEvent } from "react";
+import { useNavigationLoading } from "@/components/navigation/NavigationProvider";
 import { NAV_ICON_MAP } from "./navIconMap";
 import { isNavItemActive } from "./navActive";
 import { resolveUploadUrl } from "@/lib/media";
@@ -19,20 +20,31 @@ type ShellSidebarProps = {
 function NavLink({
   item,
   active,
-  onNavigate,
+  pending,
+  onNavClick,
 }: {
   item: NavItem;
   active: boolean;
-  onNavigate?: () => void;
+  pending?: boolean;
+  onNavClick: (href: string, onDone?: () => void) => void;
 }) {
   const Icon = NAV_ICON_MAP[item.icon];
+
+  const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    onNavClick(item.href);
+  };
 
   return (
     <Link
       href={item.href}
-      onClick={onNavigate}
+      onClick={handleClick}
       aria-current={active ? "page" : undefined}
+      aria-busy={pending}
       className={`group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm transition-ui focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
+        pending ? "opacity-70" : ""
+      } ${
         active
           ? "bg-nav-active font-medium text-nav-active-foreground shadow-sm"
           : "font-normal text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground"
@@ -54,6 +66,12 @@ function NavLink({
         <Icon className="h-[1.125rem] w-[1.125rem] stroke-[1.75]" />
       </span>
       <span className="min-w-0 flex-1 truncate leading-snug">{item.label}</span>
+      {pending ? (
+        <span
+          className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-brand"
+          aria-hidden
+        />
+      ) : null}
     </Link>
   );
 }
@@ -61,7 +79,23 @@ function NavLink({
 export function ShellSidebar({ config, mobile = false, onNavigate }: ShellSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [, startTransition] = useTransition();
+  const { startNavigation } = useNavigationLoading();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const user = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
+
+  const handleNavClick = (href: string) => {
+    startNavigation();
+    setPendingHref(href);
+    startTransition(() => {
+      router.push(href);
+      onNavigate?.();
+    });
+  };
 
   const initials = useMemo(() => {
     const fullName = user?.fullName?.trim() ?? "";
@@ -112,7 +146,8 @@ export function ShellSidebar({ config, mobile = false, onNavigate }: ShellSideba
             <NavLink
               item={mainItem}
               active={isNavItemActive(mainItem, pathname, config.items)}
-              onNavigate={onNavigate}
+              pending={pendingHref === mainItem.href}
+              onNavClick={handleNavClick}
             />
           </div>
         ) : null}
@@ -128,7 +163,8 @@ export function ShellSidebar({ config, mobile = false, onNavigate }: ShellSideba
                   key={item.href}
                   item={item}
                   active={isNavItemActive(item, pathname, config.items)}
-                  onNavigate={onNavigate}
+                  pending={pendingHref === item.href}
+                  onNavClick={handleNavClick}
                 />
               ))}
             </nav>
@@ -141,8 +177,11 @@ export function ShellSidebar({ config, mobile = false, onNavigate }: ShellSideba
         <button
           type="button"
           onClick={() => {
-            onNavigate?.();
-            router.push("/profile");
+            startNavigation();
+            startTransition(() => {
+              onNavigate?.();
+              router.push("/profile");
+            });
           }}
           className="flex w-full items-center gap-3 rounded-lg border border-sidebar-border bg-sidebar-accent/50 p-2.5 text-left transition-ui hover:border-brand/30 hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >

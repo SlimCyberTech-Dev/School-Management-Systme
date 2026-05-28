@@ -56,6 +56,20 @@
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
+@keyframes route-progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.route-progress-bar {
+  width: 40%;
+  animation: route-progress-slide 1.1s ease-in-out infinite;
+}
+
 body {
   color: var(--foreground);
   background: var(--background);

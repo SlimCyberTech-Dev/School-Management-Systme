@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useNavigationLoading } from "@/components/navigation/NavigationProvider";
 import { resolveUploadUrl } from "@/lib/media";
 import { useAuthStore } from "@/store/authStore";
 import { resolveActiveNavItem } from "./navActive";
@@ -49,6 +50,7 @@ export function ShellHeader({ config, onToggleMobileNav }: Props) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const { startNavigation } = useNavigationLoading();
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -177,10 +179,11 @@ export function ShellHeader({ config, onToggleMobileNav }: Props) {
                     type="button"
                     role="menuitem"
                     className="w-full rounded-md px-3 py-2 text-left text-sm text-foreground transition-ui hover:bg-accent/50"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      router.push("/profile");
-                    }}
+                onClick={() => {
+                  setMenuOpen(false);
+                  startNavigation();
+                  router.push("/profile");
+                }}
                   >
                     Profile
                   </button>

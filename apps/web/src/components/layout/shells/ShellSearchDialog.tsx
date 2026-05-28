@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FileText, Loader2, Search, Users } from "lucide-react";
 import { NAV_ICON_MAP } from "./navIconMap";
 import type { RoleShellConfig } from "./types";
+import { useNavigationLoading } from "@/components/navigation/NavigationProvider";
 import { apiGet } from "@/lib/api";
 import {
   buildShellSearchIndex,
@@ -25,6 +26,7 @@ const MIN_STUDENT_QUERY = 2;
 
 export function ShellSearchDialog({ open, onOpenChange, config }: Props) {
   const router = useRouter();
+  const { startNavigation } = useNavigationLoading();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
@@ -83,9 +85,10 @@ export function ShellSearchDialog({ open, onOpenChange, config }: Props) {
   const navigate = useCallback(
     (entry: ShellSearchEntry) => {
       close();
+      startNavigation();
       router.push(entry.href);
     },
-    [close, router],
+    [close, router, startNavigation],
   );
 
   useEffect(() => {

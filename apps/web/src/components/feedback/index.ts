@@ -9,3 +9,5 @@ export { KpiSkeleton } from "./KpiSkeleton";
 export { Skeleton } from "./Skeleton";
 export { Spinner } from "./Spinner";
 export { TableSkeleton } from "./TableSkeleton";
+export { PageLoadingShell, type PageLoadingVariant } from "./page-loading/PageLoadingShell";
+export { createPageLoading } from "./page-loading/createPageLoading";

@@ -1,9 +1,3 @@
-import { DashboardSkeleton } from "@/components/layout/shells/DashboardScaffold";
+import { createPageLoading } from "@/components/feedback/page-loading/createPageLoading";
 
-export default function ClassTeacherLoading() {
-  return (
-    <div className="p-6">
-      <DashboardSkeleton />
-    </div>
-  );
-}
+export default createPageLoading("table");
