@@ -15,6 +15,7 @@ import { DashboardQuickAccess } from "@/components/dashboard/DashboardQuickAcces
 import { DashboardTableSection } from "@/components/dashboard/DashboardTableSection";
 import { TeacherTeachingScopeCard } from "@/components/teaching/TeacherTeachingScopeCard";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { DashboardHeader, KpiGrid } from "@/components/layout/shells/DashboardScaffold";
 import type { DashboardMetric } from "@/components/layout/shells/types";
 import { classDisplayName } from "@/lib/academicLevel";
@@ -148,8 +149,20 @@ export function SubjectTeacherDashboardContent({
   return (
     <div className="space-y-8">
       <DashboardHeader
-        title="Subject teacher dashboard"
+        eyebrow="Subject teacher"
+        title="Dashboard"
         description="Your class–subject assignments for marking, exams, and assessments."
+        meta={
+          <span className="text-xs text-muted-foreground">
+            {yearName ?? "Current academic year"} · {termLabel}
+            {previewSlot ? ` · ${previewClassLabel(previewSlot)}` : ""}
+          </span>
+        }
+        actions={
+          <Link href="/subject-teacher/students">
+            <Button variant="secondary">Class rosters</Button>
+          </Link>
+        }
       />
 
       <section className="grid gap-4 lg:grid-cols-2">

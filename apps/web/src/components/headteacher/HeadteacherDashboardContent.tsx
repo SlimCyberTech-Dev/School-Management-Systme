@@ -194,8 +194,22 @@ export function HeadteacherDashboardContent({
   return (
     <div className="space-y-8">
       <DashboardHeader
-        title="Headteacher dashboard"
+        eyebrow="Headteacher"
+        title="Dashboard"
         description="School-wide oversight of learning, assessments, attendance, and finances."
+        meta={
+          <>
+            {current ? (
+              <Badge tone="success">Term {current.termNumber ?? "—"} active</Badge>
+            ) : (
+              <Badge tone="neutral">No active term</Badge>
+            )}
+            <span className="text-xs text-muted-foreground">
+              {kpis.activeStudents} students enrolled
+              {daysRemaining !== null ? ` · ${daysRemaining} days left in term` : ""}
+            </span>
+          </>
+        }
         actions={
           <Link href="/headteacher/analytics">
             <Button variant="secondary">Open analytics</Button>

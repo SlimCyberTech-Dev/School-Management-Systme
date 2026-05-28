@@ -8,6 +8,7 @@ import { DashboardQuickAccess } from "@/components/dashboard/DashboardQuickAcces
 import { DashboardTableSection } from "@/components/dashboard/DashboardTableSection";
 import { TeacherTeachingScopeCard } from "@/components/teaching/TeacherTeachingScopeCard";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { DashboardHeader, KpiGrid } from "@/components/layout/shells/DashboardScaffold";
 import type { DashboardMetric } from "@/components/layout/shells/types";
 import { classDisplayName } from "@/lib/academicLevel";
@@ -120,8 +121,26 @@ export function ClassTeacherDashboardContent({
   return (
     <div className="space-y-8">
       <DashboardHeader
-        title="Class teacher dashboard"
+        eyebrow="Class teacher"
+        title="Dashboard"
         description="Homeroom duties, attendance, and your teaching assignments."
+        meta={
+          <span className="text-xs text-muted-foreground">
+            {yearName ?? "Current academic year"}
+            {homeroomLabel ? ` · Homeroom: ${homeroomLabel}` : previewSlot ? ` · ${previewSlot.subjectCode}` : ""}
+          </span>
+        }
+        actions={
+          homeroomClass ? (
+            <Link href="/class-teacher/attendance">
+              <Button>Take attendance</Button>
+            </Link>
+          ) : (
+            <Link href="/class-teacher/timetable">
+              <Button variant="secondary">View timetable</Button>
+            </Link>
+          )
+        }
       />
 
       <section className="grid gap-4 lg:grid-cols-2">

@@ -101,12 +101,24 @@ export function BursarDashboardContent({
   return (
     <div className="space-y-8">
       <DashboardHeader
-        title="Bursar dashboard"
+        eyebrow="Bursar office"
+        title="Dashboard"
         description="Daily collections, billing, and student fee accounts."
+        meta={
+          <span className="text-xs text-muted-foreground">
+            {collectionPct}% collected · {activeBillsCount} active bill{activeBillsCount === 1 ? "" : "s"}
+            {arrearsCount > 0 ? ` · ${arrearsCount} flagged arrears` : ""}
+          </span>
+        }
         actions={
-          <Link href="/bursar/fees/payments">
-            <Button>Record payment</Button>
-          </Link>
+          <>
+            <Link href="/bursar/fees">
+              <Button variant="secondary">Collections hub</Button>
+            </Link>
+            <Link href="/bursar/fees/payments">
+              <Button>Record payment</Button>
+            </Link>
+          </>
         }
       />
 

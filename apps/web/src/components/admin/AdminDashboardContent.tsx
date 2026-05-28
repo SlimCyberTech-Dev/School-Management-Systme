@@ -130,8 +130,14 @@ export function AdminDashboardContent({
   return (
     <div className="space-y-8">
       <DashboardHeader
-        title="Admin dashboard"
+        eyebrow="Administrator"
+        title="Dashboard"
         description="School configuration, people, fees, and academic oversight."
+        meta={
+          <span className="text-xs text-muted-foreground">
+            {kpis.activeStudents} active students · {teacherCount} teachers on staff
+          </span>
+        }
         actions={
           <>
             <Link href="/admin/students/enrol">

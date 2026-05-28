@@ -7,19 +7,51 @@ import type { DashboardMetric } from "./types";
 export function DashboardHeader({
   title,
   description,
+  eyebrow,
+  meta,
   actions,
 }: {
   title: string;
-  description: string;
+  description?: string;
+  /** Small label above the title (e.g. role or area). */
+  eyebrow?: string;
+  /** Chips or one-line context under the description. */
+  meta?: ReactNode;
   actions?: ReactNode;
 }) {
   return (
-    <section className="mb-6 flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold text-foreground">{title}</h1>
-        <p className="font-body mt-1 text-sm text-muted-foreground">{description}</p>
+    <section
+      className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
+      aria-labelledby="dashboard-page-title"
+    >
+      <div
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand/[0.07] via-transparent to-transparent"
+        aria-hidden
+      />
+      <div className="relative grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-8">
+        <div className="min-w-0 space-y-3">
+          {eyebrow ? (
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-brand">{eyebrow}</p>
+          ) : null}
+          <div className="space-y-1.5">
+            <h1
+              id="dashboard-page-title"
+              className="font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-[1.75rem] sm:leading-tight"
+            >
+              {title}
+            </h1>
+            {description ? (
+              <p className="font-body max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
+            ) : null}
+          </div>
+          {meta ? <div className="flex flex-wrap items-center gap-x-3 gap-y-2">{meta}</div> : null}
+        </div>
+        {actions ? (
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end [&_a]:inline-flex [&_button]:shrink-0">
+            {actions}
+          </div>
+        ) : null}
       </div>
-      {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
     </section>
   );
 }
