@@ -32,8 +32,8 @@ import { timetableRouter } from "./modules/timetable/timetable.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 import { securityRouter } from "./modules/security/security.routes.js";
 import { platformRouter } from "./modules/platform/platform.routes.js";
+import { requestDbMiddleware } from "./middleware/requestDb.js";
 import { resolveTenant } from "./middleware/resolveTenant.js";
-import { bindTenantContext } from "./middleware/tenantContext.js";
 
 export function createApp(): Express {
   const env = loadEnv();
@@ -80,7 +80,7 @@ export function createApp(): Express {
 
   app.use("/api/platform", platformRouter);
   app.use("/api", resolveTenant);
-  app.use("/api", bindTenantContext);
+  app.use("/api", requestDbMiddleware);
 
   app.use("/api/auth", authRouter);
   app.use("/api/users", usersRouter);

@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { getDefaultTenantId, lookupTenantBySubdomain } from "../config/tenant.js";
 import { loadEnv } from "../config/env.js";
+import { getCachedTenantBySlug } from "../utils/tenantCache.js";
 
 const RESERVED_SUBDOMAINS = new Set(["platform", "www", "api", "admin"]);
 
@@ -92,7 +93,7 @@ export async function resolveTenant(
     }
   }
 
-  const tenant = await lookupTenantBySubdomain(slug);
+  const tenant = await getCachedTenantBySlug(slug);
   if (!tenant) {
     res.status(404).json({
       success: false,

@@ -7,6 +7,15 @@ import { setTenantLocal } from "./tenant.js";
 /** Active tenant for the current request (set by middleware). */
 export const tenantContext = new AsyncLocalStorage<string>();
 
+type RequestDbStore = { client: pg.PoolClient };
+
+/** Pooled client bound to the current HTTP request (see requestDb middleware). */
+export const requestDbStorage = new AsyncLocalStorage<RequestDbStore>();
+
+export function getRequestDbClient(): pg.PoolClient | null {
+  return requestDbStorage.getStore()?.client ?? null;
+}
+
 const cwdEnvPath = path.resolve(process.cwd(), ".env");
 const rootEnvPath = path.resolve(process.cwd(), "../../.env");
 dotenv.config({ path: cwdEnvPath });
@@ -39,6 +48,10 @@ export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   text: string,
   params?: unknown[],
 ): Promise<pg.QueryResult<T>> {
+  const requestClient = getRequestDbClient();
+  if (requestClient) {
+    return requestClient.query<T>(text, params);
+  }
   const tid = tenantContext.getStore();
   if (!tid) {
     return pool.query<T>(text, params);
@@ -56,6 +69,11 @@ export async function platformQuery<T extends pg.QueryResultRow = pg.QueryResult
 export async function withTransaction<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
+  const requestClient = getRequestDbClient();
+  if (requestClient) {
+    return fn(requestClient);
+  }
+
   const client = await pool.connect();
   const tid = tenantContext.getStore();
   try {
@@ -74,7 +92,7 @@ export async function withTransaction<T>(
   }
 }
 
-/** Run queries with PostgreSQL session tenant context (RLS). */
+/** Run queries with PostgreSQL session tenant context (RLS). Used outside HTTP request scope. */
 export async function withTenant<T>(
   tenantId: string,
   fn: (client: pg.PoolClient) => Promise<T>,

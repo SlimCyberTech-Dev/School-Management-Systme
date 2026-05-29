@@ -75,6 +75,11 @@ export async function getYears(_req: Request, res: Response): Promise<void> {
   res.json({ success: true, data: rows });
 }
 
+export async function getStructureSummary(_req: Request, res: Response): Promise<void> {
+  const data = await svc.academicStructureSummary();
+  res.json({ success: true, data });
+}
+
 export async function patchYear(req: Request, res: Response): Promise<void> {
   const body = updateAcademicYearSchema.parse(req.body);
   const row = await svc.updateAcademicYear(req.params["id"]!, body);

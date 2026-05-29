@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   BookOpen,
   ClipboardCheck,
@@ -80,11 +80,11 @@ function formatEnrolled(value?: string): string {
 export function AdminDashboardContent({
   kpis,
   teacherCount,
-  students,
+  recentStudents,
 }: {
   kpis: Kpis;
   teacherCount: number;
-  students: StudentRow[];
+  recentStudents: StudentRow[];
 }) {
   const [recentPage, setRecentPage] = useState(1);
   const pageSize = 8;
@@ -94,19 +94,9 @@ export function AdminDashboardContent({
   const feesGap = Math.max(0, feesDue - feesPaid);
   const collectionPct = feesDue > 0 ? Math.min(100, Math.round((feesPaid / feesDue) * 100)) : 0;
 
-  const recent = useMemo(
-    () =>
-      [...students].sort((a, b) => {
-        const ta = a.enrolledAt ? new Date(a.enrolledAt).getTime() : 0;
-        const tb = b.enrolledAt ? new Date(b.enrolledAt).getTime() : 0;
-        return tb - ta;
-      }),
-    [students],
-  );
-
-  const totalPages = Math.max(1, Math.ceil(recent.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(recentStudents.length / pageSize));
   const start = (recentPage - 1) * pageSize;
-  const pageRows = recent.slice(start, start + pageSize);
+  const pageRows = recentStudents.slice(start, start + pageSize);
 
   const metrics: DashboardMetric[] = [
     { label: "Active students", value: kpis.activeStudents, delta: "Enrolled", deltaTone: "positive" },
@@ -191,10 +181,10 @@ export function AdminDashboardContent({
         headerLink="/admin/students"
         headerLinkLabel="All students"
         footer={
-          recent.length > pageSize ? (
+          recentStudents.length > pageSize ? (
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
               <span>
-                Page {recentPage} of {totalPages} · {recent.length} total
+                Page {recentPage} of {totalPages} · {recentStudents.length} total
               </span>
               <div className="flex gap-2">
                 <Button

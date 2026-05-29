@@ -182,6 +182,45 @@ export async function listAcademicYears() {
   }
 }
 
+export type AcademicStructureSummary = {
+  years: number;
+  terms: number;
+  classes: number;
+  subjects: number;
+  classSubjects: number;
+  combinations: number;
+  cbcStrands: number;
+  gradingScales: number;
+};
+
+export async function academicStructureSummary(): Promise<AcademicStructureSummary> {
+  try {
+    const [y, t, c, s, cs, k, st, gs] = await Promise.all([
+      query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM academic_years`),
+      query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM terms`),
+      query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM classes`),
+      query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM subjects`),
+      query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM class_subjects`),
+      query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM subject_combinations`),
+      query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM cbc_strands`),
+      query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM assessment_grading_scales`),
+    ]);
+    const num = (row: { c: string } | undefined) => Number(row?.c ?? "0");
+    return {
+      years: num(y.rows[0]),
+      terms: num(t.rows[0]),
+      classes: num(c.rows[0]),
+      subjects: num(s.rows[0]),
+      classSubjects: num(cs.rows[0]),
+      combinations: num(k.rows[0]),
+      cbcStrands: num(st.rows[0]),
+      gradingScales: num(gs.rows[0]),
+    };
+  } catch (e) {
+    throw new Error(e instanceof Error ? e.message : "Could not load academic summary");
+  }
+}
+
 export async function updateAcademicYear(id: string, input: YearUpdateIn) {
   const sets: string[] = [];
   const values: unknown[] = [];

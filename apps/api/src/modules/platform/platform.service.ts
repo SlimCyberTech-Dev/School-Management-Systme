@@ -2,6 +2,7 @@ import type { CreateTenantInput, UpdateTenantInput } from "@uganda-cbc-sms/share
 import bcrypt from "bcrypt";
 import { platformPool } from "../../config/db.js";
 import { loadEnv } from "../../config/env.js";
+import { invalidateTenantCache } from "../../utils/tenantCache.js";
 import { HttpError } from "../../utils/httpError.js";
 import { logPlatformAction } from "./platformAudit.service.js";
 
@@ -111,6 +112,7 @@ export async function createTenant(
     );
 
     await client.query("COMMIT");
+    invalidateTenantCache(slug);
     await logPlatformAction({
       actorId,
       action: "TENANT_CREATED",
@@ -187,6 +189,7 @@ export async function updateTenant(
     );
     if (!rows[0]) throw new HttpError(404, "Tenant not found.");
     const r = rows[0];
+    invalidateTenantCache(r.slug);
     await logPlatformAction({
       actorId,
       action: "TENANT_UPDATED",

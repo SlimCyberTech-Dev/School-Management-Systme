@@ -1,36 +1,76 @@
 import { query } from "../../config/db";
 
-export async function dashboardKpis(tenantId: string) {
+export type DashboardRecentStudent = {
+  id: string;
+  studentNumber: string;
+  fullName: string;
+  enrolledAt: string;
+};
+
+export type DashboardKpisResult = {
+  activeStudents: string;
+  totalFeesDue: string;
+  totalFeesPaid: string;
+  averageCbcNumeric: string;
+  averageAlevelScore: string;
+  teacherCount: number;
+  recentStudents: DashboardRecentStudent[];
+};
+
+export async function dashboardKpis(_tenantId: string): Promise<DashboardKpisResult> {
   try {
-    const [st, inv, cbc, al] = await Promise.all([
-      query(
-        `SELECT COUNT(*)::text AS c FROM students WHERE tenant_id = $1 AND status = 'active'`,
-        [tenantId],
+    const [st, inv, cbc, al, teachers, recent] = await Promise.all([
+      query<{ c: string }>(
+        `SELECT COUNT(*)::text AS c FROM students WHERE status = 'active'`,
       ),
-      query(
+      query<{ paid: string; due: string }>(
         `SELECT COALESCE(SUM(amount_paid),0)::text AS paid, COALESCE(SUM(total_amount),0)::text AS due
-         FROM fee_invoices WHERE tenant_id = $1`,
-        [tenantId],
+         FROM fee_invoices`,
       ),
-      query(
+      query<{ avg_cbc: string }>(
         `SELECT COALESCE(AVG(
             CASE rating WHEN 'A' THEN 4 WHEN 'B' THEN 3 WHEN 'C' THEN 2 WHEN 'D' THEN 1 END
           ),0)::text AS avg_cbc
-         FROM cbc_scores WHERE tenant_id = $1 AND rating IS NOT NULL`,
-        [tenantId],
+         FROM cbc_scores WHERE rating IS NOT NULL`,
       ),
-      query(
-        `SELECT COALESCE(AVG(score::numeric),0)::text AS avg_alevel
-         FROM alevel_scores WHERE tenant_id = $1`,
-        [tenantId],
+      query<{ avg_alevel: string }>(
+        `SELECT COALESCE(AVG(score::numeric),0)::text AS avg_alevel FROM alevel_scores`,
+      ),
+      query<{ c: string }>(
+        `SELECT COUNT(*)::text AS c FROM users
+         WHERE deleted_at IS NULL AND is_active = true
+           AND role IN ('class_teacher', 'subject_teacher', 'headteacher')`,
+      ),
+      query<{
+        id: string;
+        student_number: string;
+        full_name: string;
+        enrolled_at: Date | null;
+        created_at: Date;
+      }>(
+        `SELECT id, student_number, full_name, enrolled_at, created_at
+         FROM students
+         WHERE status = 'active'
+         ORDER BY COALESCE(enrolled_at, created_at) DESC
+         LIMIT 8`,
       ),
     ]);
+
     return {
       activeStudents: st.rows[0]?.c ?? "0",
-      totalFeesDue: (inv.rows[0] as { due?: string })?.due ?? "0",
-      totalFeesPaid: (inv.rows[0] as { paid?: string })?.paid ?? "0",
+      totalFeesDue: inv.rows[0]?.due ?? "0",
+      totalFeesPaid: inv.rows[0]?.paid ?? "0",
       averageCbcNumeric: cbc.rows[0]?.avg_cbc ?? "0",
       averageAlevelScore: al.rows[0]?.avg_alevel ?? "0",
+      teacherCount: Number(teachers.rows[0]?.c ?? "0"),
+      recentStudents: recent.rows.map((r) => ({
+        id: r.id,
+        studentNumber: r.student_number,
+        fullName: r.full_name,
+        enrolledAt: r.enrolled_at
+          ? new Date(r.enrolled_at).toISOString()
+          : new Date(r.created_at).toISOString(),
+      })),
     };
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : "Could not load dashboard");

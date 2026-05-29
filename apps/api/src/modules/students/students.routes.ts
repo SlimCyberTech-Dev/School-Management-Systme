@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth";
+import { invalidateCacheOnMutationMiddleware } from "../../middleware/cacheLayer.js";
 import { requireRoles } from "../../middleware/rbac";
 import { asyncHandler } from "../../utils/asyncHandler";
 import * as c from "./students.controller";
@@ -11,6 +12,7 @@ const staffReader = requireRoles("admin", "headteacher", "class_teacher", "subje
 export const studentsRouter = Router();
 
 studentsRouter.use(requireAuth);
+studentsRouter.use(invalidateCacheOnMutationMiddleware);
 
 studentsRouter.get("/search", staffReader, asyncHandler(c.search));
 studentsRouter.get("/class-summary", staffReader, asyncHandler(c.classSummary));

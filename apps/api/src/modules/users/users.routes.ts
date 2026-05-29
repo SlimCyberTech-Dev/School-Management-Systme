@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth";
+import { invalidateCacheOnMutationMiddleware } from "../../middleware/cacheLayer.js";
 import { requireRoles } from "../../middleware/rbac";
 import { asyncHandler } from "../../utils/asyncHandler";
 import * as c from "./users.controller";
@@ -8,6 +9,8 @@ import { userPhotoUpload } from "./users.upload";
 const userManagers = requireRoles("admin", "headteacher");
 
 export const usersRouter = Router();
+
+usersRouter.use(invalidateCacheOnMutationMiddleware);
 
 usersRouter.get("/me", requireAuth, asyncHandler(c.me));
 usersRouter.patch("/me", requireAuth, asyncHandler(c.updateMe));

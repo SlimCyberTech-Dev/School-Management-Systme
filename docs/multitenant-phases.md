@@ -153,6 +153,20 @@ Related: [Rollback guide](multitenant-rollback.md) · [README](../README.md)
 
 ---
 
+## Performance (multitenant)
+
+| Layer | Mechanism |
+|-------|-----------|
+| API DB | [`requestDbMiddleware`](apps/api/src/middleware/requestDb.ts) — one pooled client + `BEGIN` + `app.tenant_id` per HTTP request; all `query()` calls reuse it (no per-query transaction). |
+| API | [`tenantCache`](apps/api/src/utils/tenantCache.ts) — in-memory slug → tenant lookup (5 min TTL); invalidated on platform tenant create/update. |
+| API | Aggregate reads: `GET /api/analytics/dashboard` (KPIs + teacher count + 8 recent students), `GET /api/academic/summary` (structure counts). |
+| API | In-process GET cache ([`cacheLayer`](apps/api/src/middleware/cacheLayer.ts)) per tenant + role; busted on academic/student/user/fee writes. |
+| Web | React Query `staleTime` + [`queryKeys`](apps/web/src/lib/queryKeys.ts) scoped by tenant slug. |
+
+**Production follow-up:** Redis for tenant + response cache when running multiple API instances; PgBouncer; read replica for heavy reports.
+
+---
+
 ## Changelog
 
 | Date | Change |
@@ -161,3 +175,4 @@ Related: [Rollback guide](multitenant-rollback.md) · [README](../README.md)
 | 2026-05-29 | Phase 5: uploads, roles, authStore, request tenant helpers |
 | 2026-05-29 | Phase 5 complete: PDF cache, feature flags, platform audit, platform edit UI |
 | 2026-05-29 | Unified seed: platform super-admin + `npm run setup`; login banner after seed |
+| 2026-05-29 | Performance: request-scoped DB, tenant cache, dashboard/academic aggregates |

@@ -17,6 +17,7 @@ academicRouter.use(requireAuth);
 academicRouter.use(cacheLayerMiddleware);
 academicRouter.use(invalidateCacheOnMutationMiddleware);
 
+academicRouter.get("/summary", academicReaders, asyncHandler(c.getStructureSummary));
 academicRouter.post("/years", academicLeads, asyncHandler(c.postYear));
 academicRouter.get("/years", academicReaders, asyncHandler(c.getYears));
 academicRouter.patch("/years/:id", academicLeads, asyncHandler(c.patchYear));

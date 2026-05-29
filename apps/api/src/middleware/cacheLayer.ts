@@ -6,6 +6,7 @@ const tierA = new NodeCache({ stdTTL: 3600, checkperiod: 120 });
 const tierB = new NodeCache({ stdTTL: 300, checkperiod: 60 });
 
 const TIER_A_PREFIXES = [
+  "/api/academic/summary",
   "/api/academic/years",
   "/api/academic/terms",
   "/api/academic/classes",
@@ -105,9 +106,15 @@ export function invalidateCachePrefix(prefix: string): void {
   }
 }
 
-const MUTATION_INVALIDATION_PREFIXES = ["/api/academic", "/api/fees/structure"];
+/** After a successful write on `pathPrefix`, bust cached GET responses under these prefixes. */
+const MUTATION_CACHE_RULES: { pathPrefix: string; invalidate: string[] }[] = [
+  { pathPrefix: "/api/academic", invalidate: ["/api/academic"] },
+  { pathPrefix: "/api/fees", invalidate: ["/api/fees/structure", "/api/analytics"] },
+  { pathPrefix: "/api/students", invalidate: ["/api/analytics"] },
+  { pathPrefix: "/api/users", invalidate: ["/api/analytics"] },
+];
 
-/** Clears tier-A academic/fee list caches after successful writes. */
+/** Clears related list/dashboard caches after successful writes. */
 export function invalidateCacheOnMutationMiddleware(
   req: Request,
   res: Response,
@@ -118,16 +125,22 @@ export function invalidateCacheOnMutationMiddleware(
     return;
   }
   const path = requestCachePath(req);
-  const prefixes = MUTATION_INVALIDATION_PREFIXES.filter((p) => path.startsWith(p));
-  if (prefixes.length === 0) {
+  const rules = MUTATION_CACHE_RULES.filter((r) => path.startsWith(r.pathPrefix));
+  if (rules.length === 0) {
     next();
     return;
   }
   const originalJson = res.json.bind(res);
   res.json = (body: unknown) => {
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      for (const p of prefixes) {
-        invalidateCachePrefix(p);
+      const seen = new Set<string>();
+      for (const rule of rules) {
+        for (const p of rule.invalidate) {
+          if (!seen.has(p)) {
+            seen.add(p);
+            invalidateCachePrefix(p);
+          }
+        }
       }
     }
     return originalJson(body);

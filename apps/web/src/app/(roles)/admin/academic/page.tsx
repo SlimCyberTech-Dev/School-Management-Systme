@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { Alert } from "@/components/ui/Alert";
 import { Card } from "@/components/ui/Card";
 import { apiGet } from "@/lib/api";
+import { queryKeys, STRUCTURAL_STALE_MS } from "@/lib/queryKeys";
+import { getApiTenantSlug } from "@/lib/tenantHost";
 
 const SETUP_LINKS = [
   { href: "/admin/academic/years", title: "Academic years", desc: "Create and view school years" },
@@ -20,50 +22,28 @@ const CURRICULUM_LINKS = [
   { href: "/admin/academic/grading-scales", title: "Grading scales", desc: "Grade ranges, points, and descriptors" },
 ];
 
-export default function AdminAcademicHubPage() {
-  const [counts, setCounts] = useState<{
-    y: number;
-    t: number;
-    c: number;
-    s: number;
-    cs: number;
-    k: number;
-    st: number;
-    gs: number;
-  } | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+type AcademicSummary = {
+  years: number;
+  terms: number;
+  classes: number;
+  subjects: number;
+  classSubjects: number;
+  combinations: number;
+  cbcStrands: number;
+  gradingScales: number;
+};
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const [y, t, c, s, cs, k, st, gs] = await Promise.all([
-          apiGet<unknown[]>("/academic/years"),
-          apiGet<unknown[]>("/academic/terms"),
-          apiGet<unknown[]>("/academic/classes"),
-          apiGet<unknown[]>("/academic/subjects"),
-          apiGet<unknown[]>("/academic/class-subjects"),
-          apiGet<unknown[]>("/academic/combinations"),
-          apiGet<unknown[]>("/academic/cbc-strands"),
-          apiGet<unknown[]>("/academic/grading-scales"),
-        ]);
-        setCounts({
-          y: y.length,
-          t: t.length,
-          c: c.length,
-          s: s.length,
-          cs: cs.length,
-          k: k.length,
-          st: st.length,
-          gs: gs.length,
-        });
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : "Failed to load");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+export default function AdminAcademicHubPage() {
+  const summaryQ = useQuery({
+    queryKey: queryKeys.academicSummary(getApiTenantSlug()),
+    queryFn: () => apiGet<AcademicSummary>("/academic/summary"),
+    staleTime: STRUCTURAL_STALE_MS,
+  });
+
+  const counts = summaryQ.data ?? null;
+  const loading = summaryQ.isPending;
+  const err =
+    summaryQ.error instanceof Error ? summaryQ.error.message : summaryQ.isError ? "Failed to load" : null;
 
   return (
     <PageWrapper title="Academic" description="Structure, years, terms, classes, subjects, and teaching assignments">
@@ -71,8 +51,9 @@ export default function AdminAcademicHubPage() {
       {err ? <Alert tone="error">{err}</Alert> : null}
       {counts ? (
         <p className="mb-6 mt-3 text-sm text-muted-foreground">
-          {counts.y} years · {counts.t} terms · {counts.c} classes · {counts.s} subjects · {counts.cs} class–subject
-          slots · {counts.k} combinations · {counts.st} strands · {counts.gs} grade bands
+          {counts.years} years · {counts.terms} terms · {counts.classes} classes · {counts.subjects} subjects ·{" "}
+          {counts.classSubjects} class–subject slots · {counts.combinations} combinations · {counts.cbcStrands} strands ·{" "}
+          {counts.gradingScales} grade bands
         </p>
       ) : null}
 
