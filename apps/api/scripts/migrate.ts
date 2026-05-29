@@ -1,12 +1,24 @@
-import "dotenv/config";
+import dotenv from "dotenv";
 import { readdir, readFile } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import { pool } from "../src/config/db";
+import pg from "pg";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+
+const { Pool } = pg;
+const migrateUrl =
+  process.env.DATABASE_URL_MIGRATE?.trim() ||
+  process.env.DATABASE_URL?.trim();
 
 async function main(): Promise<void> {
+  if (!migrateUrl) {
+    console.error("DATABASE_URL or DATABASE_URL_MIGRATE is not set");
+    process.exit(1);
+  }
+  const pool = new Pool({ connectionString: migrateUrl });
   const dir = path.join(__dirname, "../src/database/migrations");
   const files = (await readdir(dir))
     .filter((f) => f.endsWith(".sql"))

@@ -26,19 +26,36 @@ cp .env.example .env
 ### Database
 
 ```bash
+npm run backup:db    # snapshot before major schema changes (see docs/multitenant-rollback.md)
 npm run migrate
 npm run seed
+npm run seed:platform
 ```
 
-### Development
+### Development (multi-tenant)
 
 ```bash
 npm run dev
 ```
 
+| URL | Purpose |
+|-----|---------|
+| `http://default.localhost:3000` | Default school sign-in and app |
+| `http://platform.localhost:3000` | Platform super-admin (provision schools) |
+| `http://{school-slug}.localhost:3000` | Per-school subdomain |
+
 - API: `http://localhost:5000` (see `PORT` in `.env`)
-- App: `http://localhost:3000`
-- API base for the browser: `NEXT_PUBLIC_API_URL` (default `http://localhost:5000/api`)
+- API base: `NEXT_PUBLIC_API_URL` (default `http://localhost:5000/api`)
+- Bare `http://localhost:3000` redirects to `default.localhost` for sign-in.
+
+### Multi-tenant architecture
+
+- Each school is a **tenant** (`tenants`, `tenant_settings`, subdomain in `tenant_domains`).
+- School staff JWTs include `tid` (tenant id); API resolves tenant from subdomain or `X-Tenant-Slug`.
+- **PostgreSQL RLS** enforces `tenant_id` isolation when `app.tenant_id` is set per request.
+- **Platform admins** (`platform_admins`) manage tenants via `/api/platform/*` (separate from school `users`).
+
+Rollback: [docs/multitenant-rollback.md](docs/multitenant-rollback.md)
 
 ## Scripts (root)
 
@@ -49,7 +66,10 @@ npm run dev
 | `npm run dev:web` | Web only |
 | `npm run build` | Build all workspaces that define `build` |
 | `npm run migrate` | Run SQL migrations (`apps/api`) |
-| `npm run seed` | Create initial admin (`ADMIN_EMAIL` / `ADMIN_PASSWORD`) |
+| `npm run seed` | Default tenant + school users (`ADMIN_EMAIL` / `ADMIN_PASSWORD`) |
+| `npm run seed:platform` | Platform super-admin (`PLATFORM_ADMIN_EMAIL`) |
+| `npm run backup:db` | `pg_dump` to `backups/` |
+| `npm run restore:db` | Restore a SQL backup |
 
 ## Authentication
 

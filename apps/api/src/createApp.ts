@@ -32,6 +32,9 @@ import { studentsRouter } from "./modules/students/students.routes.js";
 import { timetableRouter } from "./modules/timetable/timetable.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 import { securityRouter } from "./modules/security/security.routes.js";
+import { platformRouter } from "./modules/platform/platform.routes.js";
+import { resolveTenant } from "./middleware/resolveTenant.js";
+import { bindTenantContext } from "./middleware/tenantContext.js";
 
 export function createApp(): Express {
   const env = loadEnv();
@@ -48,7 +51,7 @@ export function createApp(): Express {
       origin: getAllowedOrigins(),
       credentials: true,
       methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Tenant-Slug"],
       exposedHeaders: [
         "X-Cache",
         "X-Cache-Age",
@@ -77,6 +80,10 @@ export function createApp(): Express {
   app.get("/api/health", (_req, res) => {
     res.json({ success: true, data: { status: "ok" } });
   });
+
+  app.use("/api/platform", platformRouter);
+  app.use("/api", resolveTenant);
+  app.use("/api", bindTenantContext);
 
   app.use("/api/auth", authRouter);
   app.use("/api/users", usersRouter);

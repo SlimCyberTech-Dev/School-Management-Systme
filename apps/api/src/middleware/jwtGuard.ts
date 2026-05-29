@@ -64,8 +64,22 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 
     setSessionIdleHeaders(res, session.idleExpiresAt);
 
+    if (req.tenant && payload.tid !== req.tenant.id) {
+      res.status(401).json({
+        success: false,
+        error: "Your session is not valid for this school. Please sign in again.",
+        code: "TENANT_MISMATCH",
+      });
+      return;
+    }
+
     const role = await resolveRole(payload);
-    req.user = { id: payload.sub, role, sessionId: payload.sid };
+    req.user = {
+      id: payload.sub,
+      role,
+      sessionId: payload.sid,
+      tenantId: payload.tid,
+    };
     next();
   } catch {
     res.status(401).json({

@@ -52,6 +52,7 @@ export async function create(req: Request, res: Response): Promise<void> {
   }
   const user = await svc.createUser(body, {
     actorId: req.user.id,
+    tenantId: req.user.tenantId,
     ipAddress: req.ip ?? null,
     userAgent: req.headers["user-agent"] ?? null,
   });

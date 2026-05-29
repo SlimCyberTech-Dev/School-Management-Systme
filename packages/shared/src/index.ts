@@ -13,3 +13,4 @@ export * from "./schemas/exam.schema";
 export * from "./schemas/timetable.schema";
 export * from "./schemas/audit.schema";
 export * from "./schemas/settings.schema";
+export * from "./schemas/platform.schema";

@@ -6,4 +6,5 @@ cache/
 dist/
 .next/
 uploads/
+backups/
 *.log

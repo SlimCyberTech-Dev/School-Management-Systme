@@ -1,5 +1,6 @@
 import type { SchoolSettings, UpdateSchoolSettingsInput } from "@uganda-cbc-sms/shared";
 import { query } from "../../config/db";
+import { getDefaultTenantId } from "../../config/tenant.js";
 import { writeAuditLog } from "../audit/audit.service";
 
 type SchoolSettingsRow = {
@@ -70,20 +71,25 @@ function mapRow(row: SchoolSettingsRow): SchoolSettings {
   };
 }
 
-async function ensureSettingsRow(): Promise<void> {
+async function resolveTenantId(tenantId?: string): Promise<string> {
+  return tenantId ?? (await getDefaultTenantId());
+}
+
+async function ensureSettingsRow(tenantId: string): Promise<void> {
   await query(
-    `INSERT INTO school_settings (
-       singleton, school_name, motto, vision, mission, logo_url, contact_email,
+    `INSERT INTO tenant_settings (
+       tenant_id, school_name, motto, vision, mission, logo_url, contact_email,
        contact_phone, website_url, postal_address, physical_address,
        primary_color, secondary_color, report_footer_text, report_layout, updated_at
      )
      VALUES (
-       TRUE, $1, $2, $3, $4, $5, $6,
-       $7, $8, $9, $10,
-       $11, $12, $13, $14::jsonb, NOW()
+       $1, $2, $3, $4, $5, $6, $7,
+       $8, $9, $10, $11,
+       $12, $13, $14, $15::jsonb, NOW()
      )
-     ON CONFLICT (singleton) DO NOTHING`,
+     ON CONFLICT (tenant_id) DO NOTHING`,
     [
+      tenantId,
       DEFAULT_SETTINGS.schoolName,
       DEFAULT_SETTINGS.motto,
       DEFAULT_SETTINGS.vision,
@@ -102,16 +108,18 @@ async function ensureSettingsRow(): Promise<void> {
   );
 }
 
-export async function getSchoolSettings(): Promise<SchoolSettings> {
-  await ensureSettingsRow();
+export async function getSchoolSettings(tenantId?: string): Promise<SchoolSettings> {
+  const tid = await resolveTenantId(tenantId);
+  await ensureSettingsRow(tid);
   const { rows } = await query<SchoolSettingsRow>(
     `SELECT
        school_name, motto, vision, mission, logo_url, contact_email,
        contact_phone, website_url, postal_address, physical_address,
        primary_color, secondary_color, report_footer_text, report_layout, updated_at
-     FROM school_settings
-     WHERE singleton = TRUE
+     FROM tenant_settings
+     WHERE tenant_id = $1
      LIMIT 1`,
+    [tid],
   );
   return mapRow(rows[0]!);
 }
@@ -119,9 +127,11 @@ export async function getSchoolSettings(): Promise<SchoolSettings> {
 export async function updateSchoolSettings(
   input: Partial<UpdateSchoolSettingsInput>,
   actorId: string,
+  tenantId?: string,
 ): Promise<SchoolSettings> {
-  await ensureSettingsRow();
-  const current = await getSchoolSettings();
+  const tid = await resolveTenantId(tenantId);
+  await ensureSettingsRow(tid);
+  const current = await getSchoolSettings(tid);
   const merged: Omit<SchoolSettings, "updatedAt"> = {
     schoolName: input.schoolName?.trim() || current.schoolName,
     motto: input.motto !== undefined ? input.motto : current.motto,
@@ -142,29 +152,30 @@ export async function updateSchoolSettings(
         : (current.reportLayout ?? DEFAULT_LAYOUT),
   };
   const { rows } = await query<SchoolSettingsRow>(
-    `UPDATE school_settings
+    `UPDATE tenant_settings
      SET
-       school_name = $1,
-       motto = $2,
-       vision = $3,
-       mission = $4,
-       logo_url = $5,
-       contact_email = $6,
-       contact_phone = $7,
-       website_url = $8,
-       postal_address = $9,
-       physical_address = $10,
-       primary_color = $11,
-       secondary_color = $12,
-       report_footer_text = $13,
-       report_layout = $14::jsonb,
+       school_name = $2,
+       motto = $3,
+       vision = $4,
+       mission = $5,
+       logo_url = $6,
+       contact_email = $7,
+       contact_phone = $8,
+       website_url = $9,
+       postal_address = $10,
+       physical_address = $11,
+       primary_color = $12,
+       secondary_color = $13,
+       report_footer_text = $14,
+       report_layout = $15::jsonb,
        updated_at = NOW()
-     WHERE singleton = TRUE
+     WHERE tenant_id = $1
      RETURNING
        school_name, motto, vision, mission, logo_url, contact_email,
        contact_phone, website_url, postal_address, physical_address,
        primary_color, secondary_color, report_footer_text, report_layout, updated_at`,
     [
+      tid,
       merged.schoolName,
       merged.motto,
       merged.vision,
@@ -189,26 +200,32 @@ export async function updateSchoolSettings(
     action: "SCHOOL_SETTINGS_UPDATED",
     message: "School settings were updated",
     actorId,
-    resourceType: "school_settings",
+    resourceType: "tenant_settings",
     metadata: {
       schoolName: updated.schoolName,
       hasLogo: Boolean(updated.logoUrl),
+      tenantId: tid,
     },
   });
   return updated;
 }
 
-export async function setSchoolLogo(logoUrl: string, actorId: string): Promise<SchoolSettings> {
-  await ensureSettingsRow();
+export async function setSchoolLogo(
+  logoUrl: string,
+  actorId: string,
+  tenantId?: string,
+): Promise<SchoolSettings> {
+  const tid = await resolveTenantId(tenantId);
+  await ensureSettingsRow(tid);
   const { rows } = await query<SchoolSettingsRow>(
-    `UPDATE school_settings
-     SET logo_url = $1, updated_at = NOW()
-     WHERE singleton = TRUE
+    `UPDATE tenant_settings
+     SET logo_url = $2, updated_at = NOW()
+     WHERE tenant_id = $1
      RETURNING
        school_name, motto, vision, mission, logo_url, contact_email,
        contact_phone, website_url, postal_address, physical_address,
        primary_color, secondary_color, report_footer_text, report_layout, updated_at`,
-    [logoUrl],
+    [tid, logoUrl],
   );
   const updated = mapRow(rows[0]!);
   await writeAuditLog({
@@ -218,8 +235,8 @@ export async function setSchoolLogo(logoUrl: string, actorId: string): Promise<S
     action: "SCHOOL_LOGO_UPDATED",
     message: "School logo was updated",
     actorId,
-    resourceType: "school_settings",
-    metadata: { logoUrl },
+    resourceType: "tenant_settings",
+    metadata: { logoUrl, tenantId: tid },
   });
   return updated;
 }

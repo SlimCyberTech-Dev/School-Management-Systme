@@ -8,14 +8,28 @@ export interface JwtPayload {
   role: Role;
   sid: string;
   jti: string;
+  tid: string;
   exp: number;
   iat: number;
 }
 
-export function signToken(userId: string, role: Role, sessionId: string): string {
+export interface PlatformJwtPayload {
+  sub: string;
+  jti: string;
+  aud: "platform";
+  exp: number;
+  iat: number;
+}
+
+export function signToken(
+  userId: string,
+  role: Role,
+  sessionId: string,
+  tenantId: string,
+): string {
   const env = loadEnv();
   const jti = crypto.randomUUID();
-  return jwt.sign({ role, sid: sessionId, jti }, env.JWT_PRIVATE_KEY, {
+  return jwt.sign({ role, sid: sessionId, jti, tid: tenantId }, env.JWT_PRIVATE_KEY, {
     subject: userId,
     algorithm: "RS256",
     expiresIn: env.JWT_EXPIRY as jwt.SignOptions["expiresIn"],
@@ -26,10 +40,18 @@ export function verifyToken(token: string): JwtPayload {
   const env = loadEnv();
   const decoded = jwt.verify(token, env.JWT_PUBLIC_KEY, {
     algorithms: ["RS256"],
-  }) as jwt.JwtPayload & { role: Role; sid?: string; jti?: string };
+  }) as jwt.JwtPayload & { role: Role; sid?: string; jti?: string; tid?: string };
 
   const sub = decoded.sub;
-  if (!sub || !decoded.role || !decoded.sid || !decoded.jti || !decoded.exp || !decoded.iat) {
+  if (
+    !sub ||
+    !decoded.role ||
+    !decoded.sid ||
+    !decoded.jti ||
+    !decoded.tid ||
+    !decoded.exp ||
+    !decoded.iat
+  ) {
     throw new Error("Invalid token payload");
   }
   return {
@@ -37,6 +59,36 @@ export function verifyToken(token: string): JwtPayload {
     role: decoded.role,
     sid: decoded.sid,
     jti: decoded.jti,
+    tid: decoded.tid,
+    exp: decoded.exp,
+    iat: decoded.iat,
+  };
+}
+
+export function signPlatformToken(adminId: string): string {
+  const env = loadEnv();
+  const jti = crypto.randomUUID();
+  return jwt.sign({ aud: "platform", jti }, env.JWT_PRIVATE_KEY, {
+    subject: adminId,
+    algorithm: "RS256",
+    expiresIn: env.JWT_EXPIRY as jwt.SignOptions["expiresIn"],
+  });
+}
+
+export function verifyPlatformToken(token: string): PlatformJwtPayload {
+  const env = loadEnv();
+  const decoded = jwt.verify(token, env.JWT_PUBLIC_KEY, {
+    algorithms: ["RS256"],
+  }) as jwt.JwtPayload & { aud?: string; jti?: string };
+
+  const sub = decoded.sub;
+  if (!sub || decoded.aud !== "platform" || !decoded.jti || !decoded.exp || !decoded.iat) {
+    throw new Error("Invalid platform token payload");
+  }
+  return {
+    sub,
+    jti: decoded.jti,
+    aud: "platform",
     exp: decoded.exp,
     iat: decoded.iat,
   };

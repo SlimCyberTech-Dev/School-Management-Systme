@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { decodeJwtPayload } from "@/lib/jwtPayload";
 
 const SMS_TOKEN = "sms_token";
+const PLATFORM_TOKEN = "sms_platform_token";
 
 const ROLE_PREFIX: Record<string, string> = {
   admin: "/admin",
@@ -17,8 +18,49 @@ function dashboardPath(role: string): string {
   return prefix ? `${prefix}/dashboard` : "/login";
 }
 
+function hostSlug(hostname: string): string | null {
+  const host = hostname.split(":")[0]!.toLowerCase();
+  if (host.endsWith(".localhost")) {
+    const label = host.slice(0, -".localhost".length);
+    const parts = label.split(".");
+    return parts[parts.length - 1] ?? null;
+  }
+  const parts = host.split(".");
+  if (parts.length >= 3) return parts[0] ?? null;
+  return null;
+}
+
+function isPlatformHost(hostname: string): boolean {
+  return hostSlug(hostname) === "platform";
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hostname = request.nextUrl.hostname;
+
+  if (pathname.startsWith("/platform")) {
+    const platformToken = request.cookies.get(PLATFORM_TOKEN)?.value ?? null;
+    if (pathname.startsWith("/platform/login")) {
+      if (platformToken) {
+        return NextResponse.redirect(new URL("/platform/tenants", request.url));
+      }
+      return NextResponse.next();
+    }
+    if (!platformToken) {
+      return NextResponse.redirect(new URL("/platform/login", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  if (isPlatformHost(hostname) && !pathname.startsWith("/platform")) {
+    return NextResponse.redirect(new URL("/platform/tenants", request.url));
+  }
+
+  const slug = hostSlug(hostname);
+  if (!slug && hostname === "localhost" && pathname === "/") {
+    return NextResponse.redirect(new URL("http://default.localhost:3000/login"));
+  }
+
   const token = request.cookies.get(SMS_TOKEN)?.value ?? null;
 
   if (!token) {
@@ -51,6 +93,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/platform/:path*",
     "/admin/:path*",
     "/headteacher/:path*",
     "/class-teacher/:path*",
@@ -58,5 +101,6 @@ export const config = {
     "/bursar/:path*",
     "/profile",
     "/profile/:path*",
+    "/",
   ],
 };

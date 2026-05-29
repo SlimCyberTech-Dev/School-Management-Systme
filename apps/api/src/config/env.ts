@@ -27,6 +27,8 @@ const envSchema = z.object({
   REQUEST_LOG_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(1),
   UPLOAD_DIR: z.string().default("./uploads"),
   SESSION_INACTIVITY_MINUTES: z.coerce.number().min(1).max(480).default(15),
+  APP_ROOT_DOMAIN: z.string().default("localhost"),
+  DEFAULT_TENANT_SLUG: z.string().default("default"),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -61,6 +63,8 @@ export function loadEnv(): Env {
     REQUEST_LOG_SAMPLE_RATE: process.env.REQUEST_LOG_SAMPLE_RATE,
     UPLOAD_DIR: process.env.UPLOAD_DIR,
     SESSION_INACTIVITY_MINUTES: process.env.SESSION_INACTIVITY_MINUTES,
+    APP_ROOT_DOMAIN: process.env.APP_ROOT_DOMAIN,
+    DEFAULT_TENANT_SLUG: process.env.DEFAULT_TENANT_SLUG,
   });
 
   if (!parsed.success) {
@@ -76,9 +80,37 @@ export function loadEnv(): Env {
   return cached;
 }
 
-export function getAllowedOrigins(): string[] {
-  return loadEnv()
-    .ALLOWED_ORIGINS.split(",")
+export function getAllowedOrigins():
+  | string[]
+  | ((origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => void) {
+  const env = loadEnv();
+  const explicit = env.ALLOWED_ORIGINS.split(",")
     .map((o) => o.trim())
     .filter(Boolean);
+  const root = env.APP_ROOT_DOMAIN;
+
+  return (origin, cb) => {
+    if (!origin) {
+      cb(null, true);
+      return;
+    }
+    if (explicit.includes(origin)) {
+      cb(null, true);
+      return;
+    }
+    try {
+      const host = new URL(origin).hostname.toLowerCase();
+      if (host === "localhost" || host.endsWith(".localhost")) {
+        cb(null, true);
+        return;
+      }
+      if (root && root !== "localhost" && (host === root || host.endsWith(`.${root}`))) {
+        cb(null, true);
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    cb(null, false);
+  };
 }

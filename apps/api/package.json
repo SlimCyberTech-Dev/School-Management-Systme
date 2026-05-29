@@ -8,11 +8,15 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "migrate": "tsx scripts/migrate.ts",
+    "backup:db": "tsx scripts/backup-database.ts",
+    "restore:db": "tsx scripts/restore-database.ts",
     "seed": "tsx scripts/seed.ts",
+    "seed:platform": "tsx scripts/seed-platform.ts",
     "seed:grading-scales": "tsx scripts/seed-grading-scales.ts",
     "recalculate:alevel-grades": "tsx scripts/recalculate-alevel-grades.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js",
+    "test:security": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js tests/security/jwt.test.ts tests/security/tenantIsolation.test.ts",
     "generate:jwt-keys": "tsx scripts/generate-jwt-keys.ts"
   },
   "dependencies": {

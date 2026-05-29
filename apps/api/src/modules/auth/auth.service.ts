@@ -53,14 +53,20 @@ function computeExpiryDate(token: string): Date {
 export async function login(
   input: LoginInput,
   meta: LoginMeta = {},
+  tenantId?: string,
 ): Promise<{
   token: string;
   user: ReturnType<typeof toUserPublic>;
   session: { inactivityMinutes: number; idleExpiresAt: string };
 }> {
   try {
+    if (!tenantId) {
+      throw new HttpError(400, "School context is required to sign in.");
+    }
+
     const { rows } = await query<{
       id: string;
+      tenant_id: string;
       full_name: string;
       email: string;
       role: string;
@@ -73,8 +79,8 @@ export async function login(
       locked_until: Date | null;
       force_password_change: boolean | null;
     }>(
-      `SELECT * FROM users WHERE email = $1`,
-      [normalizeEmail(input.email)],
+      `SELECT * FROM users WHERE tenant_id = $1 AND email = $2`,
+      [tenantId, normalizeEmail(input.email)],
     );
     const generic = () =>
       new HttpError(
@@ -159,19 +165,25 @@ export async function login(
     });
 
     const sessionId = crypto.randomUUID();
-    const token = signToken(user.id, user.role as Parameters<typeof signToken>[1], sessionId);
+    const token = signToken(
+      user.id,
+      user.role as Parameters<typeof signToken>[1],
+      sessionId,
+      user.tenant_id,
+    );
     const tokenHash = hashSecret(token);
     const expiresAt = computeExpiryDate(token);
 
     const now = new Date();
     await query(
       `INSERT INTO auth_sessions (
-         id, user_id, token_hash, device_info, ip_address, user_agent,
+         id, tenant_id, user_id, token_hash, device_info, ip_address, user_agent,
          expires_at, last_activity_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         sessionId,
+        user.tenant_id,
         user.id,
         tokenHash,
         meta.deviceInfo ?? null,

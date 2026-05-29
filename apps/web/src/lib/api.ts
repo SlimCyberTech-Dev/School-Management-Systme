@@ -1,5 +1,6 @@
 import axios, { isAxiosError, type AxiosError, type AxiosResponse } from "axios";
 import { useAuthStore } from "@/store/authStore";
+import { getTenantSlugFromHostname } from "@/lib/tenantHost";
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 
@@ -12,6 +13,14 @@ api.interceptors.request.use((config) => {
   const t = useAuthStore.getState().token;
   if (t) {
     config.headers.Authorization = `Bearer ${t}`;
+  }
+  if (typeof window !== "undefined") {
+    const slug = getTenantSlugFromHostname(window.location.hostname);
+    if (slug && slug !== "platform") {
+      config.headers["X-Tenant-Slug"] = slug;
+    } else if (!slug) {
+      config.headers["X-Tenant-Slug"] = "default";
+    }
   }
   return config;
 });

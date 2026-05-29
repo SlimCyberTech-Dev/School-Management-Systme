@@ -13,6 +13,7 @@ import { logUserAction } from "./audit.service";
 
 type UserActorMeta = {
   actorId?: string;
+  tenantId?: string;
   ipAddress?: string | null;
   userAgent?: string | null;
 };
@@ -80,11 +81,15 @@ export async function createUser(
   try {
     const rounds = Number(process.env.BCRYPT_ROUNDS ?? 10);
     const hash = await bcrypt.hash(input.password, rounds);
+    if (!meta.tenantId) {
+      throw new HttpError(400, "School context is required to create users.");
+    }
     const { rows } = await query(
-      `INSERT INTO users (full_name, email, password_hash, role, notes, force_password_change, password_changed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      `INSERT INTO users (tenant_id, full_name, email, password_hash, role, notes, force_password_change, password_changed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
        RETURNING id, full_name, email, role, is_active, created_at`,
       [
+        meta.tenantId,
         input.fullName,
         input.email.toLowerCase().trim(),
         hash,

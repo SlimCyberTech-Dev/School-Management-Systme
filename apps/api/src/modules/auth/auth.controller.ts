@@ -31,12 +31,27 @@ const {
 
 export async function login(req: Request, res: Response): Promise<void> {
   const body = loginSchema.parse(req.body) as LoginInput;
-  const result = await authService.login(body, {
-    ipAddress: req.ip ?? null,
-    userAgent: req.headers["user-agent"] ?? null,
-    deviceInfo: req.headers["sec-ch-ua-platform"]?.toString() ?? null,
+  if (!req.tenant?.id) {
+    res.status(400).json({
+      success: false,
+      error: "Open your school's sign-in URL (e.g. default.localhost) to continue.",
+      code: "TENANT_REQUIRED",
+    });
+    return;
+  }
+  const result = await authService.login(
+    body,
+    {
+      ipAddress: req.ip ?? null,
+      userAgent: req.headers["user-agent"] ?? null,
+      deviceInfo: req.headers["sec-ch-ua-platform"]?.toString() ?? null,
+    },
+    req.tenant.id,
+  );
+  res.json({
+    success: true,
+    data: { ...result, tenant: { slug: req.tenant.slug, id: req.tenant.id } },
   });
-  res.json({ success: true, data: result });
 }
 
 export async function logout(req: Request, res: Response): Promise<void> {

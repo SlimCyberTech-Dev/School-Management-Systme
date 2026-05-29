@@ -10,6 +10,9 @@
     "migrate": "npm run migrate --workspace=apps/api",
     "seed": "npm run seed --workspace=apps/api",
     "seed:grading-scales": "npm run seed:grading-scales --workspace=apps/api",
+    "backup:db": "npm run backup:db --workspace=apps/api",
+    "restore:db": "npm run restore:db --workspace=apps/api",
+    "seed:platform": "npm run seed:platform --workspace=apps/api",
     "recalculate:alevel-grades": "npm run recalculate:alevel-grades --workspace=apps/api"
   },
   "devDependencies": {

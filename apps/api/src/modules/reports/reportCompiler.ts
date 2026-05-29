@@ -1,4 +1,5 @@
 import { query } from "../../config/db";
+import { getDefaultTenantId } from "../../config/tenant.js";
 import { HttpError } from "../../utils/httpError";
 import { getCbcDescriptor } from "../../utils/grading";
 import { computeAlevelAggregate } from "../../utils/alevelDivision";
@@ -10,12 +11,14 @@ const FALLBACK_SCHOOL_NAME = process.env.SCHOOL_NAME ?? "Uganda Secondary School
 let cachedSchoolName = FALLBACK_SCHOOL_NAME;
 let cachedAtMs = 0;
 
-async function resolveSchoolName(): Promise<string> {
+async function resolveSchoolName(tenantId?: string): Promise<string> {
   const now = Date.now();
   if (now - cachedAtMs < 60_000) return cachedSchoolName;
   try {
+    const tid = tenantId ?? (await getDefaultTenantId());
     const { rows } = await query<{ school_name: string }>(
-      `SELECT school_name FROM school_settings WHERE singleton = TRUE LIMIT 1`,
+      `SELECT school_name FROM tenant_settings WHERE tenant_id = $1 LIMIT 1`,
+      [tid],
     );
     cachedSchoolName = rows[0]?.school_name?.trim() || FALLBACK_SCHOOL_NAME;
     cachedAtMs = now;

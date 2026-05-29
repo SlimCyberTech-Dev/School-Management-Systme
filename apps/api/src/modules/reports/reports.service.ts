@@ -1,5 +1,6 @@
 import type { Readable } from "stream";
 import { query } from "../../config/db";
+import { getDefaultTenantId } from "../../config/tenant.js";
 import { HttpError } from "../../utils/httpError";
 import { streamAlevelReportCard, streamCbcReportCard } from "../../utils/pdf";
 import { recalculateExamMarkGrades } from "../exams/exams.service";
@@ -39,14 +40,16 @@ type PdfBrandingSettings = {
   report_layout: Record<string, unknown> | null;
 };
 
-async function loadPdfBrandingSettings() {
+async function loadPdfBrandingSettings(tenantId?: string) {
   let s: PdfBrandingSettings | undefined;
   try {
+    const tid = tenantId ?? (await getDefaultTenantId());
     const { rows } = await query<PdfBrandingSettings>(
       `SELECT motto, logo_url, primary_color, secondary_color, report_footer_text, report_layout
-       FROM school_settings
-       WHERE singleton = TRUE
+       FROM tenant_settings
+       WHERE tenant_id = $1
        LIMIT 1`,
+      [tid],
     );
     s = rows[0];
   } catch {
