@@ -16,11 +16,8 @@ api.interceptors.request.use((config) => {
   }
   if (typeof window !== "undefined") {
     const slug = getTenantSlugFromHostname(window.location.hostname);
-    if (slug && slug !== "platform") {
-      config.headers["X-Tenant-Slug"] = slug;
-    } else if (!slug) {
-      config.headers["X-Tenant-Slug"] = "default";
-    }
+    config.headers["X-Tenant-Slug"] =
+      slug && slug !== "platform" ? slug : "default";
   }
   return config;
 });
