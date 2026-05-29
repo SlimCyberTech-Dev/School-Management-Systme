@@ -55,7 +55,8 @@ npm run dev
 - **PostgreSQL RLS** enforces `tenant_id` isolation when `app.tenant_id` is set per request.
 - **Platform admins** (`platform_admins`) manage tenants via `/api/platform/*` (separate from school `users`).
 
-Rollback: [docs/multitenant-rollback.md](docs/multitenant-rollback.md)
+Rollback: [docs/multitenant-rollback.md](docs/multitenant-rollback.md)  
+Phase tracker: [docs/multitenant-phases.md](docs/multitenant-phases.md)
 
 ## Scripts (root)
 

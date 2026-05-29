@@ -1,6 +1,7 @@
 import type { SchoolSettings, UpdateSchoolSettingsInput } from "@uganda-cbc-sms/shared";
 import { query } from "../../config/db";
 import { getDefaultTenantId } from "../../config/tenant.js";
+import { HttpError } from "../../utils/httpError.js";
 import { writeAuditLog } from "../audit/audit.service";
 
 type SchoolSettingsRow = {
@@ -71,8 +72,12 @@ function mapRow(row: SchoolSettingsRow): SchoolSettings {
   };
 }
 
-async function resolveTenantId(tenantId?: string): Promise<string> {
-  return tenantId ?? (await getDefaultTenantId());
+async function resolveTenantId(tenantId?: string, options?: { allowDefault?: boolean }): Promise<string> {
+  if (tenantId) return tenantId;
+  if (options?.allowDefault !== false) {
+    return getDefaultTenantId();
+  }
+  throw new HttpError(400, "School context is required.");
 }
 
 async function ensureSettingsRow(tenantId: string): Promise<void> {

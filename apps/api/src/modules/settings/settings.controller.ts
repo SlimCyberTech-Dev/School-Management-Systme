@@ -24,7 +24,7 @@ export async function uploadSchoolLogo(req: Request, res: Response): Promise<voi
   if (!req.file) {
     throw new HttpError(400, "No logo file was uploaded.");
   }
-  const logoUrl = `/uploads/settings/${req.file.filename}`;
+  const logoUrl = `/uploads/${req.tenant!.id}/settings/${req.file.filename}`;
   const data = await svc.setSchoolLogo(logoUrl, req.user.id, req.tenant?.id);
   res.json({ success: true, data, message: "School logo uploaded." });
 }

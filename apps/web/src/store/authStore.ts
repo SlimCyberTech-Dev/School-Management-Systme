@@ -13,6 +13,8 @@ export type AuthUser = {
   email: string;
   role: Role;
   photoUrl?: string | null;
+  tenantId?: string;
+  tenantSlug?: string;
 };
 
 export type SessionInfo = {
@@ -23,11 +25,18 @@ export type SessionInfo = {
 type AuthState = {
   user: AuthUser | null;
   token: string | null;
+  tenantId: string | null;
+  tenantSlug: string | null;
   isAuthenticated: boolean;
   hydrated: boolean;
   /** Unix ms — local idle deadline (synced from API headers when available). */
   idleExpiresAt: number | null;
-  login: (user: AuthUser, token: string, session?: SessionInfo) => void;
+  login: (
+    user: AuthUser,
+    token: string,
+    session?: SessionInfo,
+    tenant?: { id: string; slug: string },
+  ) => void;
   logout: () => void;
   logoutRemote: () => Promise<void>;
   hydrate: () => Promise<void>;
@@ -70,6 +79,8 @@ function idleDeadlineFromSession(session?: SessionInfo): number | null {
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
+  tenantId: null,
+  tenantSlug: null,
   isAuthenticated: false,
   hydrated: false,
   idleExpiresAt: null,
@@ -93,12 +104,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   bumpIdleExpiry: (inactivityMs) =>
     set({ idleExpiresAt: Date.now() + inactivityMs }),
 
-  login: (user, token, session) => {
+  login: (user, token, session, tenant) => {
     const maxAge = jwtCookieMaxAge(token);
     setSmsTokenCookie(token, maxAge);
+    const enriched: AuthUser = {
+      ...user,
+      tenantId: tenant?.id ?? user.tenantId,
+      tenantSlug: tenant?.slug ?? user.tenantSlug,
+    };
     set({
-      user,
+      user: enriched,
       token,
+      tenantId: tenant?.id ?? null,
+      tenantSlug: tenant?.slug ?? null,
       isAuthenticated: true,
       hydrated: true,
       idleExpiresAt: idleDeadlineFromSession(session) ?? Date.now() + 15 * 60_000,
@@ -110,6 +128,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({
       user: null,
       token: null,
+      tenantId: null,
+      tenantSlug: null,
       isAuthenticated: false,
       hydrated: true,
       idleExpiresAt: null,

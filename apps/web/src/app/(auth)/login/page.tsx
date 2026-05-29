@@ -189,14 +189,16 @@ export default function LoginPage() {
     }
     try {
       setLoginLoading(true);
-      const data = await apiPost<{ token: string; user: AuthUser; session?: SessionInfo }>(
-        "/auth/login",
-        {
-          email: loginState.email,
-          password: loginState.password,
-        },
-      );
-      loginToStore(data.user, data.token, data.session);
+      const data = await apiPost<{
+        token: string;
+        user: AuthUser;
+        session?: SessionInfo;
+        tenant?: { id: string; slug: string };
+      }>("/auth/login", {
+        email: loginState.email,
+        password: loginState.password,
+      });
+      loginToStore(data.user, data.token, data.session, data.tenant);
       router.replace(dashboardForRole(data.user.role));
     } catch (error) {
       setLoginError(getApiErrorMessage(error));

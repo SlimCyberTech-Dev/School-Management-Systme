@@ -86,7 +86,7 @@ export async function uploadPhoto(req: Request, res: Response): Promise<void> {
     return;
   }
   const id = req.params["id"]!;
-  const rel = `/uploads/students/${path.basename(req.file.path)}`;
+  const rel = `/uploads/${req.tenant!.id}/students/${path.basename(req.file.path)}`;
   await svc.updatePhoto(id, rel);
   res.json({ success: true, data: { photoUrl: rel } });
 }

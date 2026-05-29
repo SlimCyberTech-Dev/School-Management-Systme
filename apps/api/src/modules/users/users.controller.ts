@@ -124,7 +124,7 @@ export async function uploadMyPhoto(req: Request, res: Response): Promise<void> 
     res.status(400).json({ success: false, error: "No file uploaded" });
     return;
   }
-  const rel = `/uploads/users/${path.basename(req.file.path)}`;
+  const rel = `/uploads/${req.user!.tenantId}/users/${path.basename(req.file.path)}`;
   const user = await svc.updateUserPhoto(req.user.id, rel);
   res.json({ success: true, data: user, message: "Profile photo updated" });
 }
