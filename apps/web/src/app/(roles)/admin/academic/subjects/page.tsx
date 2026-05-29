@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { subjectSchema } from "@uganda-cbc-sms/shared";
 import type { Subject } from "@uganda-cbc-sms/shared";
 import type { z } from "zod";
 import { AcademicLevelScope } from "@/components/academic/AcademicLevelScope";
 import { PageWrapper } from "@/components/layout/PageWrapper";
-import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -18,8 +17,10 @@ import { Modal } from "@/components/ui/Modal";
 import { Select } from "@/components/ui/Select";
 import { Table, type Column } from "@/components/ui/Table";
 import { useAcademicLevelScope } from "@/hooks/useAcademicLevelScope";
+import { useAcademicMutation } from "@/hooks/useAcademicMutation";
 import { levelShortLabel } from "@/lib/academicLevel";
-import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
+import { apiDelete, apiGet, apiPatch, apiPost, getApiErrorMessage } from "@/lib/api";
+import { toast } from "@/lib/toast";
 
 type Form = z.infer<typeof subjectSchema>;
 type Row = Subject & Record<string, unknown>;
@@ -29,12 +30,10 @@ const ACTION_DANGER_BTN =
   "inline-flex items-center rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs font-medium text-red-700 transition-ui hover:bg-red-500/20 dark:text-red-300 disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function AdminAcademicSubjectsPage() {
+  const { creating, saving, deleting, runCreate, runSave, runDelete } = useAcademicMutation();
   const { level, setLevel } = useAcademicLevelScope("O_LEVEL");
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [err, setErr] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [busyId, setBusyId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Subject | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Subject | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -48,33 +47,37 @@ export default function AdminAcademicSubjectsPage() {
     defaultValues: { name: "", code: "", level: "O_LEVEL" },
   });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const s = await apiGet<Subject[]>("/academic/subjects");
       setSubjects(s);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed");
+      toast.error(getApiErrorMessage(e), "Could not load subjects");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
+
+  useEffect(() => {
+    form.setValue("level", level);
+  }, [level, form]);
 
   const onSubmit = async (v: Form) => {
-    setErr(null);
-    setOk(null);
-    try {
-      await apiPost("/academic/subjects", v);
-      await load();
-      setOk("Subject created.");
-      setCreateOpen(false);
-      form.reset({ name: "", code: "", level: "O_LEVEL" });
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to create");
-    }
+    const created = await runCreate(
+      () => apiPost<Subject>("/academic/subjects", v),
+      {
+        title: "Subject created",
+        message: `${v.code} — ${v.name} is in the catalogue.`,
+      },
+    );
+    if (!created) return;
+    await load();
+    setCreateOpen(false);
+    form.reset({ name: "", code: "", level: level });
   };
 
   const startEdit = (row: Subject) => {
@@ -84,36 +87,30 @@ export default function AdminAcademicSubjectsPage() {
 
   const onEdit = async (v: Form) => {
     if (!editing) return;
-    setErr(null);
-    setOk(null);
-    setBusyId(editing.id);
-    try {
-      await apiPatch(`/academic/subjects/${encodeURIComponent(editing.id)}`, v);
-      await load();
-      setEditing(null);
-      setOk("Subject updated.");
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to update");
-    } finally {
-      setBusyId(null);
-    }
+    const updated = await runSave(
+      () => apiPatch<Subject>(`/academic/subjects/${encodeURIComponent(editing.id)}`, v),
+      {
+        title: "Subject updated",
+        message: `Changes to ${v.code} have been saved.`,
+      },
+    );
+    if (!updated) return;
+    await load();
+    setEditing(null);
   };
 
   const remove = async () => {
     if (!confirmDelete) return;
-    setErr(null);
-    setOk(null);
-    setBusyId(confirmDelete.id);
-    try {
-      await apiDelete(`/academic/subjects/${encodeURIComponent(confirmDelete.id)}`);
-      await load();
-      setConfirmDelete(null);
-      setOk("Subject deleted.");
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to delete");
-    } finally {
-      setBusyId(null);
-    }
+    const ok = await runDelete(
+      () => apiDelete(`/academic/subjects/${encodeURIComponent(confirmDelete.id)}`),
+      {
+        title: "Subject deleted",
+        message: `${confirmDelete.code} was removed.`,
+      },
+    );
+    if (!ok) return;
+    await load();
+    setConfirmDelete(null);
   };
 
   const scopedSubjects = useMemo(
@@ -141,7 +138,7 @@ export default function AdminAcademicSubjectsPage() {
           <button
             type="button"
             className={ACTION_BTN}
-            disabled={busyId === r.id}
+            disabled={saving || deleting}
             onClick={() => startEdit(r)}
           >
             Edit
@@ -149,7 +146,7 @@ export default function AdminAcademicSubjectsPage() {
           <button
             type="button"
             className={ACTION_DANGER_BTN}
-            disabled={busyId === r.id}
+            disabled={saving || deleting}
             onClick={() => setConfirmDelete(r)}
           >
             Delete
@@ -166,10 +163,6 @@ export default function AdminAcademicSubjectsPage() {
           ← Back to Academic
         </Link>
       </div>
-      <div className="mb-4 space-y-2">
-        {ok ? <Alert tone="success">{ok}</Alert> : null}
-        {err ? <Alert tone="error">{err}</Alert> : null}
-      </div>
       <Card title="School level">
         <AcademicLevelScope
           level={level}
@@ -183,16 +176,22 @@ export default function AdminAcademicSubjectsPage() {
             O-Level subjects: <span className="font-medium text-foreground">{oLevelCount}</span> · A-Level subjects:{" "}
             <span className="font-medium text-foreground">{aLevelCount}</span>
           </p>
-        <div className="mb-3 flex justify-end">
-          <Button type="button" onClick={() => setCreateOpen(true)}>
-            Add new record
-          </Button>
-        </div>
+          <div className="mb-3 flex justify-end">
+            <Button type="button" onClick={() => setCreateOpen(true)}>
+              Add new record
+            </Button>
+          </div>
           <Table columns={columns} rows={scopedSubjects as Row[]} loading={loading} searchKeys={["name", "code"]} />
         </Card>
       </div>
-      <Modal open={Boolean(editing)} title={`Edit subject${editing ? `: ${editing.code}` : ""}`} onClose={() => setEditing(null)}>
-          <form className="mt-1 space-y-3" onSubmit={editForm.handleSubmit(onEdit)}>
+      <Modal
+        open={Boolean(editing)}
+        title={`Edit subject${editing ? `: ${editing.code}` : ""}`}
+        busy={saving}
+        onClose={() => setEditing(null)}
+      >
+        <form className="mt-1 space-y-3" onSubmit={editForm.handleSubmit(onEdit)}>
+          <fieldset className="space-y-3" disabled={saving}>
             <Input label="Name" {...editForm.register("name")} error={editForm.formState.errors.name?.message} />
             <Input label="Code" {...editForm.register("code")} error={editForm.formState.errors.code?.message} />
             <Select
@@ -203,15 +202,16 @@ export default function AdminAcademicSubjectsPage() {
               ]}
               {...editForm.register("level")}
             />
-            <div className="flex gap-2">
-              <Button type="submit" loading={Boolean(editing && busyId === editing.id)}>
-                Save changes
-              </Button>
-              <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
-                Cancel
-              </Button>
-            </div>
-          </form>
+          </fieldset>
+          <div className="flex gap-2">
+            <Button type="submit" loading={saving}>
+              Save changes
+            </Button>
+            <Button type="button" variant="secondary" disabled={saving} onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+          </div>
+        </form>
       </Modal>
       <ConfirmDialog
         open={Boolean(confirmDelete)}
@@ -219,27 +219,31 @@ export default function AdminAcademicSubjectsPage() {
         description="This cannot be undone. If linked classes/assessments exist, deletion will be blocked."
         confirmLabel="Delete"
         danger
-        loading={Boolean(confirmDelete && busyId === confirmDelete.id)}
+        loading={deleting}
         onCancel={() => setConfirmDelete(null)}
         onConfirm={() => void remove()}
       />
-      <Modal open={createOpen} title="New subject" onClose={() => setCreateOpen(false)}>
+      <Modal open={createOpen} title="New subject" busy={creating} onClose={() => setCreateOpen(false)}>
         <form className="space-y-3" onSubmit={form.handleSubmit(onSubmit)}>
-          <Input label="Name" {...form.register("name")} error={form.formState.errors.name?.message} />
-          <Input label="Code" {...form.register("code")} error={form.formState.errors.code?.message} />
-          <Select
-            label="Level"
-            options={[
-              { value: "O_LEVEL", label: "O-Level / CBC" },
-              { value: "A_LEVEL", label: "A-Level" },
-            ]}
-            {...form.register("level")}
-          />
+          <fieldset className="space-y-3" disabled={creating}>
+            <Input label="Name" {...form.register("name")} error={form.formState.errors.name?.message} />
+            <Input label="Code" {...form.register("code")} error={form.formState.errors.code?.message} />
+            <Select
+              label="Level"
+              options={[
+                { value: "O_LEVEL", label: "O-Level / CBC" },
+                { value: "A_LEVEL", label: "A-Level" },
+              ]}
+              {...form.register("level")}
+            />
+          </fieldset>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => setCreateOpen(false)}>
+            <Button type="button" variant="secondary" disabled={creating} onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Create subject</Button>
+            <Button type="submit" loading={creating}>
+              Create subject
+            </Button>
           </div>
         </form>
       </Modal>

@@ -1,5 +1,9 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth";
+import {
+  cacheLayerMiddleware,
+  invalidateCacheOnMutationMiddleware,
+} from "../../middleware/cacheLayer.js";
 import { requireRoles } from "../../middleware/rbac";
 import { asyncHandler } from "../../utils/asyncHandler";
 import * as c from "./academic.controller";
@@ -10,6 +14,8 @@ const academicReaders = requireRoles("admin", "headteacher", "class_teacher", "s
 const teachingReaders = requireRoles("admin", "headteacher", "class_teacher", "subject_teacher");
 
 academicRouter.use(requireAuth);
+academicRouter.use(cacheLayerMiddleware);
+academicRouter.use(invalidateCacheOnMutationMiddleware);
 
 academicRouter.post("/years", academicLeads, asyncHandler(c.postYear));
 academicRouter.get("/years", academicReaders, asyncHandler(c.getYears));

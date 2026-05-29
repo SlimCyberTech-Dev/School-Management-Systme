@@ -11,7 +11,8 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { apiGet, apiPost, apiPut } from "@/lib/api";
+import { apiGet, apiPost, apiPut, getApiErrorMessage } from "@/lib/api";
+import { toast } from "@/lib/toast";
 
 type Level = GradingScaleLevel;
 type ScaleRow = {
@@ -47,20 +48,17 @@ export default function AdminGradingScalesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
   const [confirmSave, setConfirmSave] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmRecalculate, setConfirmRecalculate] = useState(false);
 
   const load = async (nextLevel: Level) => {
     setLoading(true);
-    setErr(null);
     try {
       const data = await apiGet<ScaleRow[]>(`/academic/grading-scales?level=${encodeURIComponent(nextLevel)}`);
       setRows(data.length ? data : rowsFromDefaults(nextLevel));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to load grading scales");
+      toast.error(getApiErrorMessage(e), "Could not load grading scales");
     } finally {
       setLoading(false);
     }
@@ -100,10 +98,9 @@ export default function AdminGradingScalesPage() {
   };
 
   const persist = async () => {
-    setErr(null);
-    setOk(null);
     if (validationError) {
-      setErr(validationError);
+      toast.error(validationError, "Fix grading scale");
+      setConfirmSave(false);
       return;
     }
     setSaving(true);
@@ -121,9 +118,12 @@ export default function AdminGradingScalesPage() {
         })),
       });
       setRows(saved.length ? saved : rows);
-      setOk("Grading scale saved.");
+      toast.success(
+        `${level === "A_LEVEL" ? "A-Level" : "O-Level"} grade bands are saved and will apply to new marks.`,
+        "Grading scale saved",
+      );
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to save grading scale");
+      toast.error(getApiErrorMessage(e), "Could not save grading scale");
     } finally {
       setSaving(false);
       setConfirmSave(false);
@@ -132,14 +132,11 @@ export default function AdminGradingScalesPage() {
 
   const resetToDefaults = () => {
     setRows(rowsFromDefaults(level));
-    setOk(null);
-    setErr(null);
+    toast.info("Default grade bands restored. Click Save to apply them.", "Defaults loaded");
     setConfirmReset(false);
   };
 
   const recalculateStoredGrades = async () => {
-    setErr(null);
-    setOk(null);
     setRecalculating(true);
     try {
       const result = await apiPost<{
@@ -147,11 +144,12 @@ export default function AdminGradingScalesPage() {
         updatedDivisions: number;
         scanned: number;
       }>("/academic/grading-scales/recalculate", {});
-      setOk(
-        `Recalculated ${result.updatedScores} A-Level score row(s) and ${result.updatedDivisions} division summary row(s).`,
+      toast.success(
+        `Updated ${result.updatedScores} score row(s) and ${result.updatedDivisions} division summary row(s).`,
+        "Recalculation complete",
       );
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to recalculate stored grades");
+      toast.error(getApiErrorMessage(e), "Could not recalculate grades");
     } finally {
       setRecalculating(false);
       setConfirmRecalculate(false);
@@ -163,9 +161,6 @@ export default function AdminGradingScalesPage() {
       title="Grading scales"
       description="Admin-defined score ranges, grades, and points used when teachers save A-Level marks"
     >
-      {ok ? <Alert tone="success">{ok}</Alert> : null}
-      {err ? <Alert tone="error">{err}</Alert> : null}
-
       <Card title="Scale settings">
         <p className="mb-3 text-sm text-muted-foreground">
           Subject teachers enter raw scores. The system maps each score to a grade and UNEB points using this table.

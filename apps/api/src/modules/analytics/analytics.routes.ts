@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth";
+import { cacheLayerMiddleware } from "../../middleware/cacheLayer.js";
 import { requireFeature } from "../../middleware/requireFeature.js";
 import { requireRoles } from "../../middleware/rbac";
 import { asyncHandler } from "../../utils/asyncHandler";
@@ -10,6 +11,7 @@ const analyticsReaders = requireRoles("admin", "headteacher", "bursar");
 
 analyticsRouter.use(requireAuth);
 analyticsRouter.use(requireFeature("analytics"));
+analyticsRouter.use(cacheLayerMiddleware);
 analyticsRouter.get("/dashboard", analyticsReaders, asyncHandler(c.dashboard));
 analyticsRouter.get("/class-performance", analyticsReaders, asyncHandler(c.classPerformance));
 analyticsRouter.get("/report-pipeline", analyticsReaders, asyncHandler(c.reportPipeline));

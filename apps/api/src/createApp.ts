@@ -4,7 +4,6 @@ import express, { type Express } from "express";
 import path from "path";
 import { loadEnv, getAllowedOrigins } from "./config/env.js";
 import { anomalyDetectorMiddleware } from "./middleware/anomalyDetector.js";
-import { cacheLayerMiddleware } from "./middleware/cacheLayer.js";
 import { globalInputSanitiser } from "./middleware/inputSanitiser.js";
 import { ipBlocklistMiddleware } from "./middleware/ipBlocklist.js";
 import { requestLoggerMiddleware } from "./middleware/requestLogger.js";
@@ -73,8 +72,6 @@ export function createApp(): Express {
   app.use(requestLoggerMiddleware);
   app.use(anomalyDetectorMiddleware);
   app.use(globalInputSanitiser);
-  app.use(cacheLayerMiddleware);
-
   app.use("/uploads", express.static(path.resolve(process.cwd(), uploadRoot)));
 
   app.get("/api/health", (_req, res) => {

@@ -1,5 +1,9 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth";
+import {
+  cacheLayerMiddleware,
+  invalidateCacheOnMutationMiddleware,
+} from "../../middleware/cacheLayer.js";
 import { requireFeature } from "../../middleware/requireFeature.js";
 import { requireRoles } from "../../middleware/rbac";
 import { feePaymentLimiter } from "../../middleware/rateLimiter";
@@ -16,6 +20,8 @@ export const feesRouter = Router();
 
 feesRouter.use(requireAuth);
 feesRouter.use(requireFeature("fees"));
+feesRouter.use(cacheLayerMiddleware);
+feesRouter.use(invalidateCacheOnMutationMiddleware);
 
 feesRouter.post("/structure", admin, asyncHandler(c.postStructure));
 feesRouter.post("/structure/copy", admin, asyncHandler(c.postStructureCopy));

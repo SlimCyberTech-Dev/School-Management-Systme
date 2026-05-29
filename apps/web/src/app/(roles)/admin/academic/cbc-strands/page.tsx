@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Subject } from "@uganda-cbc-sms/shared";
 import { PageWrapper } from "@/components/layout/PageWrapper";
-import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -12,7 +11,9 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Select } from "@/components/ui/Select";
 import { Table, type Column } from "@/components/ui/Table";
-import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import { useAcademicMutation } from "@/hooks/useAcademicMutation";
+import { apiDelete, apiGet, apiPost, apiPut, getApiErrorMessage } from "@/lib/api";
+import { toast } from "@/lib/toast";
 
 type SubStrand = { id: string; name: string; code: string; description: string | null };
 type StrandRow = {
@@ -33,17 +34,16 @@ const ACTION_DANGER_BTN =
   "inline-flex items-center rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs font-medium text-red-700 transition-ui hover:bg-red-500/20 dark:text-red-300 disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function AdminAcademicCbcStrandsPage() {
+  const strandMut = useAcademicMutation();
+  const subMut = useAcademicMutation();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [subjectId, setSubjectId] = useState("");
   const [rows, setRows] = useState<StrandRow[]>([]);
   const [selected, setSelected] = useState<StrandDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<StrandRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<StrandRow | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", code: "", description: "", subjectId: "" });
   const [subForm, setSubForm] = useState({ name: "", code: "", description: "" });
   const [subEditing, setSubEditing] = useState<SubStrand | null>(null);
@@ -61,7 +61,6 @@ export default function AdminAcademicCbcStrandsPage() {
   };
 
   const load = async () => {
-    setErr(null);
     try {
       const s = await apiGet<Subject[]>("/academic/subjects");
       setSubjects(s);
@@ -71,7 +70,7 @@ export default function AdminAcademicCbcStrandsPage() {
       }
       await loadStrands(subjectId);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to load");
+      toast.error(getApiErrorMessage(e), "Could not load CBC strands");
     } finally {
       setLoading(false);
     }
@@ -83,7 +82,9 @@ export default function AdminAcademicCbcStrandsPage() {
   }, []);
 
   useEffect(() => {
-    void loadStrands(subjectId).catch((e) => setErr(e instanceof Error ? e.message : "Failed to load strands"));
+    void loadStrands(subjectId).catch((e) =>
+      toast.error(getApiErrorMessage(e), "Could not load strands"),
+    );
   }, [subjectId]);
 
   const loadDetails = async (id: string) => {
@@ -109,83 +110,78 @@ export default function AdminAcademicCbcStrandsPage() {
   };
 
   const saveStrand = async () => {
-    setErr(null);
-    setOk(null);
     const payload = {
       name: form.name.trim(),
       code: form.code.trim().toUpperCase(),
       description: form.description.trim() || null,
       subjectId: form.subjectId,
     };
-    try {
-      if (editing) {
-        await apiPut(`/academic/cbc-strands/${encodeURIComponent(editing.id)}`, payload);
-        setOk("Strand updated.");
-      } else {
-        await apiPost("/academic/cbc-strands", payload);
-        setOk("Strand created.");
-      }
-      setOpen(false);
-      await loadStrands(subjectId);
-      if (selected) await loadDetails(selected.id);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to save strand");
-    }
+    const result = editing
+      ? await strandMut.runSave(
+          () => apiPut(`/academic/cbc-strands/${encodeURIComponent(editing.id)}`, payload),
+          { title: "Strand updated", message: `${payload.code} has been saved.` },
+        )
+      : await strandMut.runCreate(
+          () => apiPost("/academic/cbc-strands", payload),
+          { title: "Strand created", message: `${payload.code} is ready for sub-strands.` },
+        );
+    if (!result) return;
+    setOpen(false);
+    await loadStrands(subjectId);
+    if (selected) await loadDetails(selected.id);
   };
 
   const deleteStrand = async () => {
     if (!confirmDelete) return;
-    setBusyId(confirmDelete.id);
-    setErr(null);
-    try {
-      await apiDelete(`/academic/cbc-strands/${encodeURIComponent(confirmDelete.id)}`);
-      setConfirmDelete(null);
-      if (selected?.id === confirmDelete.id) setSelected(null);
-      await loadStrands(subjectId);
-      setOk("Strand deleted.");
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to delete strand");
-    } finally {
-      setBusyId(null);
-    }
+    const ok = await strandMut.runDelete(
+      () => apiDelete(`/academic/cbc-strands/${encodeURIComponent(confirmDelete.id)}`),
+      {
+        title: "Strand deleted",
+        message: `${confirmDelete.code} was removed.`,
+      },
+    );
+    if (!ok) return;
+    setConfirmDelete(null);
+    if (selected?.id === confirmDelete.id) setSelected(null);
+    await loadStrands(subjectId);
   };
 
   const saveSubStrand = async () => {
     if (!selected) return;
-    setErr(null);
     const payload = {
       name: subForm.name.trim(),
       code: subForm.code.trim().toUpperCase(),
       description: subForm.description.trim() || null,
     };
-    try {
-      if (subEditing) {
-        await apiPut(`/academic/cbc-strands/sub-strands/${encodeURIComponent(subEditing.id)}`, payload);
-        setOk("Sub-strand updated.");
-      } else {
-        await apiPost(`/academic/cbc-strands/${encodeURIComponent(selected.id)}/sub-strands`, payload);
-        setOk("Sub-strand created.");
-      }
-      setSubForm({ name: "", code: "", description: "" });
-      setSubEditing(null);
-      await loadDetails(selected.id);
-      await loadStrands(subjectId);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to save sub-strand");
-    }
+    const result = subEditing
+      ? await subMut.runSave(
+          () => apiPut(`/academic/cbc-strands/sub-strands/${encodeURIComponent(subEditing.id)}`, payload),
+          { title: "Sub-strand updated", message: `${payload.code} has been saved.` },
+        )
+      : await subMut.runCreate(
+          () => apiPost(`/academic/cbc-strands/${encodeURIComponent(selected.id)}/sub-strands`, payload),
+          { title: "Sub-strand created", message: `${payload.code} was added to ${selected.code}.` },
+        );
+    if (!result) return;
+    setSubForm({ name: "", code: "", description: "" });
+    setSubEditing(null);
+    await loadDetails(selected.id);
+    await loadStrands(subjectId);
   };
 
   const deleteSubStrand = async () => {
     if (!confirmDeleteSub || !selected) return;
-    try {
-      await apiDelete(`/academic/cbc-strands/sub-strands/${encodeURIComponent(confirmDeleteSub.id)}`);
-      setConfirmDeleteSub(null);
-      await loadDetails(selected.id);
-      await loadStrands(subjectId);
-      setOk("Sub-strand deleted.");
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to delete sub-strand");
-    }
+    const ok = await subMut.runDelete(
+      () => apiDelete(`/academic/cbc-strands/sub-strands/${encodeURIComponent(confirmDeleteSub.id)}`),
+      {
+        title: "Sub-strand deleted",
+        message: `${confirmDeleteSub.code} was removed.`,
+      },
+    );
+    if (!ok) return;
+    setConfirmDeleteSub(null);
+    await loadDetails(selected.id);
+    await loadStrands(subjectId);
   };
 
   const columns: Column<Row>[] = [
@@ -204,7 +200,7 @@ export default function AdminAcademicCbcStrandsPage() {
           <button type="button" className={ACTION_BTN} onClick={() => openEdit(r)}>
             Edit
           </button>
-          <button type="button" className={ACTION_DANGER_BTN} disabled={busyId === r.id} onClick={() => setConfirmDelete(r)}>
+          <button type="button" className={ACTION_DANGER_BTN} disabled={strandMut.deleting} onClick={() => setConfirmDelete(r)}>
             Delete
           </button>
         </div>
@@ -218,10 +214,6 @@ export default function AdminAcademicCbcStrandsPage() {
         <Link href="/admin/academic" className="text-sm font-medium text-brand hover:underline">
           ← Back to Academic
         </Link>
-      </div>
-      <div className="mb-4 space-y-2">
-        {ok ? <Alert tone="success">{ok}</Alert> : null}
-        {err ? <Alert tone="error">{err}</Alert> : null}
       </div>
       <Card title="Filters">
         <div className="grid gap-3 md:grid-cols-2">
@@ -278,6 +270,7 @@ export default function AdminAcademicCbcStrandsPage() {
 
           <div className="grid gap-3 rounded-md border border-border p-3">
             <p className="text-sm font-medium text-foreground">{subEditing ? "Edit sub-strand" : "Add sub-strand"}</p>
+            <fieldset className="grid gap-3" disabled={subMut.creating || subMut.saving}>
             <Input label="Name" value={subForm.name} onChange={(e) => setSubForm((p) => ({ ...p, name: e.target.value }))} />
             <Input
               label="Code"
@@ -293,11 +286,13 @@ export default function AdminAcademicCbcStrandsPage() {
                 onChange={(e) => setSubForm((p) => ({ ...p, description: e.target.value }))}
               />
             </div>
+            </fieldset>
             <div className="flex justify-end gap-2">
               {subEditing ? (
                 <Button
                   type="button"
                   variant="secondary"
+                  disabled={subMut.creating || subMut.saving}
                   onClick={() => {
                     setSubEditing(null);
                     setSubForm({ name: "", code: "", description: "" });
@@ -306,7 +301,11 @@ export default function AdminAcademicCbcStrandsPage() {
                   Cancel edit
                 </Button>
               ) : null}
-              <Button type="button" onClick={() => void saveSubStrand()}>
+              <Button
+                type="button"
+                loading={subMut.creating || subMut.saving}
+                onClick={() => void saveSubStrand()}
+              >
                 {subEditing ? "Save sub-strand" : "Add sub-strand"}
               </Button>
             </div>
@@ -314,8 +313,13 @@ export default function AdminAcademicCbcStrandsPage() {
         </Card>
       ) : null}
 
-      <Modal open={open} title={editing ? "Edit strand" : "New strand"} onClose={() => setOpen(false)}>
-        <div className="space-y-3">
+      <Modal
+        open={open}
+        title={editing ? "Edit strand" : "New strand"}
+        busy={strandMut.creating || strandMut.saving}
+        onClose={() => setOpen(false)}
+      >
+        <fieldset className="space-y-3" disabled={strandMut.creating || strandMut.saving}>
           <Input label="Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
           <Input label="Code" value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value.toUpperCase() }))} />
           <Select label="Subject" options={subjectOptions} value={form.subjectId} onChange={(e) => setForm((p) => ({ ...p, subjectId: e.target.value }))} />
@@ -328,12 +332,12 @@ export default function AdminAcademicCbcStrandsPage() {
               onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
             />
           </div>
-        </div>
+        </fieldset>
         <div className="mt-4 flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+          <Button type="button" variant="secondary" disabled={strandMut.creating || strandMut.saving} onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button type="button" onClick={() => void saveStrand()}>
+          <Button type="button" loading={strandMut.creating || strandMut.saving} onClick={() => void saveStrand()}>
             {editing ? "Save changes" : "Create strand"}
           </Button>
         </div>
@@ -345,7 +349,7 @@ export default function AdminAcademicCbcStrandsPage() {
         description="Deleting a strand will also remove all linked sub-strands."
         confirmLabel="Delete"
         danger
-        loading={Boolean(confirmDelete && busyId === confirmDelete.id)}
+        loading={strandMut.deleting}
         onCancel={() => setConfirmDelete(null)}
         onConfirm={() => void deleteStrand()}
       />
@@ -356,6 +360,7 @@ export default function AdminAcademicCbcStrandsPage() {
         description="This action cannot be undone."
         confirmLabel="Delete"
         danger
+        loading={subMut.deleting}
         onCancel={() => setConfirmDeleteSub(null)}
         onConfirm={() => void deleteSubStrand()}
       />

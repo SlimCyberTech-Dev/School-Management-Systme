@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PageWrapper } from "@/components/layout/PageWrapper";
-import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -12,7 +11,9 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Select } from "@/components/ui/Select";
 import { Table, type Column } from "@/components/ui/Table";
-import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import { useAcademicMutation } from "@/hooks/useAcademicMutation";
+import { apiDelete, apiGet, apiPost, apiPut, getApiErrorMessage } from "@/lib/api";
+import { toast } from "@/lib/toast";
 
 type Subject = { id: string; name: string; code: string; level: "O_LEVEL" | "A_LEVEL" };
 type Combination = {
@@ -31,12 +32,11 @@ const ACTION_DANGER_BTN =
   "inline-flex items-center rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs font-medium text-red-700 transition-ui hover:bg-red-500/20 dark:text-red-300 disabled:cursor-not-allowed disabled:opacity-50";
 
 export default function AdminAcademicCombinationsPage() {
+  const { creating, saving, deleting, runCreate, runSave, runDelete } = useAcademicMutation();
+  const { saving: linking, runSave: runLink } = useAcademicMutation();
   const [rows, setRows] = useState<Combination[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Combination | null>(null);
   const [selected, setSelected] = useState<Combination | null>(null);
@@ -54,7 +54,7 @@ export default function AdminAcademicCombinationsPage() {
         setSelected(fresh);
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to load");
+      toast.error(getApiErrorMessage(e), "Could not load combinations");
     } finally {
       setLoading(false);
     }
@@ -88,74 +88,79 @@ export default function AdminAcademicCombinationsPage() {
   };
 
   const save = async () => {
-    setErr(null);
-    setOk(null);
     const payload = {
       name: form.name.trim(),
       level: form.level as "O_LEVEL" | "A_LEVEL",
       description: form.description.trim() || null,
       subjects: editing?.subjects.map((s) => s.id) ?? [],
     };
-    try {
-      if (editing) {
-        await apiPut(`/academic/combinations/${encodeURIComponent(editing.id)}`, payload);
-        setOk("Combination updated.");
-      } else {
-        await apiPost("/academic/combinations", payload);
-        setOk("Combination created.");
-      }
-      setOpen(false);
-      await load();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to save");
-    }
+    const name = payload.name;
+    const result = editing
+      ? await runSave(
+          () => apiPut<Combination>(`/academic/combinations/${encodeURIComponent(editing.id)}`, payload),
+          { title: "Combination updated", message: `${name} has been saved.` },
+        )
+      : await runCreate(
+          () => apiPost<Combination>("/academic/combinations", payload),
+          { title: "Combination created", message: `${name} is ready. Add subjects from the list below.` },
+        );
+    if (!result) return;
+    setOpen(false);
+    await load();
   };
 
   const remove = async () => {
     if (!confirmDelete) return;
-    setBusyId(confirmDelete.id);
-    setErr(null);
-    setOk(null);
-    try {
-      await apiDelete(`/academic/combinations/${encodeURIComponent(confirmDelete.id)}`);
-      setConfirmDelete(null);
-      if (selected?.id === confirmDelete.id) setSelected(null);
-      await load();
-      setOk("Combination deleted.");
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to delete");
-    } finally {
-      setBusyId(null);
-    }
+    const ok = await runDelete(
+      () => apiDelete(`/academic/combinations/${encodeURIComponent(confirmDelete.id)}`),
+      {
+        title: "Combination deleted",
+        message: `${confirmDelete.name} was removed.`,
+      },
+    );
+    if (!ok) return;
+    setConfirmDelete(null);
+    if (selected?.id === confirmDelete.id) setSelected(null);
+    await load();
   };
 
   const addSubject = async () => {
     if (!selected || !newSubjectId) return;
-    setErr(null);
-    try {
-      const next = await apiPost<Combination>(`/academic/combinations/${encodeURIComponent(selected.id)}/subjects`, {
-        subjectId: newSubjectId,
-      });
-      setSelected(next);
-      setRows((prev) => prev.map((x) => (x.id === next.id ? next : x)));
-      setNewSubjectId("");
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to add subject");
-    }
+    const subject = subjects.find((s) => s.id === newSubjectId);
+    const linked = await runLink(
+      () =>
+        apiPost<Combination>(`/academic/combinations/${encodeURIComponent(selected.id)}/subjects`, {
+          subjectId: newSubjectId,
+        }),
+      {
+        title: "Subject linked",
+        message: subject ? `${subject.code} was added to ${selected.code}.` : "Subject was added to this combination.",
+      },
+      "Could not add subject",
+    );
+    if (!linked) return;
+    setSelected(linked);
+    setRows((prev) => prev.map((x) => (x.id === linked.id ? linked : x)));
+    setNewSubjectId("");
   };
 
   const removeSubject = async (subjectId: string) => {
     if (!selected) return;
-    setErr(null);
-    try {
-      const next = await apiDelete<Combination>(
-        `/academic/combinations/${encodeURIComponent(selected.id)}/subjects/${encodeURIComponent(subjectId)}`,
-      );
-      setSelected(next);
-      setRows((prev) => prev.map((x) => (x.id === next.id ? next : x)));
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Failed to remove subject");
-    }
+    const subject = selected.subjects.find((s) => s.id === subjectId);
+    const next = await runLink(
+      () =>
+        apiDelete<Combination>(
+          `/academic/combinations/${encodeURIComponent(selected.id)}/subjects/${encodeURIComponent(subjectId)}`,
+        ),
+      {
+        title: "Subject removed",
+        message: subject ? `${subject.code} was removed from ${selected.code}.` : "Subject was unlinked.",
+      },
+      "Could not remove subject",
+    );
+    if (!next) return;
+    setSelected(next);
+    setRows((prev) => prev.map((x) => (x.id === next.id ? next : x)));
   };
 
   const columns: Column<Row>[] = [
@@ -174,7 +179,7 @@ export default function AdminAcademicCombinationsPage() {
           <button type="button" className={ACTION_BTN} onClick={() => openEdit(r)}>
             Edit
           </button>
-          <button type="button" className={ACTION_DANGER_BTN} disabled={busyId === r.id} onClick={() => setConfirmDelete(r)}>
+          <button type="button" className={ACTION_DANGER_BTN} disabled={deleting} onClick={() => setConfirmDelete(r)}>
             Delete
           </button>
         </div>
@@ -188,10 +193,6 @@ export default function AdminAcademicCombinationsPage() {
         <Link href="/admin/academic" className="text-sm font-medium text-brand hover:underline">
           ← Back to Academic
         </Link>
-      </div>
-      <div className="mb-4 space-y-2">
-        {ok ? <Alert tone="success">{ok}</Alert> : null}
-        {err ? <Alert tone="error">{err}</Alert> : null}
       </div>
       <Card title={`Combinations (${rows.length})`}>
         <div className="mb-3 flex justify-end">
@@ -214,7 +215,7 @@ export default function AdminAcademicCombinationsPage() {
                 onChange={(e) => setNewSubjectId(e.target.value)}
               />
             </div>
-            <Button type="button" disabled={!newSubjectId} onClick={() => void addSubject()}>
+            <Button type="button" loading={linking} disabled={!newSubjectId || linking} onClick={() => void addSubject()}>
               Add
             </Button>
           </div>
@@ -235,8 +236,13 @@ export default function AdminAcademicCombinationsPage() {
         </Card>
       ) : null}
 
-      <Modal open={open} title={editing ? "Edit combination" : "New combination"} onClose={() => setOpen(false)}>
-        <div className="space-y-3">
+      <Modal
+        open={open}
+        title={editing ? "Edit combination" : "New combination"}
+        busy={creating || saving}
+        onClose={() => setOpen(false)}
+      >
+        <fieldset className="space-y-3" disabled={creating || saving}>
           <Input label="Name" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
           {!editing ? (
             <p className="text-xs text-muted-foreground">
@@ -261,12 +267,12 @@ export default function AdminAcademicCombinationsPage() {
               onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
             />
           </div>
-        </div>
+        </fieldset>
         <div className="mt-4 flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+          <Button type="button" variant="secondary" disabled={creating || saving} onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button type="button" onClick={() => void save()}>
+          <Button type="button" loading={creating || saving} onClick={() => void save()}>
             {editing ? "Save changes" : "Create combination"}
           </Button>
         </div>
@@ -278,7 +284,7 @@ export default function AdminAcademicCombinationsPage() {
         description="This removes the combination and its subject links."
         confirmLabel="Delete"
         danger
-        loading={Boolean(confirmDelete && busyId === confirmDelete.id)}
+        loading={deleting}
         onCancel={() => setConfirmDelete(null)}
         onConfirm={() => void remove()}
       />
