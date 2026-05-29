@@ -17,6 +17,8 @@ import {
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { apiPost, getApiErrorMessage } from "@/lib/api";
 import { sessionInactivityMinutes } from "@/lib/sessionConfig";
+import { getTenantSlugFromHostname } from "@/lib/tenantHost";
+import { redirectToSchoolTenant } from "@/lib/tenantRedirect";
 import type { AuthUser, SessionInfo } from "@/store/authStore";
 import { useAuthStore } from "@/store/authStore";
 
@@ -207,7 +209,21 @@ function LoginPageContent() {
         password: loginState.password,
       });
       loginToStore(data.user, data.token, data.session, data.tenant);
-      router.replace(dashboardForRole(data.user.role));
+      const dash = dashboardForRole(data.user.role);
+      const tenantSlug = data.tenant?.slug?.toLowerCase();
+      const hostSlug =
+        typeof window !== "undefined"
+          ? getTenantSlugFromHostname(window.location.hostname)?.toLowerCase() ?? null
+          : null;
+      if (tenantSlug && hostSlug !== tenantSlug) {
+        redirectToSchoolTenant(tenantSlug, dash);
+        return;
+      }
+      if (tenantSlug && !hostSlug) {
+        redirectToSchoolTenant(tenantSlug, dash);
+        return;
+      }
+      window.location.assign(dash);
     } catch (error) {
       setLoginError(getApiErrorMessage(error));
       triggerShake("login");

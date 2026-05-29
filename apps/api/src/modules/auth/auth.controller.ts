@@ -39,6 +39,13 @@ export async function login(req: Request, res: Response): Promise<void> {
     });
     return;
   }
+  const headerSlug = req.headers["x-tenant-slug"];
+  const slugFromHeader =
+    typeof headerSlug === "string" && headerSlug.trim()
+      ? headerSlug.trim().toLowerCase()
+      : null;
+  const routingSlug = slugFromHeader ?? req.tenant.slug;
+
   const result = await authService.login(
     body,
     {
@@ -47,6 +54,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       deviceInfo: req.headers["sec-ch-ua-platform"]?.toString() ?? null,
     },
     req.tenant.id,
+    routingSlug,
   );
   res.json({
     success: true,

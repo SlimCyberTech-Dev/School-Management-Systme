@@ -9,6 +9,8 @@ export interface JwtPayload {
   sid: string;
   jti: string;
   tid: string;
+  /** Tenant subdomain slug (for host routing). */
+  tsl: string;
   exp: number;
   iat: number;
 }
@@ -26,21 +28,26 @@ export function signToken(
   role: Role,
   sessionId: string,
   tenantId: string,
+  tenantSlug: string,
 ): string {
   const env = loadEnv();
   const jti = crypto.randomUUID();
-  return jwt.sign({ role, sid: sessionId, jti, tid: tenantId }, env.JWT_PRIVATE_KEY, {
-    subject: userId,
-    algorithm: "RS256",
-    expiresIn: env.JWT_EXPIRY as jwt.SignOptions["expiresIn"],
-  });
+  return jwt.sign(
+    { role, sid: sessionId, jti, tid: tenantId, tsl: tenantSlug },
+    env.JWT_PRIVATE_KEY,
+    {
+      subject: userId,
+      algorithm: "RS256",
+      expiresIn: env.JWT_EXPIRY as jwt.SignOptions["expiresIn"],
+    },
+  );
 }
 
 export function verifyToken(token: string): JwtPayload {
   const env = loadEnv();
   const decoded = jwt.verify(token, env.JWT_PUBLIC_KEY, {
     algorithms: ["RS256"],
-  }) as jwt.JwtPayload & { role: Role; sid?: string; jti?: string; tid?: string };
+  }) as jwt.JwtPayload & { role: Role; sid?: string; jti?: string; tid?: string; tsl?: string };
 
   const sub = decoded.sub;
   if (
@@ -49,6 +56,7 @@ export function verifyToken(token: string): JwtPayload {
     !decoded.sid ||
     !decoded.jti ||
     !decoded.tid ||
+    !decoded.tsl ||
     !decoded.exp ||
     !decoded.iat
   ) {
@@ -60,6 +68,7 @@ export function verifyToken(token: string): JwtPayload {
     sid: decoded.sid,
     jti: decoded.jti,
     tid: decoded.tid,
+    tsl: decoded.tsl,
     exp: decoded.exp,
     iat: decoded.iat,
   };

@@ -10,6 +10,12 @@ try {
 const nextConfig = {
   transpilePackages: ["@uganda-cbc-sms/shared"],
   reactStrictMode: true,
+  allowedDevOrigins: [
+    "localhost:3000",
+    "*.localhost:3000",
+    "default.localhost:3000",
+    "platform.localhost:3000",
+  ],
   images: {
     remotePatterns: [
       {

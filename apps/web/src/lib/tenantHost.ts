@@ -1,5 +1,13 @@
+import { getSmsTokenFromCookie } from "@/lib/cookies";
+import { decodeJwtPayload } from "@/lib/jwtPayload";
+
 /** Subdomain slug for the current school tenant, or null on bare localhost. */
 export function getTenantSlugFromHostname(hostname: string): string | null {
+  return tenantSlugFromHost(hostname);
+}
+
+/** Host-only slug resolver (middleware-safe, no `window`). */
+export function tenantSlugFromHost(hostname: string): string | null {
   const host = hostname.split(":")[0]!.toLowerCase();
   if (host === "localhost" || host === "127.0.0.1") {
     return null;
@@ -25,7 +33,36 @@ export function getTenantSlugFromHostname(hostname: string): string | null {
 }
 
 export function isPlatformHost(hostname: string): boolean {
-  return getTenantSlugFromHostname(hostname) === "platform";
+  return tenantSlugFromHost(hostname) === "platform";
+}
+
+/** Tenant slug for API calls (Host header is not sent to the API origin in the browser). */
+export function getApiTenantSlug(token?: string | null): string {
+  if (typeof window !== "undefined") {
+    const fromHost = getTenantSlugFromHostname(window.location.hostname);
+    if (fromHost && fromHost !== "platform") return fromHost;
+  }
+  const raw = token ?? getSmsTokenFromCookie();
+  if (raw) {
+    const payload = decodeJwtPayload(raw);
+    const tsl = payload?.tsl;
+    if (typeof tsl === "string" && tsl.trim()) return tsl.trim().toLowerCase();
+  }
+  return "default";
+}
+
+/** Dev: build origin for a school subdomain (*.localhost). */
+export function schoolOriginForSlug(
+  slug: string,
+  request: { protocol: string; port?: string },
+): string {
+  const rawPort = request.port?.replace(/^:/, "") ?? "";
+  const portSuffix = rawPort ? `:${rawPort}` : "";
+  return `${request.protocol}//${slug.toLowerCase()}.localhost${portSuffix}`;
+}
+
+export function isPublicSchoolAuthPath(pathname: string): boolean {
+  return pathname === "/login" || pathname.startsWith("/login/") || pathname.startsWith("/auth/");
 }
 
 export function schoolLoginUrl(slug: string): string {

@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { createHash } from "crypto";
-import { query } from "../config/db.js";
+import { query, tenantContext } from "../config/db.js";
 import type { Role } from "@uganda-cbc-sms/shared";
 import { verifyToken, type JwtPayload } from "../utils/jwt.js";
 import { isTokenBlacklisted } from "../utils/tokenBlacklist.js";
@@ -16,8 +16,8 @@ async function resolveRole(payload: JwtPayload): Promise<Role> {
   if (age < ROLE_RECHECK_SECONDS) return payload.role;
 
   const { rows } = await query<{ role: Role }>(
-    `SELECT role FROM users WHERE id = $1 AND deleted_at IS NULL`,
-    [payload.sub],
+    `SELECT role FROM users WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+    [payload.sub, payload.tid],
   );
   if (!rows[0]) throw new Error("User not found");
   return rows[0].role;
@@ -73,14 +73,22 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    const role = await resolveRole(payload);
+    const role = await tenantContext.run(payload.tid, async () => resolveRole(payload));
     req.user = {
       id: payload.sub,
       role,
       sessionId: payload.sid,
       tenantId: payload.tid,
+      tenantSlug: payload.tsl,
     };
-    next();
+    if (req.tenant) {
+      req.tenant = {
+        ...req.tenant,
+        id: payload.tid,
+        slug: payload.tsl,
+      };
+    }
+    tenantContext.run(payload.tid, () => next());
   } catch {
     res.status(401).json({
       success: false,

@@ -13,6 +13,7 @@ import { pool, query, withTransaction } from "../../config/db";
 import { formatDateOnly } from "../../utils/dateOnly";
 import { HttpError } from "../../utils/httpError";
 import { nextSequence, padNumber } from "../../utils/sequences";
+import { requireTenantScope } from "../../utils/tenantScope.js";
 
 function mapStudent(r: Record<string, unknown>) {
   const enrolled =
@@ -368,12 +369,14 @@ export async function browseStudents(
   const offset = (page - 1) * limit;
 
   const conditions: string[] = [];
-  const filterParams: unknown[] = [];
+  const filterParams: unknown[] = [requireTenantScope()];
 
   const push = (sql: string, ...vals: unknown[]) => {
     conditions.push(sql);
     filterParams.push(...vals);
   };
+
+  push("s.tenant_id = $1");
 
   if (role === "class_teacher" || role === "subject_teacher") {
     const p = filterParams.length + 1;

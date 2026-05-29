@@ -3,9 +3,9 @@
 import { ThemeProvider } from "next-themes";
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthBootGate } from "@/components/auth/AuthBootGate";
 import { SessionIdleGuard } from "@/components/auth/SessionIdleGuard";
 import { ToastHost } from "@/components/ui/ToastHost";
-import { useAuthStore } from "@/store/authStore";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -21,10 +21,6 @@ function makeQueryClient() {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(makeQueryClient);
-  const hydrate = useAuthStore((s) => s.hydrate);
-  useEffect(() => {
-    void hydrate();
-  }, [hydrate]);
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider
@@ -33,7 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         storageKey="uganda-cbc-sms-theme"
       >
-        {children}
+        <AuthBootGate>{children}</AuthBootGate>
         <SessionIdleGuard />
         <ToastHost />
       </ThemeProvider>

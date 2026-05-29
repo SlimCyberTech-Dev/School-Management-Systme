@@ -2,7 +2,7 @@ import { signToken, verifyToken } from "../../src/utils/jwt.js";
 
 describe("JWT RS256", () => {
   it("signs and verifies tokens with jti and session id", () => {
-    const token = signToken("user-uuid", "admin", "session-uuid", "tenant-uuid");
+    const token = signToken("user-uuid", "admin", "session-uuid", "tenant-uuid", "default");
     const payload = verifyToken(token);
     expect(payload.sub).toBe("user-uuid");
     expect(payload.role).toBe("admin");
@@ -15,7 +15,7 @@ describe("JWT RS256", () => {
   });
 
   it("rejects tampered tokens", () => {
-    const token = signToken("user-uuid", "subject_teacher", "session-uuid", "tenant-uuid");
+    const token = signToken("user-uuid", "subject_teacher", "session-uuid", "tenant-uuid", "default");
     const bad = `${token.slice(0, -4)}xxxx`;
     expect(() => verifyToken(bad)).toThrow();
   });

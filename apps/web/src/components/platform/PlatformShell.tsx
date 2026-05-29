@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Building2, LogOut } from "lucide-react";
 import { PLATFORM_TOKEN_KEY, setPlatformToken } from "@/lib/platformApi";
+import { clearPlatformSessionCookie } from "@/lib/platformSession";
 
 const NAV = [{ href: "/platform/tenants", label: "Schools", icon: Building2 }] as const;
 
@@ -23,7 +24,7 @@ export function PlatformShell({
 
   function signOut() {
     setPlatformToken(null);
-    document.cookie = `${PLATFORM_TOKEN_KEY}=; path=/; max-age=0`;
+    clearPlatformSessionCookie();
     router.push("/platform/login");
   }
 

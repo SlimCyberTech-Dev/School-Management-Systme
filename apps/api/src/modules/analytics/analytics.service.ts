@@ -1,20 +1,28 @@
 import { query } from "../../config/db";
 
-export async function dashboardKpis() {
+export async function dashboardKpis(tenantId: string) {
   try {
     const [st, inv, cbc, al] = await Promise.all([
-      query(`SELECT COUNT(*)::text AS c FROM students WHERE status = 'active'`),
       query(
-        `SELECT COALESCE(SUM(amount_paid),0)::text AS paid, COALESCE(SUM(total_amount),0)::text AS due FROM fee_invoices`,
+        `SELECT COUNT(*)::text AS c FROM students WHERE tenant_id = $1 AND status = 'active'`,
+        [tenantId],
+      ),
+      query(
+        `SELECT COALESCE(SUM(amount_paid),0)::text AS paid, COALESCE(SUM(total_amount),0)::text AS due
+         FROM fee_invoices WHERE tenant_id = $1`,
+        [tenantId],
       ),
       query(
         `SELECT COALESCE(AVG(
             CASE rating WHEN 'A' THEN 4 WHEN 'B' THEN 3 WHEN 'C' THEN 2 WHEN 'D' THEN 1 END
           ),0)::text AS avg_cbc
-         FROM cbc_scores WHERE rating IS NOT NULL`,
+         FROM cbc_scores WHERE tenant_id = $1 AND rating IS NOT NULL`,
+        [tenantId],
       ),
       query(
-        `SELECT COALESCE(AVG(score::numeric),0)::text AS avg_alevel FROM alevel_scores`,
+        `SELECT COALESCE(AVG(score::numeric),0)::text AS avg_alevel
+         FROM alevel_scores WHERE tenant_id = $1`,
+        [tenantId],
       ),
     ]);
     return {
@@ -29,27 +37,27 @@ export async function dashboardKpis() {
   }
 }
 
-export async function classPerformance(classId: string, termId: string) {
+export async function classPerformance(classId: string, termId: string, tenantId: string) {
   try {
     const cbc = await query(
       `SELECT sub.name, cs.rating, COUNT(*)::int AS cnt
        FROM cbc_scores cs
-       JOIN students s ON s.id = cs.student_id
-       JOIN subjects sub ON sub.id = cs.subject_id
-       WHERE s.class_id = $1 AND cs.term_id = $2
+       JOIN students s ON s.id = cs.student_id AND s.tenant_id = $3
+       JOIN subjects sub ON sub.id = cs.subject_id AND sub.tenant_id = $3
+       WHERE s.class_id = $1 AND cs.term_id = $2 AND cs.tenant_id = $3
        GROUP BY sub.name, cs.rating
        ORDER BY sub.name, cs.rating`,
-      [classId, termId],
+      [classId, termId, tenantId],
     );
     const al = await query(
       `SELECT sub.name, COALESCE(AVG(als.score::numeric),0)::text AS avg_score
        FROM alevel_scores als
-       JOIN students s ON s.id = als.student_id
-       JOIN subjects sub ON sub.id = als.subject_id
-       WHERE s.class_id = $1 AND als.term_id = $2
+       JOIN students s ON s.id = als.student_id AND s.tenant_id = $3
+       JOIN subjects sub ON sub.id = als.subject_id AND sub.tenant_id = $3
+       WHERE s.class_id = $1 AND als.term_id = $2 AND als.tenant_id = $3
        GROUP BY sub.name
        ORDER BY sub.name`,
-      [classId, termId],
+      [classId, termId, tenantId],
     );
     return { cbc: cbc.rows, alevel: al.rows };
   } catch (e) {
@@ -64,11 +72,12 @@ type ReportTrackStats = {
   notGenerated: number;
 };
 
-export async function reportPipeline(classId: string, termId: string) {
+export async function reportPipeline(classId: string, termId: string, tenantId: string) {
   try {
     const active = await query<{ c: number }>(
-      `SELECT COUNT(*)::int AS c FROM students WHERE class_id = $1 AND status = 'active'`,
-      [classId],
+      `SELECT COUNT(*)::int AS c FROM students
+       WHERE class_id = $1 AND status = 'active' AND tenant_id = $3`,
+      [classId, termId, tenantId],
     );
     const activeStudents = active.rows[0]?.c ?? 0;
 
@@ -77,18 +86,18 @@ export async function reportPipeline(classId: string, termId: string) {
          COUNT(*)::int AS generated,
          COUNT(*) FILTER (WHERE cr.is_approved)::int AS approved
        FROM cbc_report_cards cr
-       JOIN students s ON s.id = cr.student_id
-       WHERE s.class_id = $1 AND cr.term_id = $2`,
-      [classId, termId],
+       JOIN students s ON s.id = cr.student_id AND s.tenant_id = $3
+       WHERE s.class_id = $1 AND cr.term_id = $2 AND cr.tenant_id = $3`,
+      [classId, termId, tenantId],
     );
     const al = await query<{ generated: number; approved: number }>(
       `SELECT
          COUNT(*)::int AS generated,
          COUNT(*) FILTER (WHERE ar.is_approved)::int AS approved
        FROM alevel_results ar
-       JOIN students s ON s.id = ar.student_id
-       WHERE s.class_id = $1 AND ar.term_id = $2`,
-      [classId, termId],
+       JOIN students s ON s.id = ar.student_id AND s.tenant_id = $3
+       WHERE s.class_id = $1 AND ar.term_id = $2 AND ar.tenant_id = $3`,
+      [classId, termId, tenantId],
     );
 
     const cbcRow = cbc.rows[0] ?? { generated: 0, approved: 0 };
@@ -105,17 +114,19 @@ export async function reportPipeline(classId: string, termId: string) {
     const timeline = await query<{ day: string; track: string; cnt: number }>(
       `SELECT DATE(approved_at)::text AS day, 'cbc' AS track, COUNT(*)::int AS cnt
        FROM cbc_report_cards cr
-       JOIN students s ON s.id = cr.student_id
+       JOIN students s ON s.id = cr.student_id AND s.tenant_id = $3
        WHERE s.class_id = $1 AND cr.term_id = $2 AND cr.is_approved AND cr.approved_at IS NOT NULL
+         AND cr.tenant_id = $3
        GROUP BY DATE(approved_at)
        UNION ALL
        SELECT DATE(approved_at)::text AS day, 'alevel' AS track, COUNT(*)::int AS cnt
        FROM alevel_results ar
-       JOIN students s ON s.id = ar.student_id
+       JOIN students s ON s.id = ar.student_id AND s.tenant_id = $3
        WHERE s.class_id = $1 AND ar.term_id = $2 AND ar.is_approved AND ar.approved_at IS NOT NULL
+         AND ar.tenant_id = $3
        GROUP BY DATE(approved_at)
        ORDER BY day`,
-      [classId, termId],
+      [classId, termId, tenantId],
     );
 
     return {
@@ -129,16 +140,16 @@ export async function reportPipeline(classId: string, termId: string) {
   }
 }
 
-export async function alevelDivisions(classId: string, termId: string) {
+export async function alevelDivisions(classId: string, termId: string, tenantId: string) {
   try {
     const { rows } = await query<{ division: string; cnt: number }>(
       `SELECT COALESCE(ar.division, 'Unassigned') AS division, COUNT(*)::int AS cnt
        FROM alevel_results ar
-       JOIN students s ON s.id = ar.student_id
-       WHERE s.class_id = $1 AND ar.term_id = $2
+       JOIN students s ON s.id = ar.student_id AND s.tenant_id = $3
+       WHERE s.class_id = $1 AND ar.term_id = $2 AND ar.tenant_id = $3
        GROUP BY ar.division
        ORDER BY cnt DESC`,
-      [classId, termId],
+      [classId, termId, tenantId],
     );
     return rows;
   } catch (e) {
@@ -146,7 +157,7 @@ export async function alevelDivisions(classId: string, termId: string) {
   }
 }
 
-export async function assessmentReadiness(classId: string, termId: string, yearId: string) {
+export async function assessmentReadiness(classId: string, termId: string, yearId: string, tenantId: string) {
   try {
     const [cbc, alevel] = await Promise.all([
       query<{ subject_id: string; subject_name: string; subject_code: string; teacher_name: string | null; status: string }>(
@@ -161,18 +172,19 @@ export async function assessmentReadiness(classId: string, termId: string, yearI
             ELSE 'Draft'
           END AS status
          FROM class_subjects cs
-         JOIN subjects s ON s.id = cs.subject_id
-         LEFT JOIN users u ON u.id = cs.teacher_id
-         LEFT JOIN students st ON st.class_id = cs.class_id
+         JOIN subjects s ON s.id = cs.subject_id AND s.tenant_id = $4
+         LEFT JOIN users u ON u.id = cs.teacher_id AND u.tenant_id = $4
+         LEFT JOIN students st ON st.class_id = cs.class_id AND st.tenant_id = $4
          LEFT JOIN assessments_cbc ac
            ON ac.student_id = st.id
           AND ac.subject_id = cs.subject_id
           AND ac.term_id = $2
           AND ac.academic_year_id = $3
-         WHERE cs.class_id = $1 AND cs.academic_year_id = $3
+          AND ac.tenant_id = $4
+         WHERE cs.class_id = $1 AND cs.academic_year_id = $3 AND cs.tenant_id = $4
          GROUP BY s.id, s.name, s.code, u.full_name
          ORDER BY s.code`,
-        [classId, termId, yearId],
+        [classId, termId, yearId, tenantId],
       ),
       query<{ subject_id: string; subject_name: string; subject_code: string; teacher_name: string | null; status: string }>(
         `SELECT
@@ -186,18 +198,19 @@ export async function assessmentReadiness(classId: string, termId: string, yearI
             ELSE 'Draft'
           END AS status
          FROM class_subjects cs
-         JOIN subjects s ON s.id = cs.subject_id
-         LEFT JOIN users u ON u.id = cs.teacher_id
-         LEFT JOIN students st ON st.class_id = cs.class_id
+         JOIN subjects s ON s.id = cs.subject_id AND s.tenant_id = $4
+         LEFT JOIN users u ON u.id = cs.teacher_id AND u.tenant_id = $4
+         LEFT JOIN students st ON st.class_id = cs.class_id AND st.tenant_id = $4
          LEFT JOIN assessments_alevel aa
            ON aa.student_id = st.id
           AND aa.subject_id = cs.subject_id
           AND aa.term_id = $2
           AND aa.academic_year_id = $3
-         WHERE cs.class_id = $1 AND cs.academic_year_id = $3
+          AND aa.tenant_id = $4
+         WHERE cs.class_id = $1 AND cs.academic_year_id = $3 AND cs.tenant_id = $4
          GROUP BY s.id, s.name, s.code, u.full_name
          ORDER BY s.code`,
-        [classId, termId, yearId],
+        [classId, termId, yearId, tenantId],
       ),
     ]);
     return { cbc: cbc.rows, alevel: alevel.rows };
@@ -206,13 +219,18 @@ export async function assessmentReadiness(classId: string, termId: string, yearI
   }
 }
 
-export async function reportsOverview(classId: string, termId: string, yearId: string) {
+export async function reportsOverview(
+  classId: string,
+  termId: string,
+  yearId: string,
+  tenantId: string,
+) {
   const [pipeline, performance, readiness, divisions, kpis] = await Promise.all([
-    reportPipeline(classId, termId),
-    classPerformance(classId, termId),
-    assessmentReadiness(classId, termId, yearId),
-    alevelDivisions(classId, termId),
-    dashboardKpis(),
+    reportPipeline(classId, termId, tenantId),
+    classPerformance(classId, termId, tenantId),
+    assessmentReadiness(classId, termId, yearId, tenantId),
+    alevelDivisions(classId, termId, tenantId),
+    dashboardKpis(tenantId),
   ]);
   return { pipeline, performance, readiness, divisions, kpis };
 }

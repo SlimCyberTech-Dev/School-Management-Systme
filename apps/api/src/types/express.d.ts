@@ -4,7 +4,7 @@ import type { TenantFeatureFlags } from "../config/featureFlags.js";
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string; role: Role; sessionId: string; tenantId: string };
+      user?: { id: string; role: Role; sessionId: string; tenantId: string; tenantSlug?: string };
       tenant?: { id: string; slug: string; displayName: string; status: string };
       platformAdmin?: { id: string; email: string; fullName: string };
       tenantFeatureFlags?: TenantFeatureFlags;

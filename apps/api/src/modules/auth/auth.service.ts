@@ -54,6 +54,7 @@ export async function login(
   input: LoginInput,
   meta: LoginMeta = {},
   tenantId?: string,
+  tenantSlug?: string,
 ): Promise<{
   token: string;
   user: ReturnType<typeof toUserPublic>;
@@ -170,6 +171,7 @@ export async function login(
       user.role as Parameters<typeof signToken>[1],
       sessionId,
       user.tenant_id,
+      tenantSlug ?? "default",
     );
     const tokenHash = hashSecret(token);
     const expiresAt = computeExpiryDate(token);

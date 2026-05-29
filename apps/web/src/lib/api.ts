@@ -1,6 +1,7 @@
 import axios, { isAxiosError, type AxiosError, type AxiosResponse } from "axios";
+import { getSmsTokenFromCookie } from "@/lib/cookies";
 import { useAuthStore } from "@/store/authStore";
-import { getTenantSlugFromHostname } from "@/lib/tenantHost";
+import { getApiTenantSlug } from "@/lib/tenantHost";
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 
@@ -10,17 +11,18 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const t = useAuthStore.getState().token;
-  if (t) {
-    config.headers.Authorization = `Bearer ${t}`;
+  const storeToken = useAuthStore.getState().token;
+  const token = storeToken ?? getSmsTokenFromCookie();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   if (typeof window !== "undefined") {
-    const slug = getTenantSlugFromHostname(window.location.hostname);
-    config.headers["X-Tenant-Slug"] =
-      slug && slug !== "platform" ? slug : "default";
+    config.headers["X-Tenant-Slug"] = getApiTenantSlug(token);
   }
   return config;
 });
+
+let logoutRedirectPending = false;
 
 function secondsUntilRateLimitReset(headers: Record<string, unknown> | undefined): number | null {
   if (!headers) return null;
@@ -75,16 +77,27 @@ api.interceptors.response.use(
 
     if (err.response?.status === 401 && typeof window !== "undefined" && !isLoginRequest) {
       const auth = useAuthStore.getState();
-      // During initial app boot, protected queries can run before auth hydrate completes.
-      // Avoid false logout/redirect loops from these transient 401s.
-      if (!auth.hydrated && !auth.token) {
+      if (!auth.hydrated) {
         return Promise.reject(err);
       }
       const body = err.response?.data as { code?: string } | undefined;
-      const isIdleTimeout = body?.code === "SESSION_EXPIRED";
-      auth.logout();
-      if (window.location.pathname !== "/login") {
-        window.location.href = isIdleTimeout ? "/login?reason=timeout" : "/login";
+      const code = body?.code;
+      const isIdleTimeout = code === "SESSION_EXPIRED";
+      const isTenantMismatch = code === "TENANT_MISMATCH";
+      if (!logoutRedirectPending) {
+        logoutRedirectPending = true;
+        auth.logout();
+        if (window.location.pathname !== "/login") {
+          const query = isIdleTimeout
+            ? "?reason=timeout"
+            : isTenantMismatch
+              ? "?session=invalid"
+              : "";
+          window.location.href = `/login${query}`;
+        }
+        setTimeout(() => {
+          logoutRedirectPending = false;
+        }, 2000);
       }
     }
     return Promise.reject(err);

@@ -8,6 +8,7 @@ import bcrypt from "bcrypt";
 import { query, withTransaction } from "../../config/db";
 import { purgeStaffAssociations } from "./purgeStaffAssociations";
 import { HttpError } from "../../utils/httpError";
+import { requireTenantScope } from "../../utils/tenantScope.js";
 import { toUserPublic } from "../../utils/userMapper";
 import { logUserAction } from "./audit.service";
 
@@ -119,9 +120,10 @@ export async function createUser(
 
 export async function listUsers(params: ListUsersParams) {
   try {
+    const tenantId = requireTenantScope();
     const offset = (params.page - 1) * params.limit;
-    const values: unknown[] = [];
-    const where: string[] = ["deleted_at IS NULL"];
+    const values: unknown[] = [tenantId];
+    const where: string[] = ["deleted_at IS NULL", "tenant_id = $1"];
     if (params.search?.trim()) {
       values.push(`%${params.search.trim()}%`);
       where.push(`(full_name ILIKE $${values.length} OR email ILIKE $${values.length})`);

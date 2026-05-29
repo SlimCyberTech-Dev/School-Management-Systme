@@ -1,8 +1,10 @@
 import type { Request, Response } from "express";
+import { activeTenantId } from "../../utils/activeTenant.js";
 import * as svc from "./analytics.service";
 
-export async function dashboard(_req: Request, res: Response): Promise<void> {
-  const data = await svc.dashboardKpis();
+export async function dashboard(req: Request, res: Response): Promise<void> {
+  const tenantId = activeTenantId(req);
+  const data = await svc.dashboardKpis(tenantId);
   res.json({ success: true, data });
 }
 
@@ -13,7 +15,7 @@ export async function classPerformance(req: Request, res: Response): Promise<voi
     res.status(400).json({ success: false, error: "classId and termId required" });
     return;
   }
-  const data = await svc.classPerformance(classId, termId);
+  const data = await svc.classPerformance(classId, termId, activeTenantId(req));
   res.json({ success: true, data });
 }
 
@@ -24,7 +26,7 @@ export async function reportPipeline(req: Request, res: Response): Promise<void>
     res.status(400).json({ success: false, error: "classId and termId required" });
     return;
   }
-  const data = await svc.reportPipeline(classId, termId);
+  const data = await svc.reportPipeline(classId, termId, activeTenantId(req));
   res.json({ success: true, data });
 }
 
@@ -36,6 +38,6 @@ export async function reportsOverview(req: Request, res: Response): Promise<void
     res.status(400).json({ success: false, error: "classId, termId and yearId required" });
     return;
   }
-  const data = await svc.reportsOverview(classId, termId, yearId);
+  const data = await svc.reportsOverview(classId, termId, yearId, activeTenantId(req));
   res.json({ success: true, data });
 }

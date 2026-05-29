@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import path from "path";
+import { assertSchoolDbRoleEnforcesRls } from "./config/dbRlsCheck.js";
 import { loadEnv } from "./config/env.js";
 import { createApp } from "./createApp.js";
 
@@ -10,6 +11,8 @@ const env = loadEnv();
 const app = createApp();
 const port = env.PORT;
 
-app.listen(port, () => {
-  console.log(`API listening on http://localhost:${port}`);
+void assertSchoolDbRoleEnforcesRls().then(() => {
+  app.listen(port, () => {
+    console.log(`API listening on http://localhost:${port}`);
+  });
 });

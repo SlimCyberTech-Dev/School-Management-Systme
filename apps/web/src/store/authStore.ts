@@ -6,6 +6,7 @@ import {
   setSmsTokenCookie,
 } from "@/lib/cookies";
 import { jwtCookieMaxAge } from "@/lib/jwtPayload";
+import { getApiTenantSlug } from "@/lib/tenantHost";
 
 export type AuthUser = {
   id: string;
@@ -164,9 +165,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
 
+    set({ token });
+
     try {
       const res = await fetch(`${baseUrl.replace(/\/$/, "")}/users/me`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-Tenant-Slug": getApiTenantSlug(token),
+        },
       });
       if (!res.ok) {
         deleteSmsTokenCookie();

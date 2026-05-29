@@ -16,7 +16,8 @@ Related: [Rollback guide](multitenant-rollback.md) · [README](../README.md)
 | 3 | Subdomain + school auth | **Done** | — |
 | 4 | PostgreSQL RLS | **Done** | `052` |
 | 5 | Hardening & polish | **Done** | `051`, `053` |
-| 6 | Production ops | **Backlog** | — |
+| 6 | Isolation enforcement | **Done** | `054`, `setup:db-roles` |
+| 7 | Production ops | **Backlog** | — |
 
 ---
 
@@ -91,7 +92,26 @@ Related: [Rollback guide](multitenant-rollback.md) · [README](../README.md)
 
 ---
 
-## Phase 6 — Production ops (backlog)
+## Phase 6 — Isolation enforcement
+
+**Goal:** New schools must not see other schools' data.
+
+**Root cause:** `postgres` superuser bypasses RLS even when `tenant_id` and policies exist.
+
+**Deliverables**
+
+- [x] `school_app` role + `npm run setup:db-roles`
+- [x] API startup warning when DB role bypasses RLS
+- [x] JWT `tsl` (tenant slug); web redirects to correct subdomain
+- [x] `requireAuth` re-binds `tenantContext` from JWT `tid`
+- [x] Explicit `tenant_id` filters on dashboard, users list, student browse
+- [x] [multitenant-isolation.md](multitenant-isolation.md)
+
+**You must:** Point `DATABASE_URL` at `school_app` and restart the API.
+
+---
+
+## Phase 7 — Production ops (backlog)
 
 - [ ] Wire `DATABASE_URL` / `PLATFORM_DATABASE_URL` to dedicated PG roles from `051`
 - [ ] Wildcard DNS `*.yourdomain.com`
