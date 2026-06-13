@@ -40,6 +40,8 @@ import {
 import { filterClassesByLevel } from "@/lib/academicLevel";
 import { apiGet } from "@/lib/api";
 import { queryStatus } from "@/lib/queryStatus";
+import type { TeachingStaffMember } from "@/hooks/useTeachingStaff";
+import { useAuthStore } from "@/store/authStore";
 
 type TabId = "setup" | "class" | "teacher" | "publish" | "view";
 
@@ -101,7 +103,7 @@ function AdminTimetablePageContent() {
   const [dayDraft, setDayDraft] = useState(DAY_ROWS.map((d) => ({ dayOfWeek: d.dayOfWeek, isSchoolDay: d.dayOfWeek <= 5 })));
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
-  const [validationReport, setValidationReport] = useState<TimetableValidateResult | null>(null);
+  const tenantSlug = useAuthStore((s) => s.tenantSlug ?? s.user?.tenantSlug ?? "default");
 
   const yearsQ = useQuery({
     queryKey: ["years", "timetable"],
@@ -117,12 +119,8 @@ function AdminTimetablePageContent() {
     queryFn: () => apiGet<SchoolClass[]>("/academic/classes"),
   });
   const teachersQ = useQuery({
-    queryKey: ["users", "timetable-teachers"],
-    queryFn: async () => {
-      const res = await apiGet<{ items?: Array<{ id: string; fullName: string; role: string }> } | Array<{ id: string; fullName: string; role: string }>>("/users");
-      const list = Array.isArray(res) ? res : (res.items ?? []);
-      return list.filter((u) => ["class_teacher", "subject_teacher", "headteacher"].includes(u.role));
-    },
+    queryKey: ["teaching-staff", "timetable", tenantSlug],
+    queryFn: () => apiGet<TeachingStaffMember[]>("/academic/teaching-staff"),
   });
 
   const years = useMemo(() => yearsQ.data ?? [], [yearsQ.data]);
@@ -152,6 +150,18 @@ function AdminTimetablePageContent() {
   useEffect(() => {
     if (!classId && classes[0]) setClassId(classes[0].id);
   }, [classes, classId]);
+
+  const teachingStaff = useMemo(
+    () =>
+      (teachersQ.data ?? []).filter((t) =>
+        ["class_teacher", "subject_teacher", "headteacher"].includes(t.role),
+      ),
+    [teachersQ.data],
+  );
+
+  useEffect(() => {
+    if (!teacherId && teachingStaff[0]) setTeacherId(teachingStaff[0].id);
+  }, [teachingStaff, teacherId]);
 
   const scope: TimetableScope = useMemo(
     () => ({ academicYearId: yearId, termId, level }),
@@ -193,7 +203,13 @@ function AdminTimetablePageContent() {
     value: c.id,
     label: c.stream ? `${c.name} · ${c.stream}` : c.name,
   }));
-  const teacherOptions = (teachersQ.data ?? []).map((t) => ({ value: t.id, label: t.fullName }));
+  const teacherOptions = useMemo(
+    () => [
+      { value: "", label: "Select teacher…" },
+      ...teachingStaff.map((t) => ({ value: t.id, label: t.fullName })),
+    ],
+    [teachingStaff],
+  );
 
   const publishedTemplate = (templatesQ.data ?? []).find((t) => t.status === "published");
 
@@ -412,6 +428,19 @@ function AdminTimetablePageContent() {
             <div className="mb-4 max-w-md">
               <Select label="Class" options={classOptions} value={classId} onChange={(e) => setClassId(e.target.value)} />
             </div>
+            {classSubjectsQ.isSuccess && (classSubjectsQ.data ?? []).length === 0 ? (
+              <Alert tone="info">
+                This class has no subject–teacher slots yet. The grid lists slots from{" "}
+                <Link
+                  href={hrefWithLevel("/admin/academic/teacher-assignments", { academicYearId: yearId })}
+                  className="font-medium text-brand hover:underline"
+                >
+                  Subject teachers
+                </Link>{" "}
+                (assign each subject to a class and teacher first). Staff from Users do not appear here until linked
+                to a class subject.
+              </Alert>
+            ) : null}
             <AsyncContent
               status={classGridStatus}
               loading={<TableSkeleton rows={8} cols={6} />}
@@ -462,6 +491,11 @@ function AdminTimetablePageContent() {
                 onChange={(e) => setTeacherId(e.target.value)}
               />
             </div>
+            {teachersQ.isSuccess && teachingStaff.length === 0 ? (
+              <Alert tone="info">
+                No teaching staff found. Invite teachers under Users or onboarding, then return here.
+              </Alert>
+            ) : null}
             <AsyncContent
               status={teacherGridStatus}
               loading={<TableSkeleton rows={8} cols={6} />}

@@ -118,6 +118,12 @@ export function TimetableClassGrid({
 
   return (
     <div className="space-y-4">
+      {editable && slotOptions.length === 0 ? (
+        <Alert tone="info">
+          No subject–teacher slots for this class. Assign subjects to the class and teachers on the Subject
+          teachers page, then return to fill the grid.
+        </Alert>
+      ) : null}
       {editable ? (
         <p className="text-xs text-muted-foreground">
           Options marked in the list are unavailable because the teacher is already booked in that
