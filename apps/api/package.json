@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "migrate": "tsx scripts/migrate.ts",
     "setup:db-roles": "tsx scripts/setup-db-roles.ts",
+    "transfer:db-ownership": "tsx scripts/transfer-db-ownership.ts",
     "backup:db": "tsx scripts/backup-database.ts",
     "restore:db": "tsx scripts/restore-database.ts",
     "seed": "tsx scripts/seed.ts",

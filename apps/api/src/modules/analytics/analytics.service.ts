@@ -116,8 +116,8 @@ export async function reportPipeline(classId: string, termId: string, tenantId: 
   try {
     const active = await query<{ c: number }>(
       `SELECT COUNT(*)::int AS c FROM students
-       WHERE class_id = $1 AND status = 'active' AND tenant_id = $3`,
-      [classId, termId, tenantId],
+       WHERE class_id = $1 AND status = 'active' AND tenant_id = $2`,
+      [classId, tenantId],
     );
     const activeStudents = active.rows[0]?.c ?? 0;
 

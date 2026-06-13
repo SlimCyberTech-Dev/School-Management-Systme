@@ -15,7 +15,8 @@ export const createTenantSchema = z.object({
     .regex(slugRegex, "Slug must be lowercase alphanumeric with optional hyphens"),
   displayName: z.string().min(2).max(140),
   adminEmail: z.string().email(),
-  adminPassword: z.string().min(8).max(128),
+  /** Omit to auto-generate a secure temporary password (returned once in API response). */
+  adminPassword: z.string().min(8).max(128).optional(),
   adminFullName: z.string().min(2).max(255).optional(),
 });
 

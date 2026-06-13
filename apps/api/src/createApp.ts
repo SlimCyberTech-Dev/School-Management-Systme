@@ -31,6 +31,7 @@ import { studentsRouter } from "./modules/students/students.routes.js";
 import { timetableRouter } from "./modules/timetable/timetable.routes.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 import { securityRouter } from "./modules/security/security.routes.js";
+import { onboardingRouter } from "./modules/onboarding/onboarding.routes.js";
 import { platformRouter } from "./modules/platform/platform.routes.js";
 import { requestDbMiddleware } from "./middleware/requestDb.js";
 import { resolveTenant } from "./middleware/resolveTenant.js";
@@ -92,6 +93,7 @@ export function createApp(): Express {
   app.use("/api/fees", feesRouter);
   app.use("/api/reports", reportsRouter);
   app.use("/api/settings", settingsRouter);
+  app.use("/api/onboarding", onboardingRouter);
   app.use("/api/timetable", timetableRouter);
   app.use("/api/analytics", analyticsRouter);
   app.use("/api/audit-logs", auditRouter);

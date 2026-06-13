@@ -209,7 +209,10 @@ function LoginPageContent() {
         password: loginState.password,
       });
       loginToStore(data.user, data.token, data.session, data.tenant);
-      const dash = dashboardForRole(data.user.role);
+      const dash =
+        data.user.role === "admin" && data.user.forcePasswordChange
+          ? "/admin/onboarding"
+          : dashboardForRole(data.user.role);
       const tenantSlug = data.tenant?.slug?.toLowerCase();
       const hostSlug =
         typeof window !== "undefined"

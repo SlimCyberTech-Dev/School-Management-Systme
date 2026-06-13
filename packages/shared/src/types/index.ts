@@ -13,6 +13,8 @@ export interface UserPublic {
   isActive: boolean;
   photoUrl?: string | null;
   createdAt?: string;
+  /** Present on login / me when the user must change password before continuing. */
+  forcePasswordChange?: boolean;
 }
 
 export type { ExamStatus };

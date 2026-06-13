@@ -28,7 +28,7 @@ export async function seedDefaultGradingScales(options: SeedOptions = {}) {
         `INSERT INTO assessment_grading_scales
           (level, grade, min_score, max_score, points, descriptor, sort_order, is_active, updated_at)
          VALUES ($1,$2,$3,$4,$5,$6,$7,true,NOW())
-         ON CONFLICT (level, grade) DO UPDATE SET
+         ON CONFLICT (tenant_id, level, grade) DO UPDATE SET
            min_score = EXCLUDED.min_score,
            max_score = EXCLUDED.max_score,
            points = EXCLUDED.points,

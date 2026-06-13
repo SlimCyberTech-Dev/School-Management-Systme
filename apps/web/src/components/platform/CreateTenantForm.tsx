@@ -8,7 +8,6 @@ export type CreateTenantFormState = {
   slug: string;
   displayName: string;
   adminEmail: string;
-  adminPassword: string;
   adminFullName: string;
 };
 
@@ -58,18 +57,12 @@ export function CreateTenantForm({
           onChange={(e) => onChange({ ...form, adminEmail: e.target.value })}
         />
       </label>
-      <label className={platformLabelClass}>
-        Admin password
-        <input
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-          className={platformInputClass}
-          value={form.adminPassword}
-          onChange={(e) => onChange({ ...form, adminPassword: e.target.value })}
-        />
-      </label>
+      <div className={`${platformLabelClass} flex flex-col justify-end`}>
+        <p className="rounded-lg border border-dashed border-indigo-200 bg-indigo-50/80 px-3 py-2.5 text-xs text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200">
+          A secure temporary password is generated automatically. The admin must change it on first
+          sign-in.
+        </p>
+      </div>
       <label className={`${platformLabelClass} sm:col-span-2`}>
         Admin full name <span className="font-normal text-slate-500">(optional)</span>
         <input

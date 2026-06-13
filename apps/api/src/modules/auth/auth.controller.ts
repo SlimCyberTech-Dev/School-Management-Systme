@@ -86,7 +86,7 @@ export async function changePassword(req: Request, res: Response): Promise<void>
     return;
   }
   const body = changePasswordSchema.parse(req.body) as ChangePasswordInput;
-  await authService.changePassword(req.user.id, body);
+  await authService.changePassword(req.user.id, body, req.user.sessionId);
   res.json({ success: true, data: { message: "Password updated" } });
 }
 

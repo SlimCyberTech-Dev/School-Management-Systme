@@ -64,6 +64,15 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
+  const pgErr = e as { code?: string; message?: string };
+  if (pgErr.code === "42501" && pgErr.message?.includes("owner")) {
+    console.error(
+      "\nMigration failed: migration_admin does not own the table.\n" +
+        "Run once as PostgreSQL superuser:\n" +
+        "  npm run transfer:db-ownership\n" +
+        "Or: sudo -u postgres psql -d school_manage -f apps/api/scripts/sql/transfer-public-ownership.sql\n",
+    );
+  }
   console.error(e);
   process.exit(1);
 });

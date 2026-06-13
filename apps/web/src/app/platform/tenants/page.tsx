@@ -28,12 +28,13 @@ import {
   platformBtnSecondary,
 } from "@/components/platform/platformFieldStyles";
 import type { PlatformAuditEntry, PlatformTenant } from "@/components/platform/types";
+import type { TenantCredentials } from "@uganda-cbc-sms/shared";
+import { SchoolCredentialsModal } from "@/components/platform/SchoolCredentialsModal";
 
 const EMPTY_CREATE: CreateTenantFormState = {
   slug: "",
   displayName: "",
   adminEmail: "",
-  adminPassword: "",
   adminFullName: "",
 };
 
@@ -51,6 +52,9 @@ export default function PlatformTenantsPage() {
     featureFlags: {},
   });
   const [form, setForm] = useState<CreateTenantFormState>(EMPTY_CREATE);
+  const [provisionedCredentials, setProvisionedCredentials] = useState<TenantCredentials | null>(
+    null,
+  );
 
   const stats = useMemo(() => {
     const active = tenants.filter((t) => t.status === "active").length;
@@ -102,16 +106,19 @@ export default function PlatformTenantsPage() {
     const displayName = form.displayName;
     const slug = form.slug;
     try {
-      await platformApi.post("/tenants", {
+      const res = await platformApi.post("/tenants", {
         slug: form.slug,
         displayName: form.displayName,
         adminEmail: form.adminEmail,
-        adminPassword: form.adminPassword,
         adminFullName: form.adminFullName || undefined,
       });
+      const created = res.data?.data as { credentials?: TenantCredentials } | undefined;
       setCreateOpen(false);
       setForm(EMPTY_CREATE);
-      toast.success(`${displayName} is ready at ${slug}.localhost:3000`, "School created");
+      if (created?.credentials) {
+        setProvisionedCredentials(created.credentials);
+      }
+      toast.success(`${displayName} is ready. Copy the admin credentials to share.`, "School created");
       await load();
     } catch (err: unknown) {
       toast.error(platformApiError(err) ?? "Please check the form and try again.", "Could not create school");
@@ -286,6 +293,12 @@ export default function PlatformTenantsPage() {
           />
         ) : null}
       </PlatformModal>
+
+      <SchoolCredentialsModal
+        open={provisionedCredentials !== null}
+        credentials={provisionedCredentials}
+        onClose={() => setProvisionedCredentials(null)}
+      />
     </PlatformShell>
   );
 }

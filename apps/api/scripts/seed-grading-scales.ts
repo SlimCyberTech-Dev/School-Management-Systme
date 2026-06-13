@@ -1,5 +1,6 @@
 import "dotenv/config";
-import { pool } from "../src/config/db";
+import { pool, tenantContext } from "../src/config/db";
+import { getDefaultTenantId } from "../src/config/tenant";
 import { seedDefaultGradingScales } from "../src/modules/academic/gradingScaleMaintenance";
 
 /**
@@ -9,10 +10,12 @@ import { seedDefaultGradingScales } from "../src/modules/academic/gradingScaleMa
  *   npm run seed:grading-scales
  *   npm run seed:grading-scales -- --level=A_LEVEL
  *   npm run seed:grading-scales -- --reset
+ *   npm run seed:grading-scales -- --all-tenants
  */
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const reset = args.includes("--reset");
+  const allTenants = args.includes("--all-tenants");
   const levelArg = args.find((a) => a.startsWith("--level="))?.split("=")[1];
 
   const levels =
@@ -20,13 +23,26 @@ async function main(): Promise<void> {
       ? ([levelArg] as const)
       : (["A_LEVEL", "O_LEVEL"] as const);
 
-  const result = await seedDefaultGradingScales({
-    levels: [...levels],
-    reset,
-  });
+  const tenantIds = allTenants
+    ? (
+        await pool.query<{ id: string }>(`SELECT id FROM tenants ORDER BY slug`)
+      ).rows.map((r) => r.id)
+    : [await getDefaultTenantId()];
+
+  let totalInserted = 0;
+  for (const tenantId of tenantIds) {
+    const result = await tenantContext.run(tenantId, () =>
+      seedDefaultGradingScales({
+        levels: [...levels],
+        reset,
+      }),
+    );
+    totalInserted += result.inserted;
+    console.log(`Tenant ${tenantId}: ${result.inserted} row operations`);
+  }
 
   console.log(
-    `Grading scales seeded for ${result.levels.join(", ")} (${result.inserted} row operations, reset=${reset}).`,
+    `Grading scales seeded for ${levels.join(", ")} (${totalInserted} row operations total, reset=${reset}).`,
   );
   await pool.end();
 }

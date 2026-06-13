@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { SetupProgressCard } from "@/components/onboarding/SetupProgressCard";
 import { DashboardQuickAccess } from "@/components/dashboard/DashboardQuickAccess";
 import { DashboardTableSection } from "@/components/dashboard/DashboardTableSection";
 import { Button } from "@/components/ui/Button";
@@ -139,6 +140,8 @@ export function AdminDashboardContent({
           </>
         }
       />
+
+      <SetupProgressCard />
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">

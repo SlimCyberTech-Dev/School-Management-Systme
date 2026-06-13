@@ -26,7 +26,7 @@ export async function createTenant(req: Request, res: Response): Promise<void> {
   res.status(201).json({
     success: true,
     data,
-    message: `School "${data.displayName}" created. Sign in at https://${data.slug}.localhost:3000`,
+    message: `School "${data.displayName}" created. Share the sign-in credentials with the school admin.`,
   });
 }
 

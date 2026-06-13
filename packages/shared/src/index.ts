@@ -15,3 +15,4 @@ export * from "./schemas/timetable.schema";
 export * from "./schemas/audit.schema";
 export * from "./schemas/settings.schema";
 export * from "./schemas/platform.schema";
+export * from "./schemas/onboarding.schema";

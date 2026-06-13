@@ -4,7 +4,17 @@ import { platformPool } from "../../config/db.js";
 import { loadEnv } from "../../config/env.js";
 import { invalidateTenantCache } from "../../utils/tenantCache.js";
 import { HttpError } from "../../utils/httpError.js";
+import { generateTemporaryPassword } from "../../utils/generatePassword.js";
+import { buildSignInUrl } from "../onboarding/onboarding.service.js";
 import { logPlatformAction } from "./platformAudit.service.js";
+
+export type TenantCredentials = {
+  signInUrl: string;
+  adminEmail: string;
+  temporaryPassword: string;
+  schoolName: string;
+  slug: string;
+};
 
 export type TenantListItem = {
   id: string;
@@ -15,6 +25,10 @@ export type TenantListItem = {
   schoolName: string | null;
   featureFlags: Record<string, boolean>;
   createdAt: string;
+};
+
+export type CreateTenantResult = TenantListItem & {
+  credentials: TenantCredentials;
 };
 
 const DEFAULT_REPORT_LAYOUT = {
@@ -65,11 +79,12 @@ export async function listTenants(): Promise<TenantListItem[]> {
 export async function createTenant(
   input: CreateTenantInput,
   actorId: string,
-): Promise<TenantListItem> {
+): Promise<CreateTenantResult> {
   const env = loadEnv();
   const slug = input.slug.toLowerCase();
   const email = input.adminEmail.toLowerCase().trim();
-  const hash = await bcrypt.hash(input.adminPassword, env.BCRYPT_ROUNDS);
+  const temporaryPassword = input.adminPassword?.trim() || generateTemporaryPassword();
+  const hash = await bcrypt.hash(temporaryPassword, env.BCRYPT_ROUNDS);
   const adminName = input.adminFullName?.trim() || `${input.displayName} Administrator`;
 
   const client = await platformPool.connect();
@@ -107,7 +122,7 @@ export async function createTenant(
 
     await client.query(
       `INSERT INTO users (tenant_id, full_name, email, password_hash, role, is_active, force_password_change)
-       VALUES ($1, $2, $3, $4, 'admin', TRUE, FALSE)`,
+       VALUES ($1, $2, $3, $4, 'admin', TRUE, TRUE)`,
       [tenantId, adminName, email, hash],
     );
 
@@ -128,6 +143,13 @@ export async function createTenant(
       schoolName: input.displayName.trim(),
       featureFlags: {},
       createdAt: new Date().toISOString(),
+      credentials: {
+        signInUrl: buildSignInUrl(slug),
+        adminEmail: email,
+        temporaryPassword,
+        schoolName: input.displayName.trim(),
+        slug,
+      },
     };
   } catch (e) {
     await client.query("ROLLBACK");

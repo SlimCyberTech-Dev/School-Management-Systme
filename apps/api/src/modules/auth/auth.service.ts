@@ -120,9 +120,9 @@ export async function login(
         `UPDATE users
          SET failed_login_attempts = $1,
              login_attempts = $1,
-             locked_at = CASE WHEN $2 THEN NOW() ELSE locked_at END,
-             locked_until = CASE WHEN $2 THEN NOW() + interval '30 minutes' ELSE locked_until END,
-             locked_reason = CASE WHEN $2 THEN 'Too many failed login attempts' ELSE locked_reason END,
+             locked_at = CASE WHEN $2::boolean THEN NOW() ELSE locked_at END,
+             locked_until = CASE WHEN $2::boolean THEN NOW() + interval '30 minutes' ELSE locked_until END,
+             locked_reason = CASE WHEN $2::boolean THEN 'Too many failed login attempts' ELSE locked_reason END,
              updated_at = NOW()
          WHERE id = $3`,
         [attempts, lock, user.id],
@@ -205,15 +205,18 @@ export async function login(
         inactivityMinutes,
         idleExpiresAt: idleExpiresAt.toISOString(),
       },
-      user: toUserPublic({
-        id: user.id,
-        full_name: user.full_name,
-        email: user.email,
-        role: user.role,
-        is_active: user.is_active,
-        created_at: user.created_at,
-        photo_url: (user as { photo_url?: string | null }).photo_url ?? null,
-      }),
+      user: {
+        ...toUserPublic({
+          id: user.id,
+          full_name: user.full_name,
+          email: user.email,
+          role: user.role,
+          is_active: user.is_active,
+          created_at: user.created_at,
+          photo_url: (user as { photo_url?: string | null }).photo_url ?? null,
+        }),
+        forcePasswordChange: Boolean(user.force_password_change),
+      },
     };
   } catch (e) {
     if (e instanceof HttpError) throw e;
@@ -250,6 +253,7 @@ export async function logout(sessionId: string, bearerToken?: string): Promise<v
 export async function changePassword(
   userId: string,
   input: ChangePasswordInput,
+  keepSessionId?: string,
 ): Promise<void> {
   try {
     const { rows } = await query<{ password_hash: string }>(
@@ -274,7 +278,16 @@ export async function changePassword(
         userId,
       ],
     );
-    await query(`UPDATE auth_sessions SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL`, [userId]);
+    if (keepSessionId) {
+      await query(
+        `UPDATE auth_sessions SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL AND id <> $2`,
+        [userId, keepSessionId],
+      );
+    } else {
+      await query(`UPDATE auth_sessions SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL`, [
+        userId,
+      ]);
+    }
   } catch (e) {
     if (e instanceof HttpError) throw e;
     throw new Error(e instanceof Error ? e.message : "Could not change password");

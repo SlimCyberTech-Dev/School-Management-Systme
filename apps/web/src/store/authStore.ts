@@ -16,6 +16,7 @@ export type AuthUser = {
   photoUrl?: string | null;
   tenantId?: string;
   tenantSlug?: string;
+  forcePasswordChange?: boolean;
 };
 
 export type SessionInfo = {
@@ -66,6 +67,7 @@ function parseUser(data: unknown): AuthUser | null {
       email: o.email,
       role: role as Role,
       photoUrl: typeof o.photoUrl === "string" ? o.photoUrl : null,
+      forcePasswordChange: Boolean(o.forcePasswordChange),
     };
   }
   return null;

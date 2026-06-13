@@ -12,9 +12,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
-const connectionString = process.env.DATABASE_URL_MIGRATE ?? process.env.DATABASE_URL;
+const connectionString =
+  process.env.DATABASE_URL_SUPERUSER?.trim() ??
+  process.env.DATABASE_URL_MIGRATE?.trim() ??
+  process.env.DATABASE_URL?.trim();
 if (!connectionString) {
-  console.error("Set DATABASE_URL (superuser) to run setup:db-roles");
+  console.error("Set DATABASE_URL_SUPERUSER or DATABASE_URL (superuser) to run setup:db-roles");
   process.exit(1);
 }
 
@@ -39,6 +42,22 @@ async function main(): Promise<void> {
     await pool.query(
       `ALTER ROLE migration_admin WITH PASSWORD ${pgPasswordLiteral(migratePassword)}`,
     );
+
+    // DDL (ALTER TABLE, etc.) requires object ownership. Tables created by postgres
+    // during bootstrap must be owned by migration_admin for later migrations.
+    const { rows: superRows } = await pool.query<{ super: boolean }>(
+      `SELECT rolsuper AS super FROM pg_roles WHERE rolname = current_user`,
+    );
+    if (superRows[0]?.super) {
+      const ownershipSqlPath = path.resolve(__dirname, "sql/transfer-public-ownership.sql");
+      const ownershipSql = fs.readFileSync(ownershipSqlPath, "utf8");
+      await pool.query(ownershipSql);
+      console.log("Transferred public schema object ownership to migration_admin.");
+    } else {
+      console.warn(
+        "Skipped ownership transfer (connect as PostgreSQL superuser to enable DDL migrations).",
+      );
+    }
 
     const url = new URL(connectionString);
     const db = url.pathname.replace(/^\//, "") || "school_manage";
