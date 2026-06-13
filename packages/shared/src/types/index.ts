@@ -148,6 +148,7 @@ export interface SchoolClass {
   level: "O_LEVEL" | "A_LEVEL";
   academicYearId: string;
   classTeacherId: string | null;
+  curriculumTrack?: "SCIENCES" | "ARTS" | "GENERAL" | null;
 }
 
 export interface Subject {

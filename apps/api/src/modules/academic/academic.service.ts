@@ -117,6 +117,7 @@ function mapClass(r: {
   level: string;
   academic_year_id: string;
   class_teacher_id: string | null;
+  curriculum_track?: string | null;
 }) {
   return {
     id: r.id,
@@ -125,6 +126,7 @@ function mapClass(r: {
     level: r.level,
     academicYearId: r.academic_year_id,
     classTeacherId: r.class_teacher_id,
+    curriculumTrack: (r.curriculum_track as "SCIENCES" | "ARTS" | "GENERAL" | null | undefined) ?? null,
   };
 }
 
@@ -400,6 +402,10 @@ export async function updateClass(id: string, input: ClassUpdateIn) {
   if (input.classTeacherId !== undefined) {
     sets.push(`class_teacher_id = $${i++}`);
     values.push(input.classTeacherId);
+  }
+  if (input.curriculumTrack !== undefined) {
+    sets.push(`curriculum_track = $${i++}`);
+    values.push(input.curriculumTrack);
   }
   values.push(id);
   const { rows } = await query(`UPDATE classes SET ${sets.join(", ")} WHERE id = $${i} RETURNING *`, values);

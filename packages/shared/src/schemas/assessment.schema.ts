@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { curriculumTrackSchema } from "./curriculum.schema";
 
 export const cbcRatingSchema = z.enum(["A", "B", "C", "D"]);
 
@@ -78,6 +79,10 @@ export const classSchema = z.object({
     .transform((v) => (v === "o_level" ? "O_LEVEL" : v === "a_level" ? "A_LEVEL" : v)),
   academicYearId: z.string().uuid(),
   classTeacherId: z.string().uuid().optional().nullable(),
+  curriculumTrack: z.preprocess(
+    (value) => (value === "" ? null : value),
+    curriculumTrackSchema.nullable().optional(),
+  ),
 });
 
 export const updateClassSchema = classSchema.partial().refine((v) => Object.keys(v).length > 0, {

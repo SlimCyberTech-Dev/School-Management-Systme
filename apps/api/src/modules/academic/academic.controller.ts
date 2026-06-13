@@ -1,9 +1,15 @@
 import type { Request, Response } from "express";
+import type {
+  CurriculumCatalogSeedInput,
+  CurriculumClassTracksInput,
+  CurriculumSetupInput,
+} from "@uganda-cbc-sms/shared";
 import * as sharedSchemas from "@uganda-cbc-sms/shared";
 import { HttpError } from "../../utils/httpError";
 import { TEACHING_ASSIGNMENT_ROLES } from "../../utils/teacherTeachingAccess";
 import { getUserById } from "../users/users.service";
 import * as gradingMaintenance from "./gradingScaleMaintenance";
+import * as curriculumMaintenance from "./curriculumMaintenance";
 import * as svc from "./academic.service";
 
 const schemas = (sharedSchemas as Record<string, unknown>).default
@@ -36,6 +42,9 @@ const {
   updateSubjectSchema,
   updateTermSchema,
   upsertGradingScaleSchema,
+  curriculumSetupSchema,
+  curriculumCatalogSeedSchema,
+  curriculumClassTracksSchema,
 } = schemas as {
   academicYearSchema: { parse: (v: unknown) => unknown };
   classSchema: { parse: (v: unknown) => unknown };
@@ -62,6 +71,9 @@ const {
   updateSubjectSchema: { parse: (v: unknown) => unknown };
   updateTermSchema: { parse: (v: unknown) => unknown };
   upsertGradingScaleSchema: { parse: (v: unknown) => unknown };
+  curriculumSetupSchema: { parse: (v: unknown) => unknown };
+  curriculumCatalogSeedSchema: { parse: (v: unknown) => unknown };
+  curriculumClassTracksSchema: { parse: (v: unknown) => unknown };
 };
 
 export async function postYear(req: Request, res: Response): Promise<void> {
@@ -461,5 +473,45 @@ export async function recalculateGradingScales(req: Request, res: Response): Pro
     success: true,
     data,
     message: "A-Level stored grades and division summaries were recalculated from the active scale.",
+  });
+}
+
+export async function getCurriculumStatus(req: Request, res: Response): Promise<void> {
+  const academicYearId = typeof req.query.academicYearId === "string" ? req.query.academicYearId : "";
+  if (!academicYearId) throw new HttpError(400, "academicYearId is required");
+  const data = await curriculumMaintenance.getCurriculumStatus(academicYearId);
+  res.json({ success: true, data });
+}
+
+export async function postCurriculumSetup(req: Request, res: Response): Promise<void> {
+  const body = curriculumSetupSchema.parse(req.body) as CurriculumSetupInput;
+  const data = await curriculumMaintenance.provisionCurriculum(body);
+  res.json({
+    success: true,
+    data,
+    message:
+      body.level === "O_LEVEL"
+        ? "O-Level catalogue and class subjects were provisioned."
+        : "A-Level catalogue and class subjects were provisioned.",
+  });
+}
+
+export async function postCurriculumCatalogSeed(req: Request, res: Response): Promise<void> {
+  const body = curriculumCatalogSeedSchema.parse(req.body ?? {}) as CurriculumCatalogSeedInput;
+  const data = await curriculumMaintenance.seedCurriculumCatalog(body);
+  res.json({
+    success: true,
+    data,
+    message: "Default curriculum catalogue installed.",
+  });
+}
+
+export async function postCurriculumClassTracks(req: Request, res: Response): Promise<void> {
+  const body = curriculumClassTracksSchema.parse(req.body) as CurriculumClassTracksInput;
+  const data = await curriculumMaintenance.updateClassCurriculumTracks(body);
+  res.json({
+    success: true,
+    data,
+    message: "Class curriculum tracks updated.",
   });
 }

@@ -53,7 +53,7 @@ export function createApp(): Express {
     cors({
       origin: getAllowedOrigins(),
       credentials: true,
-      methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization", "X-Tenant-Slug"],
       exposedHeaders: [
         "X-Cache",

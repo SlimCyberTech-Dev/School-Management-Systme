@@ -74,3 +74,7 @@ academicRouter.delete("/cbc-strands/sub-strands/:subStrandId", academicLeads, as
 academicRouter.get("/grading-scales", academicReaders, asyncHandler(c.getGradingScales));
 academicRouter.put("/grading-scales", requireRoles("admin"), asyncHandler(c.putGradingScales));
 academicRouter.post("/grading-scales/recalculate", requireRoles("admin"), asyncHandler(c.recalculateGradingScales));
+academicRouter.get("/curriculum/status", academicLeads, asyncHandler(c.getCurriculumStatus));
+academicRouter.post("/curriculum/setup", academicLeads, asyncHandler(c.postCurriculumSetup));
+academicRouter.post("/curriculum/seed-catalog", academicLeads, asyncHandler(c.postCurriculumCatalogSeed));
+academicRouter.post("/curriculum/class-tracks", academicLeads, asyncHandler(c.postCurriculumClassTracks));

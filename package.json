@@ -13,6 +13,7 @@
     "seed": "npm run seed --workspace=apps/api",
     "setup": "npm run migrate && npm run seed",
     "seed:grading-scales": "npm run seed:grading-scales --workspace=apps/api",
+    "seed:curriculum": "npm run seed:curriculum --workspace=apps/api",
     "backup:db": "npm run backup:db --workspace=apps/api",
     "restore:db": "npm run restore:db --workspace=apps/api",
     "test:security": "npm run test:security --workspace=apps/api",
