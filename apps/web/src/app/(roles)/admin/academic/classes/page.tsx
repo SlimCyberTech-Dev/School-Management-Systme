@@ -125,6 +125,7 @@ export default function AdminAcademicClassesPage() {
       level: row.level,
       academicYearId: row.academicYearId,
       classTeacherId: row.classTeacherId,
+      curriculumTrack: row.curriculumTrack ?? null,
     });
   };
 
@@ -138,6 +139,7 @@ export default function AdminAcademicClassesPage() {
           stream: v.stream,
           level: v.level,
           academicYearId: v.academicYearId,
+          ...(v.level === "A_LEVEL" ? { curriculumTrack: v.curriculumTrack ?? null } : {}),
         }),
       {
         title: "Class updated",
@@ -168,6 +170,20 @@ export default function AdminAcademicClassesPage() {
     { key: "name", header: "Class" },
     { key: "stream", header: "Stream" },
     { key: "level", header: "Level" },
+    ...(level === "A_LEVEL"
+      ? [
+          {
+            key: "curriculumTrack",
+            header: "Track",
+            render: (r: Row) =>
+              r.curriculumTrack ? (
+                String(r.curriculumTrack)
+              ) : (
+                <span className="text-amber-700 dark:text-amber-300">Not set</span>
+              ),
+          } as Column<Row>,
+        ]
+      : []),
     {
       key: "academicYearId",
       header: "Year",
@@ -286,6 +302,18 @@ export default function AdminAcademicClassesPage() {
               options={years.map((y) => ({ value: y.id, label: y.name }))}
               {...editForm.register("academicYearId")}
             />
+            {editForm.watch("level") === "A_LEVEL" ? (
+              <Select
+                label="Curriculum track"
+                options={[
+                  { value: "", label: "— Not set —" },
+                  { value: "SCIENCES", label: "Sciences" },
+                  { value: "ARTS", label: "Arts" },
+                  { value: "GENERAL", label: "General" },
+                ]}
+                {...editForm.register("curriculumTrack")}
+              />
+            ) : null}
             <p className="text-sm text-muted-foreground">
               Assign homeroom and class teachers on{" "}
               <Link

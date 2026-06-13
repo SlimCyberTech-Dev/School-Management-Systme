@@ -216,6 +216,19 @@ export default function AdminAcademicClassSubjectsPage() {
         {err ? <Alert tone="error">{err}</Alert> : null}
       </div>
 
+      {!loading && classId && assignments.length === 0 ? (
+        <Alert tone="info">
+          No subjects on this class yet.{" "}
+          <Link
+            href={hrefWithLevel("/admin/academic/curriculum", { academicYearId })}
+            className="font-medium text-brand hover:underline"
+          >
+            Use Curriculum setup
+          </Link>{" "}
+          to auto-provision all {levelShortLabel(level)} classes in one step.
+        </Alert>
+      ) : null}
+
       <div className="mb-4">
         <Card title="School level">
           <AcademicLevelScope

@@ -7,6 +7,8 @@ export function tenantScope(slug: string): string {
 export const queryKeys = {
   dashboardKpis: (tenantSlug: string) => ["dashboard-kpis", tenantScope(tenantSlug)] as const,
   academicSummary: (tenantSlug: string) => ["academic-summary", tenantScope(tenantSlug)] as const,
+  curriculumStatus: (tenantSlug: string, academicYearId: string) =>
+    ["curriculum-status", tenantScope(tenantSlug), academicYearId] as const,
 };
 
 /** Stable reference data (years, subjects, KPIs) — safe to keep fresh for several minutes. */

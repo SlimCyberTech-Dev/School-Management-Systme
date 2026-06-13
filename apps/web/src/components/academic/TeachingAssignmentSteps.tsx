@@ -36,7 +36,7 @@ export function TeachingAssignmentSteps({
     {
       n: 2,
       title: "Subjects on the timetable",
-      body: `Add which ${track} subjects each class offers. Only subjects matching the class level can be selected.`,
+      body: `Add which ${track} subjects each class offers — or use Curriculum setup to auto-provision all classes at once.`,
       href: hrefWithLevel("/admin/academic/class-subjects", yearQ),
       cta: "Manage class subjects",
     },

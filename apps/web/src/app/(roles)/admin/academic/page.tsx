@@ -17,6 +17,11 @@ const SETUP_LINKS = [
 ];
 
 const CURRICULUM_LINKS = [
+  {
+    href: "/admin/academic/curriculum",
+    title: "Curriculum setup",
+    desc: "Auto-install subjects, CBC strands, and class–subject slots",
+  },
   { href: "/admin/academic/combinations", title: "Subject combinations", desc: "O-Level and A-Level combinations" },
   { href: "/admin/academic/cbc-strands", title: "CBC strands", desc: "O-Level strands and sub-strands" },
   { href: "/admin/academic/grading-scales", title: "Grading scales", desc: "Grade ranges, points, and descriptors" },

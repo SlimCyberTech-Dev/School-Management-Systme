@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { AcademicYear } from "@uganda-cbc-sms/shared";
 import { AnimatePresence, motion } from "framer-motion";
@@ -594,6 +595,13 @@ export function SchoolOnboardingWizard() {
                       Add another class
                     </Button>
                   </div>
+                  <p className="mt-4 text-sm text-slate-400">
+                    After onboarding, open{" "}
+                    <Link href="/admin/academic/curriculum" className="font-medium text-indigo-300 hover:underline">
+                      Academic → Curriculum setup
+                    </Link>{" "}
+                    to auto-install subjects, CBC strands, and class–subject slots in one step.
+                  </p>
                   <div className="mt-auto flex justify-between pt-8">
                     <Button variant="ghost" onClick={goBack}>
                       Back
