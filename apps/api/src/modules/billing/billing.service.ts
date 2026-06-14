@@ -6,6 +6,14 @@ import type {
 import crypto from "crypto";
 import { platformQuery, query } from "../../config/db.js";
 import { loadEnv } from "../../config/env.js";
+import {
+  getCachedBillingSettings,
+  getCachedTenantBillingStatus,
+  invalidateBillingSettingsCache,
+  invalidateTenantBillingStatus,
+  setCachedBillingSettings,
+  setCachedTenantBillingStatus,
+} from "../../utils/billingCache.js";
 import { HttpError } from "../../utils/httpError.js";
 import { logPlatformAction } from "../platform/platformAudit.service.js";
 import { initializeFlutterwavePayment, verifyFlutterwaveWebhook } from "./flutterwave.js";
@@ -31,6 +39,9 @@ type PeriodRow = {
 };
 
 export async function getBillingSettings(): Promise<BillingSettings> {
+  const cached = getCachedBillingSettings();
+  if (cached) return cached;
+
   const { rows } = await platformQuery<{
     default_amount_ugx: string;
     currency: string;
@@ -38,13 +49,17 @@ export async function getBillingSettings(): Promise<BillingSettings> {
   }>(`SELECT default_amount_ugx, currency, grace_days FROM platform_billing_settings WHERE id = 1`);
   const row = rows[0];
   if (!row) {
-    return { defaultAmountUgx: 500_000, currency: "UGX", graceDays: 7 };
+    const defaults = { defaultAmountUgx: 500_000, currency: "UGX", graceDays: 7 };
+    setCachedBillingSettings(defaults);
+    return defaults;
   }
-  return {
+  const settings = {
     defaultAmountUgx: Number(row.default_amount_ugx),
     currency: row.currency,
     graceDays: row.grace_days,
   };
+  setCachedBillingSettings(settings);
+  return settings;
 }
 
 export async function updateBillingSettings(input: BillingSettings, actorId: string): Promise<BillingSettings> {
@@ -59,6 +74,8 @@ export async function updateBillingSettings(input: BillingSettings, actorId: str
     action: "BILLING_SETTINGS_UPDATED",
     metadata: input,
   });
+  invalidateBillingSettingsCache();
+  invalidateTenantBillingStatus();
   return input;
 }
 
@@ -93,11 +110,14 @@ async function loadBlockingPeriod(tenantId: string): Promise<PeriodRow | null> {
 }
 
 export async function getTenantBillingStatus(tenantId: string): Promise<TenantBillingStatus> {
+  const cached = getCachedTenantBillingStatus(tenantId);
+  if (cached) return cached;
+
   const settings = await getBillingSettings();
   const period = await loadBlockingPeriod(tenantId);
 
   if (!period) {
-    return {
+    const status: TenantBillingStatus = {
       accessStatus: "none",
       canUseApp: true,
       canPay: false,
@@ -105,6 +125,8 @@ export async function getTenantBillingStatus(tenantId: string): Promise<TenantBi
       currentPeriod: null,
       message: null,
     };
+    setCachedTenantBillingStatus(tenantId, status);
+    return status;
   }
 
   const dueMs = new Date(period.due_at).getTime();
@@ -113,7 +135,7 @@ export async function getTenantBillingStatus(tenantId: string): Promise<TenantBi
   const mapped = mapPeriod(period);
 
   if (period.status === "overdue" || now > graceEndMs) {
-    return {
+    const status: TenantBillingStatus = {
       accessStatus: "past_due",
       canUseApp: false,
       canPay: true,
@@ -121,10 +143,12 @@ export async function getTenantBillingStatus(tenantId: string): Promise<TenantBi
       currentPeriod: mapped,
       message: `Subscription for ${period.label} is unpaid. Pay to restore access for your school.`,
     };
+    setCachedTenantBillingStatus(tenantId, status);
+    return status;
   }
 
   if (now > dueMs) {
-    return {
+    const status: TenantBillingStatus = {
       accessStatus: "grace",
       canUseApp: true,
       canPay: true,
@@ -132,9 +156,11 @@ export async function getTenantBillingStatus(tenantId: string): Promise<TenantBi
       currentPeriod: mapped,
       message: `Payment for ${period.label} is overdue. Please pay within the grace period.`,
     };
+    setCachedTenantBillingStatus(tenantId, status);
+    return status;
   }
 
-  return {
+  const status: TenantBillingStatus = {
     accessStatus: "current",
     canUseApp: true,
     canPay: true,
@@ -142,6 +168,8 @@ export async function getTenantBillingStatus(tenantId: string): Promise<TenantBi
     currentPeriod: mapped,
     message: null,
   };
+  setCachedTenantBillingStatus(tenantId, status);
+  return status;
 }
 
 export async function markOverdueBillingPeriods(): Promise<number> {
@@ -153,6 +181,7 @@ export async function markOverdueBillingPeriods(): Promise<number> {
        AND due_at + ($1::int * interval '1 day') < NOW()`,
     [settings.graceDays],
   );
+  invalidateTenantBillingStatus();
   return rowCount ?? 0;
 }
 
@@ -266,6 +295,7 @@ async function completePayment(paymentId: string, providerReference?: string): P
       [payment.billing_period_id],
     );
     await client.query("COMMIT");
+    invalidateTenantBillingStatus(payment.tenant_id);
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;

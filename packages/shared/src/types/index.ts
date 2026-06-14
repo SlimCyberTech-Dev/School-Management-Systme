@@ -205,4 +205,7 @@ export type {
   FeeScheduleRelease,
   BulkInvoicePreview,
   BulkInvoicePreviewStudent,
+  FeeInvoiceSummary,
+  PaginatedFeeInvoices,
+  FeeInvoiceTermOption,
 } from "./fees";

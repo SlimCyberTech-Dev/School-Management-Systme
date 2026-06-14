@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -9,13 +9,9 @@ import { BursarInvoiceFilters } from "@/components/fees/bursar/BursarInvoiceFilt
 import { FeeInvoicesTable } from "@/components/fees/FeeInvoicesTable";
 import { Alert } from "@/components/ui/Alert";
 import { MoneyAmount } from "@/components/ui/MoneyAmount";
-import { useFeeInvoices } from "@/hooks/useFees";
-import {
-  computeInvoiceStats,
-  filterInvoices,
-  type InvoiceBucket,
-  uniqueInvoiceTerms,
-} from "@/lib/feeFinanceStats";
+import { PaginationBar } from "@/components/ui/PaginationBar";
+import { useBrowseFeeInvoices, useFeeInvoiceSummary, useFeeInvoiceTerms } from "@/hooks/useFees";
+import { summaryToInvoiceStats, type InvoiceBucket } from "@/lib/feeFinanceStats";
 import { queryStatus } from "@/lib/queryStatus";
 
 function initialBucket(tab: string | null): InvoiceBucket {
@@ -27,20 +23,48 @@ function initialBucket(tab: string | null): InvoiceBucket {
 
 export default function HeadteacherFeesInvoicesPage() {
   const searchParams = useSearchParams();
-  const invoicesQ = useFeeInvoices();
-  const status = queryStatus(invoicesQ);
-  const allRows = useMemo(() => invoicesQ.data ?? [], [invoicesQ.data]);
 
   const [search, setSearch] = useState("");
   const [termId, setTermId] = useState("");
   const [bucket, setBucket] = useState<InvoiceBucket>(() => initialBucket(searchParams.get("tab")));
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
 
-  const stats = useMemo(() => computeInvoiceStats(allRows), [allRows]);
-  const termOptions = useMemo(() => uniqueInvoiceTerms(allRows), [allRows]);
+  useEffect(() => {
+    setPage(1);
+  }, [bucket, termId, search, limit]);
 
-  const filteredRows = useMemo(
-    () => filterInvoices(allRows, { bucket, search, termId: termId || undefined }),
-    [allRows, bucket, search, termId],
+  const summaryQ = useFeeInvoiceSummary(termId || undefined);
+  const termsQ = useFeeInvoiceTerms();
+  const browseQ = useBrowseFeeInvoices({
+    page,
+    limit,
+    bucket,
+    termId: termId || undefined,
+    q: search || undefined,
+  });
+
+  const status = queryStatus(browseQ);
+  const stats = useMemo(
+    () =>
+      summaryQ.data
+        ? summaryToInvoiceStats(summaryQ.data)
+        : {
+            total: 0,
+            active: 0,
+            paid: 0,
+            arrears: 0,
+            partial: 0,
+            outstandingUgx: 0,
+            collectedOnInvoicesUgx: 0,
+            billedUgx: 0,
+          },
+    [summaryQ.data],
+  );
+
+  const termOptions = useMemo(
+    () => (termsQ.data ?? []).map((t) => ({ termId: t.termId, label: t.label })),
+    [termsQ.data],
   );
 
   const bucketCounts = useMemo(
@@ -53,6 +77,9 @@ export default function HeadteacherFeesInvoicesPage() {
     }),
     [stats],
   );
+
+  const rows = browseQ.data?.items ?? [];
+  const pagination = browseQ.data ?? { page: 1, limit: 25, total: 0, totalPages: 1 };
 
   return (
     <div className="space-y-6">
@@ -80,7 +107,7 @@ export default function HeadteacherFeesInvoicesPage() {
       <section className="rounded-xl border border-border bg-card shadow-sm">
         <div className="border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold text-foreground">
-            Invoices ({filteredRows.length} shown)
+            Invoices ({pagination.total} total)
           </h2>
         </div>
         <div className="p-5">
@@ -101,18 +128,26 @@ export default function HeadteacherFeesInvoicesPage() {
               error={
                 <ErrorState
                   message={
-                    invoicesQ.error instanceof Error ? invoicesQ.error.message : "Could not load invoices."
+                    browseQ.error instanceof Error ? browseQ.error.message : "Could not load invoices."
                   }
-                  onRetry={() => void invoicesQ.refetch()}
+                  onRetry={() => void browseQ.refetch()}
                 />
               }
             >
               <FeeInvoicesTable
-                rows={filteredRows}
+                rows={rows}
                 studentBasePath="/headteacher/students"
                 invoiceBasePath="/headteacher/fees/invoices"
                 showCollectAction={false}
                 emptyMessage="No invoices match your filters."
+              />
+              <PaginationBar
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                total={pagination.total}
+                limit={pagination.limit}
+                onPageChange={setPage}
+                onLimitChange={setLimit}
               />
             </AsyncContent>
           </div>

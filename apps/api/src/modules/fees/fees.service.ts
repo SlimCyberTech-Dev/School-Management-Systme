@@ -1,11 +1,14 @@
 import type {
   FeeBulkInvoiceInput,
+  FeeInvoiceBrowseQuery,
   FeeInvoiceInput,
+  FeeInvoiceSummaryQuery,
   FeePaymentInput,
   FeeStructureBulkCopyInput,
   FeeStructureCopyInput,
   FeeStructureInput,
   FeeStructurePatchInput,
+  PaginatedFeeInvoices,
 } from "@uganda-cbc-sms/shared";
 import type { PoolClient } from "pg";
 import { query, withTransaction } from "../../config/db";
@@ -245,6 +248,142 @@ export async function listInvoices(studentId?: string) {
     ? await query(`${INVOICE_SELECT} WHERE fi.student_id = $1 ORDER BY fi.created_at DESC`, [studentId])
     : await query(`${INVOICE_SELECT} ORDER BY fi.created_at DESC`);
   return rows.map((r) => mapFeeInvoice(r as Record<string, unknown>));
+}
+
+const INVOICE_JOIN = `
+  FROM fee_invoices fi
+  JOIN students s ON s.id = fi.student_id
+  JOIN terms t ON t.id = fi.term_id
+  JOIN academic_years ay ON ay.id = t.academic_year_id`;
+
+function buildInvoiceBrowseFilters(input: FeeInvoiceBrowseQuery | FeeInvoiceSummaryQuery) {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if ("termId" in input && input.termId) {
+    params.push(input.termId);
+    conditions.push(`fi.term_id = $${params.length}`);
+  }
+
+  if ("bucket" in input) {
+    switch (input.bucket) {
+      case "active":
+        conditions.push("fi.balance > 0");
+        break;
+      case "paid":
+        conditions.push("fi.balance <= 0");
+        break;
+      case "arrears":
+        conditions.push("fi.is_flagged = true AND fi.balance > 0");
+        break;
+      case "partial":
+        conditions.push("fi.balance > 0 AND fi.amount_paid > 0");
+        break;
+      default:
+        break;
+    }
+  }
+
+  const q = "q" in input ? input.q?.trim() : undefined;
+  if (q) {
+    params.push(`%${q}%`);
+    const p = params.length;
+    conditions.push(
+      `(s.full_name ILIKE $${p} OR s.student_number ILIKE $${p} OR CONCAT('Term ', t.term_number::text) ILIKE $${p} OR ay.name ILIKE $${p})`,
+    );
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  return { where, params };
+}
+
+export async function browseInvoices(input: FeeInvoiceBrowseQuery): Promise<PaginatedFeeInvoices> {
+  const page = input.page;
+  const limit = input.limit;
+  const offset = (page - 1) * limit;
+  const { where, params } = buildInvoiceBrowseFilters(input);
+
+  const countSql = `SELECT COUNT(*)::text AS c ${INVOICE_JOIN} ${where}`;
+  const { rows: countRows } = await query<{ c: string }>(countSql, params);
+  const total = Number(countRows[0]?.c ?? 0);
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  const listParams = [...params, limit, offset];
+  const limitIdx = params.length + 1;
+  const offsetIdx = params.length + 2;
+  const listSql = `${INVOICE_SELECT}${where ? ` ${where}` : ""} ORDER BY fi.created_at DESC LIMIT $${limitIdx} OFFSET $${offsetIdx}`;
+  const { rows: listRows } = await query(listSql, listParams);
+
+  return {
+    items: listRows.map((r) => mapFeeInvoice(r as Record<string, unknown>)),
+    page,
+    limit,
+    total,
+    totalPages,
+  };
+}
+
+export async function getInvoiceSummary(input: FeeInvoiceSummaryQuery = {}) {
+  const { where, params } = buildInvoiceBrowseFilters(input);
+  const { rows } = await query<{
+    total: string;
+    active: string;
+    paid: string;
+    arrears: string;
+    partial: string;
+    outstanding_ugx: string;
+    collected_ugx: string;
+    billed_ugx: string;
+  }>(
+    `SELECT
+       COUNT(*)::text AS total,
+       COUNT(*) FILTER (WHERE fi.balance > 0)::text AS active,
+       COUNT(*) FILTER (WHERE fi.balance <= 0)::text AS paid,
+       COUNT(*) FILTER (WHERE fi.is_flagged AND fi.balance > 0)::text AS arrears,
+       COUNT(*) FILTER (WHERE fi.balance > 0 AND fi.amount_paid > 0)::text AS partial,
+       COALESCE(SUM(fi.balance), 0)::text AS outstanding_ugx,
+       COALESCE(SUM(fi.amount_paid), 0)::text AS collected_ugx,
+       COALESCE(SUM(fi.total_amount), 0)::text AS billed_ugx
+     ${INVOICE_JOIN}
+     ${where}`,
+    params,
+  );
+  const row = rows[0];
+  return {
+    total: Number(row?.total ?? 0),
+    active: Number(row?.active ?? 0),
+    paid: Number(row?.paid ?? 0),
+    arrears: Number(row?.arrears ?? 0),
+    partial: Number(row?.partial ?? 0),
+    outstandingUgx: row?.outstanding_ugx ?? "0",
+    collectedOnInvoicesUgx: row?.collected_ugx ?? "0",
+    billedUgx: row?.billed_ugx ?? "0",
+  };
+}
+
+export async function listInvoiceTermOptions() {
+  const { rows } = await query<{ term_id: string; term_label: string; year_name: string }>(
+    `SELECT DISTINCT fi.term_id,
+            CONCAT('Term ', t.term_number::text) AS term_label,
+            ay.name AS year_name
+     FROM fee_invoices fi
+     JOIN terms t ON t.id = fi.term_id
+     JOIN academic_years ay ON ay.id = t.academic_year_id
+     ORDER BY ay.name DESC, t.term_number DESC`,
+  );
+  return rows.map((r) => ({
+    termId: r.term_id,
+    label: [r.term_label, r.year_name].filter(Boolean).join(" · "),
+  }));
+}
+
+export async function listRecentPayments(limit = 8) {
+  const safeLimit = Math.min(Math.max(limit, 1), 50);
+  const { rows } = await query(
+    `${PAYMENT_SELECT} ORDER BY fp.paid_at DESC LIMIT $1`,
+    [safeLimit],
+  );
+  return rows.map((r) => mapFeePayment(r as Record<string, unknown>));
 }
 
 export async function generateInvoicesFromStructure(input: FeeBulkInvoiceInput, billedBy: string) {

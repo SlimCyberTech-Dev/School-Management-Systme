@@ -1,47 +1,42 @@
 "use client";
 
 import { useMemo } from "react";
-import { useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { BursarDashboardContent } from "@/components/bursar/BursarDashboardContent";
 import { DashboardSkeleton } from "@/components/layout/shells/DashboardScaffold";
-import type { FeePayment } from "@uganda-cbc-sms/shared";
 import { apiGet } from "@/lib/api";
-import { useFeeInvoices } from "@/hooks/useFees";
-import { computeInvoiceStats, recentPayments } from "@/lib/feeFinanceStats";
+import { useFeeInvoiceSummary, useRecentFeePayments } from "@/hooks/useFees";
 import { combineQueryStatus } from "@/lib/queryStatus";
 
 type Kpis = { activeStudents: string; totalFeesDue: string; totalFeesPaid: string };
 
 export default function BursarDashboardPage() {
-  const [kpisQ, paymentsQ] = useQueries({
-    queries: [
-      { queryKey: ["dashboard-kpis"], queryFn: () => apiGet<Kpis>("/analytics/dashboard") },
-      { queryKey: ["fees", "payments", "all"], queryFn: () => apiGet<FeePayment[]>("/fees/payments") },
-    ],
+  const summaryQ = useFeeInvoiceSummary();
+  const paymentsQ = useRecentFeePayments(8);
+  const kpisQ = useQuery({
+    queryKey: ["dashboard-kpis"],
+    queryFn: () => apiGet<Kpis>("/analytics/dashboard"),
   });
-  const invoicesQ = useFeeInvoices();
 
-  const queries = [kpisQ, paymentsQ, invoicesQ];
+  const queries = [kpisQ, paymentsQ, summaryQ];
   const status = combineQueryStatus(queries);
   const isFetching = queries.some((q) => q.isFetching && !q.isPending);
   const errorMessage =
-    (kpisQ.error ?? paymentsQ.error ?? invoicesQ.error) instanceof Error
-      ? (kpisQ.error ?? paymentsQ.error ?? invoicesQ.error)!.message
+    (kpisQ.error ?? paymentsQ.error ?? summaryQ.error) instanceof Error
+      ? (kpisQ.error ?? paymentsQ.error ?? summaryQ.error)!.message
       : "Failed to load dashboard";
 
-  const invoiceStats = useMemo(
-    () => computeInvoiceStats(invoicesQ.data ?? []),
-    [invoicesQ.data],
-  );
+  const invoiceStats = useMemo(() => {
+    const s = summaryQ.data;
+    if (!s) {
+      return { active: 0, arrears: 0 };
+    }
+    return { active: s.active, arrears: s.arrears };
+  }, [summaryQ.data]);
 
-  const arrearsCount = invoiceStats.arrears;
-
-  const recent = useMemo(
-    () => recentPayments(paymentsQ.data ?? [], 8),
-    [paymentsQ.data],
-  );
+  const recent = useMemo(() => paymentsQ.data ?? [], [paymentsQ.data]);
 
   const exportRecentCsv = () => {
     if (!recent.length) return;
@@ -73,7 +68,7 @@ export default function BursarDashboardPage() {
       {kpisQ.data ? (
         <BursarDashboardContent
           kpis={kpisQ.data}
-          arrearsCount={arrearsCount}
+          arrearsCount={invoiceStats.arrears}
           activeBillsCount={invoiceStats.active}
           recentPayments={recent}
           onExportPayments={exportRecentCsv}

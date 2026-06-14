@@ -111,3 +111,27 @@ export type BulkInvoicePreview = {
   alreadyInvoiced: number;
   students: BulkInvoicePreviewStudent[];
 };
+
+export type FeeInvoiceSummary = {
+  total: number;
+  active: number;
+  paid: number;
+  arrears: number;
+  partial: number;
+  outstandingUgx: string;
+  collectedOnInvoicesUgx: string;
+  billedUgx: string;
+};
+
+export type PaginatedFeeInvoices = {
+  items: FeeInvoice[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+export type FeeInvoiceTermOption = {
+  termId: string;
+  label: string;
+};

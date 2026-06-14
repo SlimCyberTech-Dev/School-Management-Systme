@@ -14,6 +14,8 @@ const {
   feeBulkInvoiceSchema,
   feeScheduleClassTermSchema,
   feeScheduleBulkPublishSchema,
+  feeInvoiceBrowseQuerySchema,
+  feeInvoiceSummaryQuerySchema,
 } = sharedSchemas;
 
 export async function postStructure(req: Request, res: Response): Promise<void> {
@@ -74,8 +76,32 @@ export async function getInvoice(req: Request, res: Response): Promise<void> {
 
 export async function getInvoices(req: Request, res: Response): Promise<void> {
   const studentId = req.query["studentId"] as string | undefined;
-  const rows = await svc.listInvoices(studentId);
-  res.json({ success: true, data: rows });
+  if (studentId) {
+    const rows = await svc.listInvoices(studentId);
+    res.json({ success: true, data: rows });
+    return;
+  }
+
+  const browse = feeInvoiceBrowseQuerySchema.parse({
+    page: req.query["page"] ?? 1,
+    limit: req.query["limit"],
+    bucket: req.query["bucket"],
+    termId: req.query["termId"],
+    q: req.query["q"],
+  });
+  const data = await svc.browseInvoices(browse);
+  res.json({ success: true, data });
+}
+
+export async function getInvoiceSummary(req: Request, res: Response): Promise<void> {
+  const query = feeInvoiceSummaryQuerySchema.parse({ termId: req.query["termId"] });
+  const data = await svc.getInvoiceSummary(query);
+  res.json({ success: true, data });
+}
+
+export async function getInvoiceTerms(req: Request, res: Response): Promise<void> {
+  const data = await svc.listInvoiceTermOptions();
+  res.json({ success: true, data });
 }
 
 export async function postPayment(req: Request, res: Response): Promise<void> {
@@ -92,6 +118,13 @@ export async function postPayment(req: Request, res: Response): Promise<void> {
 export async function getPayments(req: Request, res: Response): Promise<void> {
   const studentId = req.query["studentId"] as string | undefined;
   const rows = await svc.listPayments(studentId);
+  res.json({ success: true, data: rows });
+}
+
+export async function getRecentPayments(req: Request, res: Response): Promise<void> {
+  const limitRaw = req.query["limit"];
+  const limit = limitRaw != null ? Number(limitRaw) : 8;
+  const rows = await svc.listRecentPayments(Number.isFinite(limit) ? limit : 8);
   res.json({ success: true, data: rows });
 }
 

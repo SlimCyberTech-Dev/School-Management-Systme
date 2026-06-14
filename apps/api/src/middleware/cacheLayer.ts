@@ -14,9 +14,17 @@ const TIER_A_PREFIXES = [
   "/api/fees/structure",
 ];
 
-const TIER_B_PREFIXES = ["/api/analytics/dashboard", "/api/analytics/", "/api/reports/summary"];
+const TIER_B_PREFIXES = [
+  "/api/analytics/dashboard",
+  "/api/analytics/",
+  "/api/reports/summary",
+  "/api/fees/invoices/summary",
+  "/api/fees/invoices/terms",
+  "/api/fees/invoices",
+  "/api/fees/payments/recent",
+];
 
-const TIER_B_ROLES = new Set<Role>(["admin", "headteacher"]);
+const TIER_B_ROLES = new Set<Role>(["admin", "headteacher", "bursar"]);
 
 /** Full API path (works inside mounted routers). */
 export function requestCachePath(req: Request): string {
@@ -51,7 +59,9 @@ function shouldNeverCache(req: Request): boolean {
   const path = requestCachePath(req);
   if (path.startsWith("/api/auth")) return true;
   if (/^\/api\/students\/[^/]+$/.test(path)) return true;
+  if (path === "/api/fees/payments/recent") return false;
   if (path.startsWith("/api/fees/payments")) return true;
+  if (path.startsWith("/api/fees/invoices") && typeof req.query["studentId"] === "string") return true;
   return false;
 }
 
@@ -109,7 +119,7 @@ export function invalidateCachePrefix(prefix: string): void {
 /** After a successful write on `pathPrefix`, bust cached GET responses under these prefixes. */
 const MUTATION_CACHE_RULES: { pathPrefix: string; invalidate: string[] }[] = [
   { pathPrefix: "/api/academic", invalidate: ["/api/academic"] },
-  { pathPrefix: "/api/fees", invalidate: ["/api/fees/structure", "/api/analytics"] },
+  { pathPrefix: "/api/fees", invalidate: ["/api/fees/structure", "/api/fees/invoices", "/api/analytics"] },
   { pathPrefix: "/api/students", invalidate: ["/api/analytics"] },
   { pathPrefix: "/api/users", invalidate: ["/api/analytics"] },
 ];

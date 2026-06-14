@@ -7,7 +7,7 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { HeadteacherDashboardContent } from "@/components/headteacher/HeadteacherDashboardContent";
 import { DashboardSkeleton } from "@/components/layout/shells/DashboardScaffold";
 import { apiGet } from "@/lib/api";
-import { useFeeInvoices } from "@/hooks/useFees";
+import { useFeeInvoiceSummary } from "@/hooks/useFees";
 import { combineQueryStatus } from "@/lib/queryStatus";
 
 type Kpis = {
@@ -27,26 +27,23 @@ type TermRow = {
 };
 
 export default function HeadteacherDashboardPage() {
+  const summaryQ = useFeeInvoiceSummary();
   const [kpisQ, termsQ] = useQueries({
     queries: [
       { queryKey: ["dashboard-kpis"], queryFn: () => apiGet<Kpis>("/analytics/dashboard") },
       { queryKey: ["terms"], queryFn: () => apiGet<TermRow[]>("/academic/terms") },
     ],
   });
-  const invoicesQ = useFeeInvoices();
 
-  const queries = [kpisQ, termsQ, invoicesQ];
+  const queries = [kpisQ, termsQ, summaryQ];
   const status = combineQueryStatus(queries);
   const isFetching = queries.some((q) => q.isFetching && !q.isPending);
   const errorMessage =
-    (kpisQ.error ?? termsQ.error ?? invoicesQ.error) instanceof Error
-      ? (kpisQ.error ?? termsQ.error ?? invoicesQ.error)!.message
+    (kpisQ.error ?? termsQ.error ?? summaryQ.error) instanceof Error
+      ? (kpisQ.error ?? termsQ.error ?? summaryQ.error)!.message
       : "Failed to load dashboard";
 
-  const arrearsCount = useMemo(
-    () => (invoicesQ.data ?? []).filter((r) => r.isFlagged && Number(r.balance) > 0).length,
-    [invoicesQ.data],
-  );
+  const arrearsCount = useMemo(() => summaryQ.data?.arrears ?? 0, [summaryQ.data]);
 
   return (
     <AsyncContent

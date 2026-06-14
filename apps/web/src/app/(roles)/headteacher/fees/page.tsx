@@ -5,17 +5,37 @@ import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { FormSkeleton } from "@/components/feedback/FormSkeleton";
 import { HeadteacherFinanceOverview } from "@/components/fees/headteacher/HeadteacherFinanceOverview";
-import { useFeeInvoices, useFeePayments } from "@/hooks/useFees";
-import { computeInvoiceStats } from "@/lib/feeFinanceStats";
+import {
+  useBrowseFeeInvoices,
+  useFeeInvoiceSummary,
+  useRecentFeePayments,
+} from "@/hooks/useFees";
+import { summaryToInvoiceStats } from "@/lib/feeFinanceStats";
 import { queryStatus } from "@/lib/queryStatus";
 
 export default function HeadteacherFeesOverviewPage() {
-  const invoicesQ = useFeeInvoices();
-  const paymentsQ = useFeePayments();
-  const status = queryStatus(invoicesQ);
+  const summaryQ = useFeeInvoiceSummary();
+  const activeQ = useBrowseFeeInvoices({ bucket: "active", page: 1, limit: 10 });
+  const arrearsQ = useBrowseFeeInvoices({ bucket: "arrears", page: 1, limit: 6 });
+  const paymentsQ = useRecentFeePayments(8);
+  const status = queryStatus(summaryQ);
 
-  const rows = useMemo(() => invoicesQ.data ?? [], [invoicesQ.data]);
-  const stats = useMemo(() => computeInvoiceStats(rows), [rows]);
+  const stats = useMemo(
+    () =>
+      summaryQ.data
+        ? summaryToInvoiceStats(summaryQ.data)
+        : {
+            total: 0,
+            active: 0,
+            paid: 0,
+            arrears: 0,
+            partial: 0,
+            outstandingUgx: 0,
+            collectedOnInvoicesUgx: 0,
+            billedUgx: 0,
+          },
+    [summaryQ.data],
+  );
 
   return (
     <AsyncContent
@@ -23,12 +43,19 @@ export default function HeadteacherFeesOverviewPage() {
       loading={<FormSkeleton fields={4} />}
       error={
         <ErrorState
-          message={invoicesQ.error instanceof Error ? invoicesQ.error.message : "Could not load finance data."}
-          onRetry={() => void invoicesQ.refetch()}
+          message={
+            summaryQ.error instanceof Error ? summaryQ.error.message : "Could not load finance data."
+          }
+          onRetry={() => void summaryQ.refetch()}
         />
       }
     >
-      <HeadteacherFinanceOverview stats={stats} rows={rows} payments={paymentsQ.data ?? []} />
+      <HeadteacherFinanceOverview
+        stats={stats}
+        activeRows={activeQ.data?.items ?? []}
+        arrearsRows={arrearsQ.data?.items ?? []}
+        payments={paymentsQ.data ?? []}
+      />
     </AsyncContent>
   );
 }

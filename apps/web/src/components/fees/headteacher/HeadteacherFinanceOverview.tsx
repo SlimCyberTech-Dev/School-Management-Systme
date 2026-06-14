@@ -9,22 +9,23 @@ import { FeeInvoicesTable } from "@/components/fees/FeeInvoicesTable";
 import { Alert } from "@/components/ui/Alert";
 import { MoneyAmount } from "@/components/ui/MoneyAmount";
 import type { InvoiceFinanceStats } from "@/lib/feeFinanceStats";
-import { filterInvoices } from "@/lib/feeFinanceStats";
 
 const HT_STUDENT = "/headteacher/students";
 const HT_INVOICE = "/headteacher/fees/invoices";
 
 export function HeadteacherFinanceOverview({
   stats,
-  rows,
+  activeRows,
+  arrearsRows,
   payments,
 }: {
   stats: InvoiceFinanceStats;
-  rows: FeeInvoice[];
+  activeRows: FeeInvoice[];
+  arrearsRows: FeeInvoice[];
   payments: FeePayment[];
 }) {
-  const activeBills = useMemo(() => filterInvoices(rows, { bucket: "active" }).slice(0, 10), [rows]);
-  const arrears = useMemo(() => filterInvoices(rows, { bucket: "arrears" }).slice(0, 6), [rows]);
+  const activeBills = useMemo(() => activeRows.slice(0, 10), [activeRows]);
+  const arrears = useMemo(() => arrearsRows.slice(0, 6), [arrearsRows]);
   const collectionPct =
     stats.billedUgx > 0 ? Math.min(100, Math.round((stats.collectedOnInvoicesUgx / stats.billedUgx) * 100)) : 0;
 

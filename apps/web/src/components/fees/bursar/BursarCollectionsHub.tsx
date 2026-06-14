@@ -10,7 +10,6 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { MoneyAmount } from "@/components/ui/MoneyAmount";
 import type { InvoiceFinanceStats } from "@/lib/feeFinanceStats";
-import { filterInvoices } from "@/lib/feeFinanceStats";
 
 const ACTIONS: {
   href: string;
@@ -52,15 +51,17 @@ function StatChip({
 
 export function BursarCollectionsHub({
   stats,
-  rows,
+  activeRows,
+  arrearsRows,
   payments,
 }: {
   stats: InvoiceFinanceStats;
-  rows: FeeInvoice[];
+  activeRows: FeeInvoice[];
+  arrearsRows: FeeInvoice[];
   payments: FeePayment[];
 }) {
-  const activeBills = useMemo(() => filterInvoices(rows, { bucket: "active" }).slice(0, 10), [rows]);
-  const arrears = useMemo(() => filterInvoices(rows, { bucket: "arrears" }), [rows]);
+  const activeBills = useMemo(() => activeRows.slice(0, 10), [activeRows]);
+  const arrears = useMemo(() => arrearsRows.slice(0, 6), [arrearsRows]);
 
   return (
     <div className="space-y-8">

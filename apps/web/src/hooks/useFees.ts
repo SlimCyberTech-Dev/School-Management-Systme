@@ -5,12 +5,15 @@ import type {
   BulkInvoiceResult,
   FeeBalance,
   FeeInvoice,
+  FeeInvoiceSummary,
+  FeeInvoiceTermOption,
   FeePayment,
   FeePaymentResult,
   FeeScheduleRelease,
   FeeStructure,
   FeeStructureCopyResult,
   FeeTermReport,
+  PaginatedFeeInvoices,
 } from "@uganda-cbc-sms/shared";
 import {
   feeBulkInvoiceSchema,
@@ -25,6 +28,7 @@ import {
 } from "@uganda-cbc-sms/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
+import type { InvoiceBucket } from "@/lib/feeFinanceStats";
 import type { z } from "zod";
 
 export type FeeStructureFilters = {
@@ -33,6 +37,14 @@ export type FeeStructureFilters = {
 };
 
 export type FeeScheduleFilters = FeeStructureFilters;
+
+export type FeeInvoiceBrowseFilters = {
+  page?: number;
+  limit?: number;
+  bucket?: InvoiceBucket;
+  termId?: string;
+  q?: string;
+};
 
 export const feesKeys = {
   all: ["fees"] as const,
@@ -49,6 +61,10 @@ export const feesKeys = {
     ["fees", "scheduleSummary", classId, termId] as const,
   bulkPreview: (classId: string, termId: string) =>
     ["fees", "bulkPreview", classId, termId] as const,
+  invoiceSummary: (termId?: string) => ["fees", "invoiceSummary", termId ?? "all"] as const,
+  invoiceBrowse: (filters: FeeInvoiceBrowseFilters) => ["fees", "invoiceBrowse", filters] as const,
+  invoiceTerms: () => ["fees", "invoiceTerms"] as const,
+  recentPayments: (limit: number) => ["fees", "recentPayments", limit] as const,
 };
 
 function structureQuery(filters?: FeeStructureFilters): string {
@@ -59,11 +75,55 @@ function structureQuery(filters?: FeeStructureFilters): string {
   return `/fees/structure${qs ? `?${qs}` : ""}`;
 }
 
+function invoiceBrowseQuery(filters: FeeInvoiceBrowseFilters): string {
+  const p = new URLSearchParams();
+  p.set("page", String(filters.page ?? 1));
+  p.set("limit", String(filters.limit ?? 25));
+  if (filters.bucket && filters.bucket !== "all") p.set("bucket", filters.bucket);
+  if (filters.termId) p.set("termId", filters.termId);
+  if (filters.q?.trim()) p.set("q", filters.q.trim());
+  return `/fees/invoices?${p.toString()}`;
+}
+
 export function useFeeInvoices(studentId?: string) {
   const qp = studentId ? `?studentId=${encodeURIComponent(studentId)}` : "";
   return useQuery({
     queryKey: feesKeys.invoices(studentId),
     queryFn: () => apiGet<FeeInvoice[]>(`/fees/invoices${qp}`),
+    enabled: Boolean(studentId),
+    staleTime: 30_000,
+  });
+}
+
+export function useFeeInvoiceSummary(termId?: string) {
+  const qp = termId ? `?termId=${encodeURIComponent(termId)}` : "";
+  return useQuery({
+    queryKey: feesKeys.invoiceSummary(termId),
+    queryFn: () => apiGet<FeeInvoiceSummary>(`/fees/invoices/summary${qp}`),
+    staleTime: 30_000,
+  });
+}
+
+export function useBrowseFeeInvoices(filters: FeeInvoiceBrowseFilters) {
+  return useQuery({
+    queryKey: feesKeys.invoiceBrowse(filters),
+    queryFn: () => apiGet<PaginatedFeeInvoices>(invoiceBrowseQuery(filters)),
+    staleTime: 15_000,
+  });
+}
+
+export function useFeeInvoiceTerms() {
+  return useQuery({
+    queryKey: feesKeys.invoiceTerms(),
+    queryFn: () => apiGet<FeeInvoiceTermOption[]>("/fees/invoices/terms"),
+    staleTime: 60_000,
+  });
+}
+
+export function useRecentFeePayments(limit = 8) {
+  return useQuery({
+    queryKey: feesKeys.recentPayments(limit),
+    queryFn: () => apiGet<FeePayment[]>(`/fees/payments/recent?limit=${limit}`),
     staleTime: 30_000,
   });
 }

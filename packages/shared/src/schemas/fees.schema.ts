@@ -74,3 +74,20 @@ export const feeScheduleClassTermSchema = z.object({
 });
 
 export type FeeScheduleClassTermInput = z.infer<typeof feeScheduleClassTermSchema>;
+
+export const FEE_INVOICE_BUCKETS = ["all", "active", "paid", "arrears", "partial"] as const;
+
+export const feeInvoiceBrowseQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(10).max(100).default(25),
+  bucket: z.enum(FEE_INVOICE_BUCKETS).default("all"),
+  termId: z.string().uuid().optional(),
+  q: z.string().max(100).optional(),
+});
+
+export const feeInvoiceSummaryQuerySchema = z.object({
+  termId: z.string().uuid().optional(),
+});
+
+export type FeeInvoiceBrowseQuery = z.infer<typeof feeInvoiceBrowseQuerySchema>;
+export type FeeInvoiceSummaryQuery = z.infer<typeof feeInvoiceSummaryQuerySchema>;

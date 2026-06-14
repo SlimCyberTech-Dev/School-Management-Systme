@@ -1,4 +1,4 @@
-import type { FeeInvoice, FeePayment } from "@uganda-cbc-sms/shared";
+import type { FeeInvoice, FeePayment, FeeInvoiceSummary } from "@uganda-cbc-sms/shared";
 
 export type InvoiceBucket = "all" | "active" | "paid" | "arrears" | "partial";
 
@@ -12,6 +12,19 @@ export type InvoiceFinanceStats = {
   collectedOnInvoicesUgx: number;
   billedUgx: number;
 };
+
+export function summaryToInvoiceStats(summary: FeeInvoiceSummary): InvoiceFinanceStats {
+  return {
+    total: summary.total,
+    active: summary.active,
+    paid: summary.paid,
+    arrears: summary.arrears,
+    partial: summary.partial,
+    outstandingUgx: Number(summary.outstandingUgx),
+    collectedOnInvoicesUgx: Number(summary.collectedOnInvoicesUgx),
+    billedUgx: Number(summary.billedUgx),
+  };
+}
 
 export function computeInvoiceStats(rows: FeeInvoice[]): InvoiceFinanceStats {
   let active = 0;

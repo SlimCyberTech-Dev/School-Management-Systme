@@ -1,32 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { FeeInvoicesTable } from "@/components/fees/FeeInvoicesTable";
 import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { FormSkeleton } from "@/components/feedback/FormSkeleton";
 import { Card } from "@/components/ui/Card";
-import { useFeeInvoices } from "@/hooks/useFees";
+import { PaginationBar } from "@/components/ui/PaginationBar";
+import { useBrowseFeeInvoices, useFeeInvoiceSummary } from "@/hooks/useFees";
 import { formatUgx } from "@/lib/formatMoney";
 import { queryStatus } from "@/lib/queryStatus";
 
 export default function AdminFeesOverviewPage() {
-  const invoicesQ = useFeeInvoices();
-  const status = queryStatus(invoicesQ);
-  const rows = useMemo(() => invoicesQ.data ?? [], [invoicesQ.data]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+
+  const summaryQ = useFeeInvoiceSummary();
+  const browseQ = useBrowseFeeInvoices({ page, limit, bucket: "all" });
+  const status = queryStatus(browseQ);
 
   const stats = useMemo(() => {
-    let outstanding = 0;
-    let collected = 0;
-    let flagged = 0;
-    for (const r of rows) {
-      outstanding += Number(r.balance);
-      collected += Number(r.amountPaid);
-      if (r.isFlagged && Number(r.balance) > 0) flagged += 1;
-    }
-    return { outstanding, collected, flagged, count: rows.length };
-  }, [rows]);
+    const s = summaryQ.data;
+    if (!s) return { outstanding: 0, collected: 0, flagged: 0, count: 0 };
+    return {
+      outstanding: Number(s.outstandingUgx),
+      collected: Number(s.collectedOnInvoicesUgx),
+      flagged: s.arrears,
+      count: s.total,
+    };
+  }, [summaryQ.data]);
+
+  const rows = browseQ.data?.items ?? [];
+  const pagination = browseQ.data ?? { page: 1, limit: 25, total: 0, totalPages: 1 };
 
   return (
     <div className="space-y-6">
@@ -64,16 +70,16 @@ export default function AdminFeesOverviewPage() {
         .
       </p>
 
-      <Card title={`School invoices (${rows.length})`}>
+      <Card title={`School invoices (${pagination.total})`}>
         <AsyncContent
           status={status}
           loading={<FormSkeleton fields={4} />}
           error={
             <ErrorState
               message={
-                invoicesQ.error instanceof Error ? invoicesQ.error.message : "Could not load invoices."
+                browseQ.error instanceof Error ? browseQ.error.message : "Could not load invoices."
               }
-              onRetry={() => void invoicesQ.refetch()}
+              onRetry={() => void browseQ.refetch()}
             />
           }
         >
@@ -81,6 +87,14 @@ export default function AdminFeesOverviewPage() {
             rows={rows}
             invoiceBasePath="/bursar/fees/invoices"
             studentBasePath="/admin/students"
+          />
+          <PaginationBar
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            total={pagination.total}
+            limit={pagination.limit}
+            onPageChange={setPage}
+            onLimitChange={setLimit}
           />
         </AsyncContent>
       </Card>

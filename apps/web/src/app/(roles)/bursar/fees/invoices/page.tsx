@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -11,13 +11,9 @@ import { BursarInvoiceFilters } from "@/components/fees/bursar/BursarInvoiceFilt
 import { FeeInvoicesTable } from "@/components/fees/FeeInvoicesTable";
 import { InvoiceCreateForm } from "@/components/fees/InvoiceCreateForm";
 import { Card } from "@/components/ui/Card";
-import { useFeeInvoices } from "@/hooks/useFees";
-import {
-  computeInvoiceStats,
-  filterInvoices,
-  type InvoiceBucket,
-  uniqueInvoiceTerms,
-} from "@/lib/feeFinanceStats";
+import { PaginationBar } from "@/components/ui/PaginationBar";
+import { useBrowseFeeInvoices, useFeeInvoiceSummary, useFeeInvoiceTerms } from "@/hooks/useFees";
+import { summaryToInvoiceStats, type InvoiceBucket } from "@/lib/feeFinanceStats";
 import { queryStatus } from "@/lib/queryStatus";
 
 type MainTab = "invoices" | "create" | "bulk";
@@ -39,17 +35,49 @@ export default function BursarInvoicesListPage() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
 
-  const invoicesQ = useFeeInvoices();
-  const status = queryStatus(invoicesQ);
-  const allRows = useMemo(() => invoicesQ.data ?? [], [invoicesQ.data]);
-
   const [mainTab, setMainTab] = useState<MainTab>(() => initialMainTab(tabParam));
   const [search, setSearch] = useState("");
   const [termId, setTermId] = useState("");
   const [bucket, setBucket] = useState<InvoiceBucket>(() => initialBucket(tabParam));
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
 
-  const stats = useMemo(() => computeInvoiceStats(allRows), [allRows]);
-  const termOptions = useMemo(() => uniqueInvoiceTerms(allRows), [allRows]);
+  useEffect(() => {
+    setPage(1);
+  }, [bucket, termId, search, limit]);
+
+  const summaryQ = useFeeInvoiceSummary(termId || undefined);
+  const termsQ = useFeeInvoiceTerms();
+  const browseQ = useBrowseFeeInvoices({
+    page,
+    limit,
+    bucket,
+    termId: termId || undefined,
+    q: search || undefined,
+  });
+
+  const status = queryStatus(browseQ);
+  const stats = useMemo(
+    () =>
+      summaryQ.data
+        ? summaryToInvoiceStats(summaryQ.data)
+        : {
+            total: 0,
+            active: 0,
+            paid: 0,
+            arrears: 0,
+            partial: 0,
+            outstandingUgx: 0,
+            collectedOnInvoicesUgx: 0,
+            billedUgx: 0,
+          },
+    [summaryQ.data],
+  );
+
+  const termOptions = useMemo(
+    () => (termsQ.data ?? []).map((t) => ({ termId: t.termId, label: t.label })),
+    [termsQ.data],
+  );
 
   const bucketCounts = useMemo(
     () => ({
@@ -62,10 +90,8 @@ export default function BursarInvoicesListPage() {
     [stats],
   );
 
-  const filteredRows = useMemo(
-    () => filterInvoices(allRows, { bucket, search, termId: termId || undefined }),
-    [allRows, bucket, search, termId],
-  );
+  const rows = browseQ.data?.items ?? [];
+  const pagination = browseQ.data ?? { page: 1, limit: 25, total: 0, totalPages: 1 };
 
   const tabButtons: { key: MainTab; label: string; count?: number }[] = [
     { key: "invoices", label: "Track invoices", count: stats.active },
@@ -93,17 +119,17 @@ export default function BursarInvoicesListPage() {
 
       {mainTab === "create" ? (
         <Card title="Create invoice for one student">
-          <InvoiceCreateForm onCreated={() => void invoicesQ.refetch()} />
+          <InvoiceCreateForm onCreated={() => void browseQ.refetch()} />
         </Card>
       ) : mainTab === "bulk" ? (
         <Card title="Bill entire class from fee schedule">
-          <BulkInvoiceForm onDone={() => void invoicesQ.refetch()} />
+          <BulkInvoiceForm onDone={() => void browseQ.refetch()} />
         </Card>
       ) : (
         <>
           <BursarFinanceStats stats={stats} variant="compact" />
 
-          <Card title={`Showing ${filteredRows.length} invoice${filteredRows.length === 1 ? "" : "s"}`}>
+          <Card title={`Showing ${pagination.total} invoice${pagination.total === 1 ? "" : "s"}`}>
             <BursarInvoiceFilters
               search={search}
               onSearchChange={setSearch}
@@ -121,21 +147,29 @@ export default function BursarInvoicesListPage() {
                 error={
                   <ErrorState
                     message={
-                      invoicesQ.error instanceof Error
-                        ? invoicesQ.error.message
+                      browseQ.error instanceof Error
+                        ? browseQ.error.message
                         : "Could not load invoices."
                     }
-                    onRetry={() => void invoicesQ.refetch()}
+                    onRetry={() => void browseQ.refetch()}
                   />
                 }
               >
                 <FeeInvoicesTable
-                  rows={filteredRows}
+                  rows={rows}
                   emptyMessage={
                     bucket === "active"
                       ? "No unpaid invoices for this filter."
                       : "No invoices match your filters."
                   }
+                />
+                <PaginationBar
+                  page={pagination.page}
+                  totalPages={pagination.totalPages}
+                  total={pagination.total}
+                  limit={pagination.limit}
+                  onPageChange={setPage}
+                  onLimitChange={setLimit}
                 />
               </AsyncContent>
             </div>

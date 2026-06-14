@@ -37,9 +37,12 @@ feesRouter.post("/schedules/unpublish", admin, asyncHandler(c.postScheduleUnpubl
 feesRouter.post("/invoices", bursarTeam, asyncHandler(c.postInvoice));
 feesRouter.post("/invoices/bulk/preview", bursarTeam, asyncHandler(c.postBulkInvoicePreview));
 feesRouter.post("/invoices/bulk", bursarTeam, asyncHandler(c.postBulkInvoices));
+feesRouter.get("/invoices/summary", financeReaders, asyncHandler(c.getInvoiceSummary));
+feesRouter.get("/invoices/terms", financeReaders, asyncHandler(c.getInvoiceTerms));
 feesRouter.get("/invoices/:invoiceId", financeReaders, asyncHandler(c.getInvoice));
 feesRouter.get("/invoices", financeReaders, asyncHandler(c.getInvoices));
 feesRouter.post("/payments", feePaymentLimiter, bursarTeam, asyncHandler(c.postPayment));
+feesRouter.get("/payments/recent", financeReaders, asyncHandler(c.getRecentPayments));
 feesRouter.get("/payments", financeReaders, asyncHandler(c.getPayments));
 feesRouter.get("/balance/:studentId", balanceReaders, asyncHandler(c.getBalance));
 feesRouter.get("/reports", financeReportsReaders, asyncHandler(c.getReports));

@@ -95,4 +95,5 @@ export const speedLimiter = slowDown({
   delayAfter: 50,
   delayMs: (hits) => hits * 100,
   validate: { delayMs: false },
+  skip: () => process.env.NODE_ENV !== "production",
 });

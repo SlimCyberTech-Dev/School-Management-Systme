@@ -43,11 +43,10 @@ export default function AdminCbcAssessmentPage() {
     setErr(null);
     setLoading(true);
     try {
-      const [y, t, c, stu] = await Promise.all([
+      const [y, t, c] = await Promise.all([
         apiGet<Year[]>("/academic/years"),
         apiGet<Term[]>("/academic/terms"),
         apiGet<ClassRow[]>("/academic/classes"),
-        apiGet<IdName[]>(`/students`),
       ]);
       setYears(y);
       setTerms(t);
@@ -79,12 +78,14 @@ export default function AdminCbcAssessmentPage() {
       setStrands(strandRows);
       const nextStrandId = strandRows.some((x) => x.id === strandId) ? strandId : strandRows[0]?.id || "";
       setStrandId(nextStrandId);
-      const filtered = stu.filter((s) => !nextClassId || s.classId === nextClassId);
+      const stu = nextClassId
+        ? await apiGet<IdName[]>(`/students?classId=${encodeURIComponent(nextClassId)}`)
+        : [];
       setStudents(
-        filtered.map((s) => ({
+        stu.map((s) => ({
           id: s.id,
-          fullName: String((s as { fullName?: string }).fullName ?? ""),
-          studentNumber: String((s as { studentNumber?: string }).studentNumber ?? ""),
+          fullName: String(s.fullName ?? ""),
+          studentNumber: String(s.studentNumber ?? ""),
         })),
       );
       const picked = strandRows.find((x) => x.id === nextStrandId) ?? null;
