@@ -6,7 +6,7 @@ declare global {
     interface Request {
       user?: { id: string; role: Role; sessionId: string; tenantId: string; tenantSlug?: string };
       tenant?: { id: string; slug: string; displayName: string; status: string };
-      platformAdmin?: { id: string; email: string; fullName: string };
+      platformAdmin?: { id: string; email: string; fullName: string; sessionId: string };
       tenantFeatureFlags?: TenantFeatureFlags;
     }
   }

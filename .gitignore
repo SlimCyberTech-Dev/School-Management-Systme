@@ -8,3 +8,9 @@ dist/
 uploads/
 backups/
 *.log
+
+AGENTS.md
+Cursor_Prompt.md
+Cursor_Tools.md
+*.txt
+*.docx

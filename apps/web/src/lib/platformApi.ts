@@ -1,8 +1,11 @@
 import axios from "axios";
-import { clearPlatformSessionCookie, isValidPlatformToken } from "@/lib/platformSession";
+import { getPlatformTokenFromCookie } from "@/lib/cookies";
+import { isValidPlatformToken } from "@/lib/platformSession";
+import { usePlatformStore } from "@/store/platformStore";
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
 
+/** @deprecated Use cookie via getPlatformTokenFromCookie — kept for legacy localStorage cleanup. */
 export const PLATFORM_TOKEN_KEY = "sms_platform_token";
 
 export const platformApi = axios.create({
@@ -10,10 +13,18 @@ export const platformApi = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+function syncIdleFromHeaders(headers: Record<string, unknown>): void {
+  const raw = headers["x-session-idle-expires-at"];
+  const idleUnix = typeof raw === "string" ? Number(raw) : NaN;
+  if (Number.isFinite(idleUnix)) {
+    usePlatformStore.getState().setIdleExpiresAt(idleUnix * 1000);
+  }
+}
+
 platformApi.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const isLogin = String(config.url ?? "").includes("/auth/login");
-    const token = localStorage.getItem(PLATFORM_TOKEN_KEY);
+    const token = getPlatformTokenFromCookie();
     if (token && isValidPlatformToken(token)) {
       config.headers.Authorization = `Bearer ${token}`;
     } else if (!isLogin) {
@@ -24,14 +35,16 @@ platformApi.interceptors.request.use((config) => {
 });
 
 platformApi.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    syncIdleFromHeaders(res.headers as Record<string, unknown>);
+    return res;
+  },
   (err) => {
     if (typeof window !== "undefined" && err.response?.status === 401) {
       const path = window.location.pathname;
       if (path.startsWith("/platform") && !path.startsWith("/platform/login")) {
-        setPlatformToken(null);
-        clearPlatformSessionCookie();
-        window.location.href = "/platform/login";
+        usePlatformStore.getState().logout();
+        window.location.href = "/platform/login?reason=session";
       }
     }
     return Promise.reject(err);
@@ -39,10 +52,15 @@ platformApi.interceptors.response.use(
 );
 
 export function setPlatformToken(token: string | null): void {
+  usePlatformStore.getState().setToken(token ?? null);
+}
+
+/** Remove legacy localStorage token from older builds. */
+export function clearLegacyPlatformStorage(): void {
   if (typeof window === "undefined") return;
-  if (token && isValidPlatformToken(token)) {
-    localStorage.setItem(PLATFORM_TOKEN_KEY, token);
-  } else {
+  try {
     localStorage.removeItem(PLATFORM_TOKEN_KEY);
+  } catch {
+    /* ignore */
   }
 }

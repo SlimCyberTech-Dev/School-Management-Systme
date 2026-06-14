@@ -19,6 +19,7 @@ export interface JwtPayload {
 
 export interface PlatformJwtPayload {
   sub: string;
+  sid: string;
   jti: string;
   aud: "platform";
   exp: number;
@@ -84,10 +85,10 @@ export function verifyToken(token: string): JwtPayload {
   };
 }
 
-export function signPlatformToken(adminId: string): string {
+export function signPlatformToken(adminId: string, sessionId: string): string {
   const env = loadEnv();
   const jti = crypto.randomUUID();
-  return jwt.sign({ aud: "platform", jti }, env.JWT_PRIVATE_KEY, {
+  return jwt.sign({ aud: "platform", jti, sid: sessionId }, env.JWT_PRIVATE_KEY, {
     subject: adminId,
     algorithm: "RS256",
     expiresIn: env.JWT_EXPIRY as jwt.SignOptions["expiresIn"],
@@ -101,11 +102,20 @@ export function verifyPlatformToken(token: string): PlatformJwtPayload {
   }) as jwt.JwtPayload & { aud?: string; jti?: string };
 
   const sub = decoded.sub;
-  if (!sub || decoded.aud !== "platform" || !decoded.jti || !decoded.exp || !decoded.iat) {
+  const sid = decoded.sid;
+  if (
+    !sub ||
+    !sid ||
+    decoded.aud !== "platform" ||
+    !decoded.jti ||
+    !decoded.exp ||
+    !decoded.iat
+  ) {
     throw new Error("Invalid platform token payload");
   }
   return {
     sub,
+    sid,
     jti: decoded.jti,
     aud: "platform",
     exp: decoded.exp,

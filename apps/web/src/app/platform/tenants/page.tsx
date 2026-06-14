@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Activity, Building2, PauseCircle, Plus, ShieldCheck } from "lucide-react";
 import { TENANT_FEATURE_FLAG_KEYS } from "@uganda-cbc-sms/shared";
-import { PLATFORM_TOKEN_KEY, platformApi, setPlatformToken } from "@/lib/platformApi";
+import { platformApi } from "@/lib/platformApi";
+import { usePlatformStore } from "@/store/platformStore";
 import { schoolLoginUrl } from "@/lib/tenantHost";
 import { toast } from "@/lib/toast";
 import { AuditLogPanel } from "@/components/platform/AuditLogPanel";
@@ -78,7 +79,7 @@ export default function PlatformTenantsPage() {
       setAudit(aRes.data?.data ?? []);
     } catch {
       toast.error("Your session may have expired. Please sign in again.", "Could not load schools");
-      setPlatformToken(null);
+      usePlatformStore.getState().logout();
       router.replace("/platform/login");
     } finally {
       setLoading(false);

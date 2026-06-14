@@ -107,6 +107,21 @@ export function errorHandler(
   }
 
   const message = err instanceof Error ? err.message : "Internal server error";
+  const pgCode =
+    err && typeof err === "object" && "code" in err
+      ? String((err as { code?: string }).code)
+      : null;
+
+  if (pgCode === "42703" && !isProd) {
+    void logHttpError(req, 500, message, "SCHEMA_MISMATCH");
+    res.status(500).json({
+      success: false,
+      error:
+        "Database schema is out of date. Run: npm run migrate -w @uganda-cbc-sms/api — then restart the API.",
+      code: "SCHEMA_MISMATCH",
+    });
+    return;
+  }
   const status =
     err instanceof Error && "status" in err && typeof (err as { status?: number }).status === "number"
       ? (err as { status: number }).status

@@ -15,7 +15,8 @@ import {
   platformInputClass,
   platformLabelClass,
 } from "@/components/platform/platformFieldStyles";
-import { platformApi, setPlatformToken } from "@/lib/platformApi";
+import { platformApi } from "@/lib/platformApi";
+import { usePlatformStore } from "@/store/platformStore";
 import { toast } from "@/lib/toast";
 
 type BillingOverviewRow = {
@@ -143,7 +144,7 @@ export default function PlatformBillingPage() {
       setSettingsForm(s);
     } catch {
       toast.error("Your session may have expired. Please sign in again.", "Could not load billing");
-      setPlatformToken(null);
+      usePlatformStore.getState().logout();
       router.replace("/platform/login");
     } finally {
       setLoading(false);

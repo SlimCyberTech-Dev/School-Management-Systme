@@ -4,13 +4,13 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Building2, CreditCard, LogOut } from "lucide-react";
-import { PLATFORM_TOKEN_KEY, setPlatformToken } from "@/lib/platformApi";
-import { clearPlatformSessionCookie } from "@/lib/platformSession";
+import { Building2, CreditCard, LogOut, Settings } from "lucide-react";
+import { usePlatformStore } from "@/store/platformStore";
 
 const NAV = [
   { href: "/platform/tenants", label: "Schools", icon: Building2 },
   { href: "/platform/billing", label: "Billing", icon: CreditCard },
+  { href: "/platform/settings", label: "Settings", icon: Settings },
 ] as const;
 
 export function PlatformShell({
@@ -24,10 +24,11 @@ export function PlatformShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const admin = usePlatformStore((s) => s.admin);
+  const logoutRemote = usePlatformStore((s) => s.logoutRemote);
 
-  function signOut() {
-    setPlatformToken(null);
-    clearPlatformSessionCookie();
+  async function signOut() {
+    await logoutRemote();
     router.push("/platform/login");
   }
 
@@ -69,9 +70,15 @@ export function PlatformShell({
           })}
         </nav>
         <div className="shrink-0 border-t border-slate-800/80 p-3">
+          {admin ? (
+            <div className="mb-2 rounded-xl bg-slate-800/40 px-3 py-2.5">
+              <p className="truncate text-sm font-medium text-white">{admin.fullName}</p>
+              <p className="truncate text-xs text-slate-500">{admin.email}</p>
+            </div>
+          ) : null}
           <button
             type="button"
-            onClick={signOut}
+            onClick={() => void signOut()}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-400 transition hover:bg-slate-800/50 hover:text-white"
           >
             <LogOut className="h-4 w-4" aria-hidden />
@@ -93,7 +100,7 @@ export function PlatformShell({
             </div>
             <button
               type="button"
-              onClick={signOut}
+              onClick={() => void signOut()}
               className="shrink-0 rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-300 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white lg:hidden"
             >
               Sign out

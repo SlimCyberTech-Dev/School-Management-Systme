@@ -1,6 +1,7 @@
 /** Client-side cookie helpers (readable by middleware when not httpOnly). */
 
 const SMS_TOKEN = "sms_token";
+export const PLATFORM_TOKEN = "sms_platform_token";
 
 export function setCookie(name: string, value: string, maxAgeSec?: number): void {
   if (typeof document === "undefined") return;
@@ -51,6 +52,18 @@ export function setSmsTokenCookie(token: string, maxAgeSec?: number): void {
 
 export function deleteSmsTokenCookie(): void {
   deleteCookie(SMS_TOKEN);
+}
+
+export function getPlatformTokenFromCookie(): string | null {
+  return getCookie(PLATFORM_TOKEN);
+}
+
+export function setPlatformTokenCookie(token: string, maxAgeSec?: number): void {
+  setCookie(PLATFORM_TOKEN, token, maxAgeSec);
+}
+
+export function deletePlatformTokenCookie(): void {
+  deleteCookie(PLATFORM_TOKEN);
 }
 
 export { jwtCookieMaxAge } from "./jwtPayload";

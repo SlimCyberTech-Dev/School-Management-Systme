@@ -1,11 +1,12 @@
 import { decodeJwtPayload } from "@/lib/jwtPayload";
 
-/** Platform JWTs include aud: "platform" (see apps/api signPlatformToken). */
+/** Platform JWTs include aud: "platform" and sid (session id). */
 export function isValidPlatformToken(token: string | null | undefined): boolean {
   if (!token?.trim()) return false;
   const payload = decodeJwtPayload(token.trim());
   if (!payload) return false;
   if (payload.aud !== "platform") return false;
+  if (typeof payload.sid !== "string" || !payload.sid) return false;
   const exp = typeof payload.exp === "number" ? payload.exp : 0;
   return exp > Math.floor(Date.now() / 1000);
 }

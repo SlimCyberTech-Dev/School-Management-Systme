@@ -26,6 +26,14 @@ export const updateTenantSchema = z.object({
   featureFlags: z.record(z.boolean()).optional(),
 });
 
+export const createPlatformAdminSchema = z.object({
+  fullName: z.string().min(2).max(255),
+  email: z.string().email(),
+  /** Omit to auto-generate a secure temporary password (returned once in API response). */
+  password: z.string().min(8).max(128).optional(),
+});
+
 export type PlatformLoginInput = z.infer<typeof platformLoginSchema>;
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
 export type UpdateTenantInput = z.infer<typeof updateTenantSchema>;
+export type CreatePlatformAdminInput = z.infer<typeof createPlatformAdminSchema>;
