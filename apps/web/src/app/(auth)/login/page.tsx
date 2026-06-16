@@ -305,10 +305,6 @@ function LoginPageContent() {
                     placeholder="default"
                     autoComplete="organization"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Use <span className="font-mono">default</span> for the demo school, or the slug from
-                    platform provisioning.
-                  </p>
                 </motion.div>
               ) : null}
 
