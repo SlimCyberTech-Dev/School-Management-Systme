@@ -13,8 +13,8 @@ import {
   User,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { BrandGradientStrip } from "@/components/brand/BrandGradientStrip";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { LoginHeroPanel } from "@/components/auth/LoginHeroPanel";
 import { apiPost, getApiErrorMessage } from "@/lib/api";
 import { sessionInactivityMinutes } from "@/lib/sessionConfig";
 import { getTenantSlugFromHostname, getLoginTenantSlugOverride, setLoginTenantSlugOverride } from "@/lib/tenantHost";
@@ -635,18 +635,7 @@ function LoginPageContent() {
   return (
     <div className="min-h-screen bg-background transition-colors">
       <div className="mx-auto hidden min-h-screen max-w-[1600px] lg:flex">
-        <aside className="relative flex min-h-screen w-2/5 flex-col justify-end">
-          <BrandGradientStrip className="absolute inset-0">
-            <div className="flex h-full flex-col justify-end p-8 text-white xl:p-10">
-              <BrandMark
-                tone="gradient"
-                size="hero"
-                eyebrow="Sign in"
-                subtitle="School administration for administrators, teachers, and bursars."
-              />
-            </div>
-          </BrandGradientStrip>
-        </aside>
+        <LoginHeroPanel />
 
         <section className="relative flex w-3/5 items-center justify-center bg-background px-8 py-6 xl:px-10 xl:py-8">
           <div className="absolute right-6 top-6 z-10 xl:right-10 xl:top-8">
