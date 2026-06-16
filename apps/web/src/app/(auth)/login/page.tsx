@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -14,6 +13,8 @@ import {
   User,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { BrandGradientStrip } from "@/components/brand/BrandGradientStrip";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { apiPost, getApiErrorMessage } from "@/lib/api";
 import { sessionInactivityMinutes } from "@/lib/sessionConfig";
 import { getTenantSlugFromHostname, getLoginTenantSlugOverride, setLoginTenantSlugOverride } from "@/lib/tenantHost";
@@ -634,44 +635,17 @@ function LoginPageContent() {
   return (
     <div className="min-h-screen bg-background transition-colors">
       <div className="mx-auto hidden min-h-screen max-w-[1600px] lg:flex">
-        <aside className="relative flex w-2/5 flex-col justify-between overflow-hidden bg-gradient-to-br from-[#1E3A8A] to-[#1D4ED8] p-8 text-white xl:p-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,rgba(255,255,255,0.16),transparent_38%),radial-gradient(circle_at_85%_15%,rgba(219,234,254,0.18),transparent_35%)]" />
-          <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.18)_1px,transparent_1px)] [background-size:26px_26px]" />
-          <div className="relative">
-            <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-2 backdrop-blur-sm">
-              <Image
-                src="/images/Logo.jpeg"
-                alt="SlimCyberTech logo"
-                width={30}
-                height={30}
-                className="h-7 w-7 rounded-md object-cover"
+        <aside className="relative flex min-h-screen w-2/5 flex-col justify-end">
+          <BrandGradientStrip className="absolute inset-0">
+            <div className="flex h-full flex-col justify-end p-8 text-white xl:p-10">
+              <BrandMark
+                tone="gradient"
+                size="hero"
+                eyebrow="Sign in"
+                subtitle="School administration for administrators, teachers, and bursars."
               />
-              <span className="font-heading ml-2 text-sm font-semibold">SlimCyberTech</span>
             </div>
-            <div className="mt-7 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
-              <Image
-                src="/images/Slim.jpeg"
-                alt="SlimCyberTech full logo"
-                width={420}
-                height={140}
-                className="h-auto w-full max-w-[320px] rounded-lg object-cover"
-                priority
-              />
-              <h1 className="font-heading mt-4 max-w-sm text-3xl font-semibold leading-tight xl:text-4xl">
-                SlimCyberTech
-              </h1>
-              <p className="font-body mt-2 max-w-md text-sm text-blue-100/90">
-                Building the future with code.
-              </p>
-            </div>
-          </div>
-          <div className="relative">
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
-              <p className="font-body text-sm text-blue-100">
-                Trusted by administrators, teachers, and bursars to simplify daily workflows.
-              </p>
-            </div>
-          </div>
+          </BrandGradientStrip>
         </aside>
 
         <section className="relative flex w-3/5 items-center justify-center bg-background px-8 py-6 xl:px-10 xl:py-8">
@@ -683,18 +657,9 @@ function LoginPageContent() {
       </div>
 
       <div className="lg:hidden">
-        <div className="flex items-center justify-between bg-[#1E3A8A] px-5 py-4">
-          <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-2 text-white backdrop-blur-sm">
-            <Image
-              src="/images/Logo.jpeg"
-              alt="SlimCyberTech logo"
-              width={26}
-              height={26}
-              className="h-6 w-6 rounded-md object-cover"
-            />
-            <span className="font-heading ml-2 text-sm font-semibold">SlimCyberTech</span>
-          </div>
-          <ThemeToggle buttonClassName="border-white/40 bg-white/15 text-white hover:bg-white/25 focus-visible:ring-offset-[#1E3A8A]" />
+        <div className="flex items-center justify-between border-b border-border bg-background px-5 py-4">
+          <BrandMark size="compact" />
+          <ThemeToggle />
         </div>
         <div className="bg-background px-4 py-6">
           <div className="mx-auto w-full max-w-sm">{renderFormCard()}</div>

@@ -7,6 +7,7 @@ import Image from "next/image";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useNavigationLoading } from "@/components/navigation/NavigationProvider";
 import { resolveUploadUrl } from "@/lib/media";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { useAuthStore } from "@/store/authStore";
 import { resolveActiveNavItem } from "./navActive";
 import { ShellSearchDialog } from "./ShellSearchDialog";
@@ -65,7 +66,7 @@ export function ShellHeader({ config, onToggleMobileNav }: Props) {
 
   const initials = useMemo(() => {
     const fullName = user?.fullName?.trim() ?? "";
-    if (!fullName) return "UC";
+    if (!fullName) return "SM";
     return fullName
       .split(/\s+/)
       .slice(0, 2)
@@ -114,13 +115,11 @@ export function ShellHeader({ config, onToggleMobileNav }: Props) {
             >
               <Menu className="h-5 w-5 stroke-[1.5]" />
             </button>
-            <div className="hidden min-w-0 flex-col sm:flex">
-              <span className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                {config.productLabel}
-              </span>
-              <span className="truncate text-sm font-medium tracking-tight text-foreground">
-                {onDashboardHome ? config.roleLabel : pageTitle}
-              </span>
+            <div className="hidden min-w-0 sm:block">
+              <BrandMark
+                size="compact"
+                subtitle={onDashboardHome ? config.roleLabel : pageTitle}
+              />
             </div>
           </div>
 

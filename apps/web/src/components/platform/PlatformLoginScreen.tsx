@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -18,6 +17,7 @@ import {
 import { platformApi } from "@/lib/platformApi";
 import { sessionInactivityMinutes } from "@/lib/sessionConfig";
 import { platformApiError } from "@/components/platform/platformUtils";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { toast } from "@/lib/toast";
 import { usePlatformStore } from "@/store/platformStore";
 
@@ -104,23 +104,7 @@ export function PlatformLoginScreen() {
           className="flex flex-1 flex-col justify-between px-8 py-10 lg:px-14 lg:py-14"
         >
           <div>
-            <div className="inline-flex items-center gap-3">
-              <Image
-                src="/images/Logo.jpeg"
-                alt="SlimCyberTech"
-                width={40}
-                height={40}
-                className="h-10 w-10 rounded-xl object-cover ring-2 ring-violet-500/30"
-              />
-              <div>
-                <p className="font-heading text-sm font-semibold tracking-wide text-white">
-                  SlimCyberTech
-                </p>
-                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-violet-400/90">
-                  Control plane
-                </p>
-              </div>
-            </div>
+            <BrandMark tone="platform" size="compact" subtitle="Control plane" />
 
             <div className="mt-14 max-w-lg">
               <motion.div

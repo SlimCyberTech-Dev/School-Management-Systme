@@ -1,6 +1,6 @@
 import type { RoleKey, RoleShellConfig } from "./types";
 
-const PRODUCT_LABEL = "Uganda CBC SMS";
+const PRODUCT_LABEL = "SchoolManage";
 
 export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
   admin: {

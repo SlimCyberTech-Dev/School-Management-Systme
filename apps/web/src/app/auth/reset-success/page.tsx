@@ -6,7 +6,6 @@ import { useEffect } from "react";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { PrimaryButton } from "@/components/auth/PrimaryButton";
-import { AUTH_BRAND } from "@/components/auth/constants";
 import { useCountdown } from "@/hooks/useCountdown";
 
 export default function ResetSuccessPage() {
@@ -45,7 +44,6 @@ export default function ResetSuccessPage() {
           </svg>
           <h1 className="font-heading text-2xl font-semibold text-slate-900">You&apos;re all set!</h1>
           <p className="font-body mt-2 text-sm text-slate-600">Your password has been successfully reset.</p>
-          <p className="font-body mt-1 text-sm italic text-slate-500">{AUTH_BRAND.slogan}</p>
           <p className="font-body mt-4 text-sm text-slate-500">
             Redirecting to sign in in {countdown.secondsLeft}s...
           </p>

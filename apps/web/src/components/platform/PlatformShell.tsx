@@ -1,10 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Building2, CreditCard, LogOut, Settings } from "lucide-react";
+import { BrandGradientStrip } from "@/components/brand/BrandGradientStrip";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { usePlatformStore } from "@/store/platformStore";
 
 const NAV = [
@@ -35,21 +36,13 @@ export function PlatformShell({
   return (
     <div className="flex h-screen overflow-hidden bg-slate-950">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-800/80 bg-slate-900/95 backdrop-blur-md lg:flex">
-        <div className="shrink-0 border-b border-slate-800/80 px-5 py-5">
-          <Link href="/platform/tenants" className="flex items-center gap-3">
-            <Image
-              src="/images/Logo.jpeg"
-              alt="SlimCyberTech"
-              width={36}
-              height={36}
-              className="h-9 w-9 rounded-lg object-cover ring-1 ring-white/10"
-            />
-            <div>
-              <p className="font-heading text-sm font-semibold text-white">SlimCyberTech</p>
-              <p className="text-xs text-violet-300/90">Platform</p>
-            </div>
-          </Link>
-        </div>
+        <BrandGradientStrip className="shrink-0 border-b border-slate-800/80">
+          <div className="px-5 py-5">
+            <Link href="/platform/tenants">
+              <BrandMark tone="gradient" size="compact" subtitle="Platform" />
+            </Link>
+          </div>
+        </BrandGradientStrip>
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);

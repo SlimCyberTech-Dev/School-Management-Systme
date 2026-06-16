@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { BRAND } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Uganda CBC School Management",
-  description: "O-Level CBC & A-Level UNEB — students, fees, assessments",
+  title: BRAND.productName,
+  description: `${BRAND.productName} — school administration by ${BRAND.companyName}`,
   icons: {
-    icon: "/images/Logo.jpeg",
-    shortcut: "/images/Logo.jpeg",
-    apple: "/images/Logo.jpeg",
+    icon: BRAND.logoIcon,
+    shortcut: BRAND.logoIcon,
+    apple: BRAND.logoIcon,
   },
 };
 

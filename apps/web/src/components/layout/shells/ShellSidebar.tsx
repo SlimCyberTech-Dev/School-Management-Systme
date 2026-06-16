@@ -8,6 +8,8 @@ import { useNavigationLoading } from "@/components/navigation/NavigationProvider
 import { NAV_ICON_MAP } from "./navIconMap";
 import { isNavItemActive } from "./navActive";
 import { resolveUploadUrl } from "@/lib/media";
+import { BrandGradientStrip } from "@/components/brand/BrandGradientStrip";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { useAuthStore } from "@/store/authStore";
 import type { NavItem, RoleShellConfig } from "./types";
 
@@ -99,9 +101,9 @@ export function ShellSidebar({ config, mobile = false, onNavigate }: ShellSideba
 
   const initials = useMemo(() => {
     const fullName = user?.fullName?.trim() ?? "";
-    if (!fullName) return "UC";
+    if (!fullName) return "SM";
     const parts = fullName.split(/\s+/).slice(0, 2);
-    return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "UC";
+    return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "SM";
   }, [user?.fullName]);
 
   const avatarUrl = useMemo(() => resolveUploadUrl(user?.photoUrl), [user?.photoUrl]);
@@ -116,25 +118,12 @@ export function ShellSidebar({ config, mobile = false, onNavigate }: ShellSideba
     <aside
       className={`${mobile ? "flex" : "hidden lg:flex"} h-full w-[var(--sidebar-width)] shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-ui`}
     >
-      {/* Brand */}
-      <div className="flex h-[var(--header-height)] shrink-0 items-center gap-3 border-b border-sidebar-border px-4">
-        <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-sidebar-border bg-card shadow-sm">
-          <Image
-            src="/images/Logo.jpeg"
-            alt=""
-            width={36}
-            height={36}
-            className="h-full w-full object-cover"
-            unoptimized
-          />
+      {/* Brand — matches auth gradient panel */}
+      <BrandGradientStrip className="shrink-0 border-b border-sidebar-border">
+        <div className="px-4 py-4">
+          <BrandMark tone="gradient" size="compact" subtitle={config.roleLabel} />
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-heading text-sm font-semibold leading-tight text-sidebar-foreground">
-            Uganda CBC SMS
-          </p>
-          <p className="truncate text-[11px] text-sidebar-muted">{config.roleLabel}</p>
-        </div>
-      </div>
+      </BrandGradientStrip>
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 [scrollbar-width:thin]">

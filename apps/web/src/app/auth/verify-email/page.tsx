@@ -11,7 +11,7 @@ import { AuthLayout } from "@/components/auth/AuthLayout";
 import { stateMotion } from "@/components/auth/AuthMotion";
 import { CountdownTimer } from "@/components/auth/CountdownTimer";
 import { PrimaryButton } from "@/components/auth/PrimaryButton";
-import { AUTH_BRAND, AUTH_COPY } from "@/components/auth/constants";
+import { AUTH_COPY } from "@/components/auth/constants";
 import { SixDigitCodeInput } from "@/components/auth/SixDigitCodeInput";
 import { useCountdown } from "@/hooks/useCountdown";
 
@@ -95,7 +95,6 @@ function VerifyEmailPageInner() {
               <p className="font-body mt-2 text-sm text-slate-600">
                 Your account is now active. Welcome aboard!
               </p>
-              <p className="font-body mt-2 text-sm italic text-slate-500">{AUTH_BRAND.slogan}</p>
               <div className="mt-5">
                 <PrimaryButton onClick={() => router.push("/login")}>Sign In</PrimaryButton>
               </div>

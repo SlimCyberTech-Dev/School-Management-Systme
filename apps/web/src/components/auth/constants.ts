@@ -1,8 +1,11 @@
+import { BRAND } from "@/lib/brand";
+
 export const AUTH_BRAND = {
-  companyName: "SlimCyberTech",
-  slogan: "Building the future with code.",
-  logoIcon: "/images/Logo.jpeg",
-  logoFull: "/images/Slim.jpeg",
+  productName: BRAND.productName,
+  companyName: BRAND.companyName,
+  slogan: BRAND.companyTagline,
+  logoIcon: BRAND.logoIcon,
+  logoFull: BRAND.logoFull,
 };
 
 export const AUTH_COLORS = {
