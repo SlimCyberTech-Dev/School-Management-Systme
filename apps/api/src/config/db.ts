@@ -27,19 +27,38 @@ if (!process.env.DATABASE_URL) {
   console.warn("DATABASE_URL is not set");
 }
 
+function resolvePoolOptions(connectionString: string | undefined): pg.PoolConfig {
+  if (!connectionString) return {};
+  try {
+    const normalized = connectionString.replace(/^postgresql:/, "postgres:");
+    const url = new URL(normalized);
+    const isRenderExternal = url.hostname.endsWith(".render.com");
+    const sslMode = url.searchParams.get("sslmode");
+    if (isRenderExternal || sslMode === "require" || sslMode === "verify-full") {
+      return {
+        connectionString,
+        ssl: { rejectUnauthorized: false },
+      };
+    }
+  } catch {
+    /* use plain connection string */
+  }
+  return { connectionString };
+}
+
 const poolConnectionString = process.env.DATABASE_URL;
 const platformConnectionString =
   process.env.PLATFORM_DATABASE_URL?.trim() || poolConnectionString;
 
 export const pool = new Pool({
-  connectionString: poolConnectionString,
+  ...resolvePoolOptions(poolConnectionString),
   max: 20,
   idleTimeoutMillis: 30000,
 });
 
 /** Platform operations (tenant provisioning). Uses BYPASSRLS role in production when configured. */
 export const platformPool = new Pool({
-  connectionString: platformConnectionString,
+  ...resolvePoolOptions(platformConnectionString),
   max: 5,
   idleTimeoutMillis: 30000,
 });
