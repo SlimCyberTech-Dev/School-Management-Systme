@@ -2,6 +2,7 @@ import type { CreateTenantInput, UpdateTenantInput } from "@uganda-cbc-sms/share
 import bcrypt from "bcrypt";
 import { platformPool } from "../../config/db.js";
 import { loadEnv } from "../../config/env.js";
+import { setTenantLocal } from "../../config/tenant.js";
 import { invalidateTenantCache } from "../../utils/tenantCache.js";
 import { HttpError } from "../../utils/httpError.js";
 import { generateTemporaryPassword } from "../../utils/generatePassword.js";
@@ -83,6 +84,10 @@ export async function createTenant(
   const env = loadEnv();
   const slug = input.slug.toLowerCase();
   const email = input.adminEmail.toLowerCase().trim();
+  const signInUrl =
+    typeof env.WEB_APP_URL === "string" && env.WEB_APP_URL.trim()
+      ? `${env.WEB_APP_URL.trim().replace(/\/$/, "")}/login`
+      : buildSignInUrl(slug);
   const temporaryPassword = input.adminPassword?.trim() || generateTemporaryPassword();
   const hash = await bcrypt.hash(temporaryPassword, env.BCRYPT_ROUNDS);
   const adminName = input.adminFullName?.trim() || `${input.displayName} Administrator`;
@@ -102,6 +107,9 @@ export async function createTenant(
       [slug, input.displayName.trim()],
     );
     const tenantId = tenant.rows[0]!.id;
+
+    // RLS: ensure tenant context is set before inserting into tenant-owned tables (e.g. `users`).
+    await setTenantLocal(client, tenantId);
 
     await client.query(
       `INSERT INTO tenant_domains (tenant_id, subdomain, is_primary)
@@ -144,7 +152,7 @@ export async function createTenant(
       featureFlags: {},
       createdAt: new Date().toISOString(),
       credentials: {
-        signInUrl: buildSignInUrl(slug),
+        signInUrl,
         adminEmail: email,
         temporaryPassword,
         schoolName: input.displayName.trim(),
