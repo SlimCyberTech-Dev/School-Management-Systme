@@ -65,7 +65,8 @@ export default function BursarRecordPaymentPage() {
 
       <Card title="Find student">
         <p className="mb-3 text-sm text-muted-foreground">
-          Search by name or student number, then record cash or mobile money against an open invoice.
+          Pick a class to browse learners, search by name or student number, then record cash or mobile money against an
+          open invoice.
         </p>
         <StudentSearchPicker selected={student} onSelect={setStudent} />
       </Card>

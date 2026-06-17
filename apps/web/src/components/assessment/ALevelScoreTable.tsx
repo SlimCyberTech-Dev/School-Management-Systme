@@ -48,7 +48,7 @@ export function ALevelScoreTable({
       {err ? <p className="text-sm text-red-600">{err}</p> : null}
       <div className="space-y-3">
         {students.map((s) => (
-          <div key={s.id} className="grid grid-cols-1 gap-2 rounded border border-slate-200 p-3 md:grid-cols-3 md:items-end">
+          <div key={s.id} className="grid grid-cols-1 gap-2 rounded border border-border p-3 md:grid-cols-3 md:items-end">
             <div>
               <div className="font-medium">{s.fullName}</div>
               <div className="text-xs text-slate-500">{s.studentNumber}</div>

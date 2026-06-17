@@ -64,11 +64,9 @@ export default function AdminAcademicCbcStrandsPage() {
     try {
       const s = await apiGet<Subject[]>("/academic/subjects");
       setSubjects(s);
-      if (!subjectId) {
-        const first = s.find((x) => x.level === "O_LEVEL");
-        if (first) setSubjectId(first.id);
-      }
-      await loadStrands(subjectId);
+      const resolvedSubjectId = subjectId || s.find((x) => x.level === "O_LEVEL")?.id || "";
+      if (resolvedSubjectId && resolvedSubjectId !== subjectId) setSubjectId(resolvedSubjectId);
+      await loadStrands(resolvedSubjectId);
     } catch (e) {
       toast.error(getApiErrorMessage(e), "Could not load CBC strands");
     } finally {

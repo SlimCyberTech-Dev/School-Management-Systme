@@ -80,8 +80,15 @@ export function ShellHeader({ config, onToggleMobileNav }: Props) {
     function onClickOutside(event: MouseEvent) {
       if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
     document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, []);
 
   useEffect(() => {

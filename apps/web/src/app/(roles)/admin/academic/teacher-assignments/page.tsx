@@ -23,6 +23,7 @@ import {
   filterClassesByLevel,
   levelLabel,
   levelShortLabel,
+  pickDefaultAcademicYear,
 } from "@/lib/academicLevel";
 import { apiGet, apiPost } from "@/lib/api";
 
@@ -105,7 +106,7 @@ export default function AdminTeacherAssignmentsPage() {
     ]);
     setYears(y);
     setClasses(c);
-    const yearId = academicYearId || y[0]?.id || "";
+    const yearId = academicYearId || pickDefaultAcademicYear(y);
     if (yearId && yearId !== academicYearId) setAcademicYearId(yearId);
     const firstTeacher = teachers[0];
     const teacherIdResolved = teacherId || firstTeacher?.id || "";

@@ -18,6 +18,7 @@ import {
   classDisplayName,
   filterClassesByLevel,
   levelShortLabel,
+  pickDefaultAcademicYear,
 } from "@/lib/academicLevel";
 import { apiGet, apiPut } from "@/lib/api";
 
@@ -94,7 +95,7 @@ export default function AdminClassTeachersPage() {
     ]);
     setYears(y);
     setClasses(c);
-    const yearId = academicYearId || initialYearId || y[0]?.id || "";
+    const yearId = academicYearId || initialYearId || pickDefaultAcademicYear(y);
     if (yearId && yearId !== academicYearId) setAcademicYearId(yearId);
     const yearClasses = filterClassesByLevel(
       yearId ? c.filter((x) => x.academicYearId === yearId) : c,

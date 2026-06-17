@@ -17,7 +17,7 @@ import { useAlevelActions, useAlevelAssessments } from "@/hooks/useALevelAssessm
 import { useGradingScales } from "@/hooks/useGradingScales";
 import { apiGet, getApiErrorMessage } from "@/lib/api";
 import { parseAlevelAssessmentRows } from "@/lib/alevelAssessment";
-import { filterClassesByLevel } from "@/lib/academicLevel";
+import { filterClassesByLevel, pickDefaultAcademicYear, pickDefaultTerm } from "@/lib/academicLevel";
 import { combineQueryStatus, manualStatus } from "@/lib/queryStatus";
 
 type Combination = {
@@ -37,12 +37,12 @@ export default function AdminAlevelAssessmentPage() {
 
   const yearsQ = useQuery({
     queryKey: ["academic-years"],
-    queryFn: () => apiGet<{ id: string; name: string }[]>("/academic/years"),
+    queryFn: () => apiGet<{ id: string; name: string; isActive?: boolean }[]>("/academic/years"),
   });
   const termsQ = useQuery({
     queryKey: ["academic-terms", academicYearId],
     queryFn: () =>
-      apiGet<{ id: string; academicYearId: string; termNumber: number }[]>(
+      apiGet<{ id: string; academicYearId: string; termNumber: number; isActive?: boolean }[]>(
         `/academic/terms?academicYearId=${encodeURIComponent(academicYearId)}`,
       ),
     enabled: Boolean(academicYearId),
@@ -62,7 +62,8 @@ export default function AdminAlevelAssessmentPage() {
   const combinations = useMemo(() => combinationsQ.data ?? [], [combinationsQ.data]);
 
   useEffect(() => {
-    if (years[0] && !academicYearId) setAcademicYearId(years[0].id);
+    if (!years.length || academicYearId) return;
+    setAcademicYearId(pickDefaultAcademicYear(years));
   }, [years, academicYearId]);
 
   const aLevelClasses = useMemo(
@@ -83,8 +84,14 @@ export default function AdminAlevelAssessmentPage() {
   );
 
   useEffect(() => {
-    if (yearTerms[0] && !termId) setTermId(yearTerms[0].id);
-    else if (termId && !yearTerms.some((t) => t.id === termId)) setTermId(yearTerms[0]?.id ?? "");
+    if (!yearTerms.length) {
+      if (termId) setTermId("");
+      return;
+    }
+    const pick = pickDefaultTerm(yearTerms);
+    if (!termId || !yearTerms.some((t) => t.id === termId)) {
+      setTermId(pick?.id ?? "");
+    }
   }, [yearTerms, termId]);
 
   useEffect(() => {
@@ -155,8 +162,8 @@ export default function AdminAlevelAssessmentPage() {
 
       <Card>
         <p className="text-sm text-muted-foreground">
-          Enter UNEB-style scores for A-Level classes. Grades and points follow the school&apos;s A-Level scale.
-          Formal exam papers are managed separately under Exams.
+          Defaults load from the active academic year, first A-Level class, and current term. Change any filter to
+          switch context — data reloads automatically.
         </p>
       </Card>
 
@@ -212,9 +219,15 @@ export default function AdminAlevelAssessmentPage() {
         </div>
       ) : null}
 
-      {!contextReady ? (
+      {!contextReady && metaStatus !== "loading" ? (
         <p className="mt-6 text-sm text-muted-foreground">
-          Select year, class, term, combination, and subject to enable entry.
+          {aLevelClasses.length === 0
+            ? "No A-Level classes exist for the selected year."
+            : combinations.length === 0
+              ? "No subject combinations configured. Add them under Academic → Combinations."
+              : comboSubjects.length === 0
+                ? "This combination has no subjects."
+                : "Loading assessment context…"}
         </p>
       ) : (
         <div className="mt-8">

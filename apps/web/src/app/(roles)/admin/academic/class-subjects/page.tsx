@@ -19,6 +19,7 @@ import {
   filterClassesByLevel,
   filterSubjectsByLevel,
   levelShortLabel,
+  pickDefaultAcademicYear,
 } from "@/lib/academicLevel";
 import { apiDelete, apiGet, apiPost } from "@/lib/api";
 
@@ -75,7 +76,7 @@ export default function AdminAcademicClassSubjectsPage() {
     }
   }, [classId, classOptions]);
 
-  const loadLookups = async () => {
+  const loadLookups = async (): Promise<{ yearId: string; classId: string }> => {
     const [y, c, s] = await Promise.all([
       apiGet<AcademicYear[]>("/academic/years"),
       apiGet<SchoolClass[]>("/academic/classes"),
@@ -84,8 +85,7 @@ export default function AdminAcademicClassSubjectsPage() {
     setYears(y);
     setClasses(c);
     setSubjects(s);
-    const yearId = academicYearId || initialYearId || y[0]?.id || "";
-    if (yearId && yearId !== academicYearId) setAcademicYearId(yearId);
+    const yearId = academicYearId || initialYearId || pickDefaultAcademicYear(y);
     const yearClasses = filterClassesByLevel(
       yearId ? c.filter((x) => x.academicYearId === yearId) : c,
       level,
@@ -93,7 +93,10 @@ export default function AdminAcademicClassSubjectsPage() {
     const pickClass =
       (initialClassId && yearClasses.find((x) => x.id === initialClassId)) ||
       yearClasses[0];
-    if (pickClass && !classId) setClassId(pickClass.id);
+    const resolvedClassId = classId || pickClass?.id || "";
+    if (yearId && yearId !== academicYearId) setAcademicYearId(yearId);
+    if (resolvedClassId && resolvedClassId !== classId) setClassId(resolvedClassId);
+    return { yearId, classId: resolvedClassId };
   };
 
   const loadAssignments = async (nextYearId: string, nextClassId: string) => {
@@ -109,8 +112,8 @@ export default function AdminAcademicClassSubjectsPage() {
   const load = async () => {
     setErr(null);
     try {
-      await loadLookups();
-      await loadAssignments(academicYearId, classId);
+      const { yearId, classId: resolvedClassId } = await loadLookups();
+      await loadAssignments(yearId, resolvedClassId);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to load");
     } finally {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { NAV_ICON_MAP } from "./navIconMap";
 import { isNavItemActive } from "./navActive";
 import { isNavGroupActive } from "./navFlatten";
@@ -76,12 +76,20 @@ export function ShellNavGroup({ item, pathname, allItems, pendingHref, onNavClic
   const children = item.children ?? [];
   const groupActive = isNavGroupActive(item, pathname);
   const [open, setOpen] = useState(groupActive);
+  const prevGroupActive = useRef(groupActive);
   const Icon = NAV_ICON_MAP[item.icon];
 
-  // Keep expanded state in sync with the current route: open the active group, close others on navigation.
+  // Open when entering this section; close when leaving. Do not re-open on in-section navigation
+  // so users can manually collapse the menu while staying on a child page.
   useEffect(() => {
-    setOpen(groupActive);
-  }, [groupActive, pathname]);
+    if (groupActive && !prevGroupActive.current) {
+      setOpen(true);
+    }
+    if (!groupActive) {
+      setOpen(false);
+    }
+    prevGroupActive.current = groupActive;
+  }, [groupActive]);
 
   const handleParentClick = (e: MouseEvent<HTMLAnchorElement>) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
