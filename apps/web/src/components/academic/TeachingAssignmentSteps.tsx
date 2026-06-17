@@ -17,41 +17,44 @@ export function TeachingAssignmentSteps({
   level,
   yearId,
   hrefWithLevel,
+  academicBasePath = "/admin/academic",
 }: {
   level: AcademicLevel;
   yearId: string;
   hrefWithLevel: (path: string, extra?: Record<string, string>) => string;
+  academicBasePath?: string;
 }) {
   const track = levelShortLabel(level);
   const yearQ = yearId ? { academicYearId: yearId } : undefined;
+  const step = (segment: string) => hrefWithLevel(`${academicBasePath}${segment}`, yearQ);
 
   const steps: Step[] = [
     {
       n: 1,
       title: "Class teachers (homeroom)",
-      body: `Assign homeroom and class teachers for each ${track} class — the only place for class staffing (by class or by teacher).`,
-      href: hrefWithLevel("/admin/academic/class-teachers", yearQ),
+      body: `Assign homeroom and class teachers for each ${track} class. Homeroom does not auto-grant subject marks — assign subjects on step 3.`,
+      href: step("/class-teachers"),
       cta: "Class teachers",
     },
     {
       n: 2,
       title: "Subjects on the timetable",
       body: `Add which ${track} subjects each class offers — or use Structure setup and Curriculum setup to auto-provision years, classes, and subjects.`,
-      href: hrefWithLevel("/admin/academic/class-subjects", yearQ),
+      href: step("/class-subjects"),
       cta: "Manage class subjects",
     },
     {
       n: 3,
       title: "Subject teachers",
-      body: `Set teachable subjects and allocate staff to each ${track} class–subject slot. This is the only place to assign teachers to subjects.`,
-      href: hrefWithLevel("/admin/academic/teacher-assignments", yearQ),
+      body: `Set teachable subjects and allocate staff to each ${track} class–subject slot. Required for marks, exams, and timetable — including homeroom teachers.`,
+      href: step("/teacher-assignments"),
       cta: "Subject teachers",
     },
     {
       n: 4,
       title: "Weekly timetable",
       body: `Schedule when each ${track} class–subject slot occurs (periods and days). Publish for teachers.`,
-      href: hrefWithLevel("/admin/academic/timetable", yearQ),
+      href: step("/timetable"),
       cta: "Timetable builder",
     },
   ];

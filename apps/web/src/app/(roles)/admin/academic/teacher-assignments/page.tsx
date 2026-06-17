@@ -54,7 +54,7 @@ const REMOVE_BTN =
 
 export default function AdminTeacherAssignmentsPage() {
   const searchParams = useSearchParams();
-  const { level, setLevel, hrefWithLevel } = useAcademicLevelScope("O_LEVEL");
+  const { level, setLevel, hrefWithLevel, academicBasePath, academicHref } = useAcademicLevelScope("O_LEVEL");
   const { staff: teachers, options: teacherOptions, loading: staffLoading } = useTeachingStaff();
   const [years, setYears] = useState<AcademicYear[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
@@ -392,10 +392,10 @@ export default function AdminTeacherAssignmentsPage() {
       description={`Single place to set teachable subjects and assign ${levelShortLabel(level)} class–subject slots`}
     >
       <div className="mb-3 flex flex-wrap items-center gap-4">
-        <Link href={hrefWithLevel("/admin/academic/assignments")} className="text-sm font-medium text-brand hover:underline">
+        <Link href={academicHref("/assignments")} className="text-sm font-medium text-brand hover:underline">
           ← Teaching assignments
         </Link>
-        <Link href="/admin/academic" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link href={academicBasePath} className="text-sm text-muted-foreground hover:text-foreground">
           Academic hub
         </Link>
       </div>

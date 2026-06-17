@@ -16,8 +16,9 @@ export function TeacherAssessmentScopeNote({
     return (
       <Card>
         <p className="text-sm text-muted-foreground">
-          Enter <strong className="text-foreground">term UNEB scores</strong> (0–100) for A-Level subjects you
-          teach. Formal exams use the same scores when linked to report cards — open exam marking is under{" "}
+          Enter <strong className="text-foreground">term UNEB scores</strong> (0–100) only for subjects explicitly
+          assigned to you on Subject teachers. Homeroom alone does not appear here. Formal exams use the same scores
+          when linked to report cards — open exam marking is under{" "}
           <Link href={`${roleBase}/exams`} className="font-medium text-brand hover:underline">
             Exams
           </Link>
@@ -32,7 +33,8 @@ export function TeacherAssessmentScopeNote({
       <div className="space-y-2 text-sm text-muted-foreground">
         <p>
           This page is for <strong className="text-foreground">term CBC competency ratings</strong> (A–D per
-          strand). Only subjects with CBC strands configured by the school appear in the list below.
+          strand). Only subjects explicitly assigned to you on Subject teachers appear below, and only when CBC
+          strands are configured.
         </p>
         <p>
           <strong className="text-foreground">Formal exam marks</strong> (e.g. MT III) are entered under{" "}

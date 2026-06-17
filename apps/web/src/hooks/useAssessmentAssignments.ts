@@ -2,7 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { AcademicYear, SchoolClass, Term } from "@uganda-cbc-sms/shared";
-import { apiGet } from "@/lib/api";
+import { apiGet, apiGetWithMeta } from "@/lib/api";
+
+export type AssessmentAssignmentsMeta = {
+  cbcSetupIncomplete?: boolean;
+};
 
 export type AssessmentAssignmentRow = {
   classId: string;
@@ -55,14 +59,16 @@ export function useAssessmentAssignments(
       if (termId) qp.set("termId", termId);
       if (track) qp.set("track", track);
       const q = qp.toString();
-      return apiGet<AssignedApiRow[]>(`/assessments/subjects-assigned${q ? `?${q}` : ""}`);
+      return apiGetWithMeta<AssignedApiRow[], AssessmentAssignmentsMeta>(
+        `/assessments/subjects-assigned${q ? `?${q}` : ""}`,
+      );
     },
     enabled: Boolean(yearId),
   });
 
   const classById = new Map((classesQ.data ?? []).map((c) => [c.id, c]));
 
-  const rows: AssessmentAssignmentRow[] = (assignedQ.data ?? []).map((r) => {
+  const rows: AssessmentAssignmentRow[] = (assignedQ.data?.data ?? []).map((r) => {
     const cls = classById.get(r.classId);
     return {
       classId: r.classId,
@@ -76,6 +82,7 @@ export function useAssessmentAssignments(
 
   return {
     rows,
+    cbcSetupIncomplete: assignedQ.data?.meta?.cbcSetupIncomplete ?? false,
     isLoading: assignedQ.isLoading || classesQ.isLoading,
     isError: assignedQ.isError || classesQ.isError,
     error: assignedQ.error ?? classesQ.error,

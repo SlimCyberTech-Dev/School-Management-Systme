@@ -18,7 +18,7 @@ function staffLabel(t: TeachingStaffMember): string {
       ? ""
       : t.specializationCount > 0
         ? ` · ${t.specializationCount} subject(s)`
-        : " · any subject (not specialized)";
+        : " · no restrictions — assignable to any subject at matching level";
   return `${t.fullName} (${roleLabel})${spec}`;
 }
 

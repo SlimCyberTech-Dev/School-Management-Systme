@@ -75,7 +75,7 @@ function AdminTimetablePageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { level, setLevel, hrefWithLevel } = useAcademicLevelScope();
+  const { level, setLevel, hrefWithLevel, academicHref } = useAcademicLevelScope();
   const [tab, setTab] = useState<TabId>(() => parseTab(searchParams.get("tab")));
 
   const setTabAndUrl = useCallback(
@@ -348,11 +348,11 @@ function AdminTimetablePageContent() {
         <strong className="font-medium text-foreground">By class</strong>, and{" "}
         <strong className="font-medium text-foreground">Publish</strong> to edit drafts. Subjects and teachers are set
         under{" "}
-        <Link href={hrefWithLevel("/admin/academic/class-subjects")} className="font-medium text-brand hover:underline">
+        <Link href={academicHref("/class-subjects")} className="font-medium text-brand hover:underline">
           Class subjects
         </Link>{" "}
         and{" "}
-        <Link href={hrefWithLevel("/admin/academic/teacher-assignments")} className="font-medium text-brand hover:underline">
+        <Link href={academicHref("/teacher-assignments")} className="font-medium text-brand hover:underline">
           Subject teachers
         </Link>
         .
@@ -490,7 +490,7 @@ function AdminTimetablePageContent() {
               <Alert tone="info">
                 This class has no subject–teacher slots yet. The grid lists slots from{" "}
                 <Link
-                  href={hrefWithLevel("/admin/academic/teacher-assignments", { academicYearId: yearId })}
+                  href={academicHref("/teacher-assignments", { academicYearId: yearId })}
                   className="font-medium text-brand hover:underline"
                 >
                   Subject teachers

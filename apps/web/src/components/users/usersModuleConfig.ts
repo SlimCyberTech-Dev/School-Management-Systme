@@ -27,5 +27,9 @@ export const HEADTEACHER_USERS_MODULE: UsersModuleConfig = {
   studentsHref: "/headteacher/students",
   assignableRoles: HEADTEACHER_MANAGEABLE_ROLES,
   notesLabel: "Notes",
-  showAssignmentLinks: false,
+  showAssignmentLinks: true,
+  classTeachersHref: (id) =>
+    `/headteacher/academic/class-teachers?teacherId=${encodeURIComponent(id)}&view=teacher`,
+  subjectTeachersHref: (id) =>
+    `/headteacher/academic/teacher-assignments?teacherId=${encodeURIComponent(id)}`,
 };

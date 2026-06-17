@@ -56,6 +56,12 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
             activePrefix: "/admin/academic/class-subjects",
           },
           {
+            href: "/admin/academic/teacher-assignments",
+            label: "Subject teachers",
+            icon: "users",
+            activePrefix: "/admin/academic/teacher-assignments",
+          },
+          {
             href: "/admin/academic/timetable",
             label: "Timetable",
             icon: "calendar",
@@ -177,6 +183,30 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
         activePrefix: "/headteacher/academic",
         children: [
           { href: "/headteacher/academic", label: "Overview", icon: "bookOpen", exactMatch: true },
+          {
+            href: "/headteacher/academic/assignments",
+            label: "Teaching assignments",
+            icon: "users",
+            activePrefix: "/headteacher/academic/assignments",
+          },
+          {
+            href: "/headteacher/academic/class-teachers",
+            label: "Class teachers",
+            icon: "graduationCap",
+            activePrefix: "/headteacher/academic/class-teachers",
+          },
+          {
+            href: "/headteacher/academic/class-subjects",
+            label: "Class subjects",
+            icon: "clipboardCheck",
+            activePrefix: "/headteacher/academic/class-subjects",
+          },
+          {
+            href: "/headteacher/academic/teacher-assignments",
+            label: "Subject teachers",
+            icon: "users",
+            activePrefix: "/headteacher/academic/teacher-assignments",
+          },
           {
             href: "/headteacher/academic/timetable",
             label: "Timetable",

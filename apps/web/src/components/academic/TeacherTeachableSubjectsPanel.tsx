@@ -152,12 +152,14 @@ export function TeacherTeachableSubjectsPanel({
         {teacherName ? (
           <>
             Set which subjects <span className="font-medium text-foreground">{teacherName}</span> is qualified to
-            teach. Leave a level empty to allow any subject at that level until restrictions are set.
+            teach. An empty list means <span className="font-medium text-foreground">no restrictions</span> — they
+            can be assigned to any subject at that level. Subject marks still require explicit assignment on Subject
+            teachers.
           </>
         ) : (
           <>
-            Set which subjects this teacher is qualified to teach. Class teachers can always teach any subject in
-            their homeroom class.
+            Set which subjects this teacher is qualified to teach. An empty list means no restrictions at each
+            level. Subject marks still require explicit assignment on Subject teachers.
           </>
         )}
       </p>

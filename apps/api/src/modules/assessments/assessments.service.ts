@@ -593,6 +593,40 @@ export async function subjectsAssigned(
   return rows;
 }
 
+/** True when teacher has O-Level class_subjects assignments but none have CBC strands configured. */
+export async function teacherHasCbcAssignmentsMissingStrands(
+  teacherId: string,
+  opts?: { classId?: string; termId?: string; yearId?: string },
+): Promise<boolean> {
+  const where: string[] = ["cs.teacher_id = $1", "c.level = 'O_LEVEL'"];
+  const values: unknown[] = [teacherId];
+  let i = 2;
+  if (opts?.classId) {
+    where.push(`cs.class_id = $${i++}`);
+    values.push(opts.classId);
+  }
+  if (opts?.termId) {
+    where.push(`(cs.term_id = $${i++} OR cs.term_id IS NULL)`);
+    values.push(opts.termId);
+  }
+  if (opts?.yearId) {
+    where.push(`cs.academic_year_id = $${i++}`);
+    values.push(opts.yearId);
+  }
+  where.push(
+    `NOT EXISTS (SELECT 1 FROM cbc_strands st WHERE st.subject_id = cs.subject_id)`,
+  );
+  const { rows } = await query(
+    `SELECT 1
+     FROM class_subjects cs
+     JOIN classes c ON c.id = cs.class_id
+     WHERE ${where.join(" AND ")}
+     LIMIT 1`,
+    values,
+  );
+  return rows.length > 0;
+}
+
 export async function strands(subjectId?: string) {
   const values: unknown[] = [];
   let where = "";

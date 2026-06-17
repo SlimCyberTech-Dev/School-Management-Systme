@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { AcademicYear, SchoolClass } from "@uganda-cbc-sms/shared";
+import { useEffect, useMemo, useState } from "react";
+import type { AcademicYear, SchoolClass, Term, TimetableTemplate, TimetableTemplateOverview } from "@uganda-cbc-sms/shared";
 import { AcademicLevelScope } from "@/components/academic/AcademicLevelScope";
 import { TeachingAssignmentSteps } from "@/components/academic/TeachingAssignmentSteps";
 import { TeachingAssignmentsOverview } from "@/components/academic/TeachingAssignmentsOverview";
@@ -14,7 +14,7 @@ import { levelLabel } from "@/lib/academicLevel";
 import { apiGet } from "@/lib/api";
 
 export default function AdminTeachingAssignmentsPage() {
-  const { level, setLevel, hrefWithLevel } = useAcademicLevelScope("O_LEVEL");
+  const { level, setLevel, hrefWithLevel, academicBasePath } = useAcademicLevelScope("O_LEVEL");
   const [years, setYears] = useState<AcademicYear[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [yearId, setYearId] = useState("");
@@ -24,6 +24,10 @@ export default function AdminTeachingAssignmentsPage() {
   const [classTeachers, setClassTeachers] = useState<
     Array<{ classId: string; isHomeroom: boolean; teacherName: string }>
   >([]);
+  const [terms, setTerms] = useState<Term[]>([]);
+  const [termId, setTermId] = useState("");
+  const [hasPublishedTimetable, setHasPublishedTimetable] = useState(false);
+  const [lessonCountByClassId, setLessonCountByClassId] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -39,6 +43,20 @@ export default function AdminTeachingAssignmentsPage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!yearId) return;
+    void (async () => {
+      try {
+        const t = await apiGet<Term[]>(`/academic/terms?academicYearId=${encodeURIComponent(yearId)}`);
+        setTerms(t);
+        const active = t.find((x) => x.isActive) ?? t[0];
+        setTermId(active?.id ?? "");
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "Failed to load terms");
+      }
+    })();
+  }, [yearId]);
 
   useEffect(() => {
     if (!yearId) return;
@@ -68,6 +86,47 @@ export default function AdminTeachingAssignmentsPage() {
     })();
   }, [yearId]);
 
+  useEffect(() => {
+    if (!yearId || !termId) {
+      setHasPublishedTimetable(false);
+      setLessonCountByClassId({});
+      return;
+    }
+    void (async () => {
+      try {
+        const qp = new URLSearchParams({
+          academicYearId: yearId,
+          termId,
+          level,
+        });
+        const templates = await apiGet<TimetableTemplate[]>(`/timetable/templates?${qp.toString()}`);
+        const published = templates.find((t) => t.status === "published");
+        if (!published) {
+          setHasPublishedTimetable(false);
+          setLessonCountByClassId({});
+          return;
+        }
+        const overview = await apiGet<TimetableTemplateOverview>(
+          `/timetable/templates/${encodeURIComponent(published.id)}/overview`,
+        );
+        const counts: Record<string, number> = {};
+        for (const row of overview.classes) {
+          counts[row.classId] = row.lessonCount;
+        }
+        setLessonCountByClassId(counts);
+        setHasPublishedTimetable(true);
+      } catch {
+        setHasPublishedTimetable(false);
+        setLessonCountByClassId({});
+      }
+    })();
+  }, [yearId, termId, level]);
+
+  const termLabel = useMemo(() => {
+    const term = terms.find((t) => t.id === termId);
+    return term ? `Term ${term.termNumber}` : undefined;
+  }, [terms, termId]);
+
   return (
     <PageWrapper
       title="Teaching assignments"
@@ -85,17 +144,34 @@ export default function AdminTeachingAssignmentsPage() {
         </Card>
 
         <Card title="Academic year">
-          <Select
-            label="Year"
-            options={years.map((y) => ({ value: y.id, label: y.name }))}
-            value={yearId}
-            onChange={(e) => setYearId(e.target.value)}
-          />
+          <div className="grid gap-3 md:grid-cols-2">
+            <Select
+              label="Year"
+              options={years.map((y) => ({ value: y.id, label: y.name }))}
+              value={yearId}
+              onChange={(e) => setYearId(e.target.value)}
+            />
+            <Select
+              label="Term (timetable readiness)"
+              options={terms.map((t) => ({
+                value: t.id,
+                label: `Term ${t.termNumber}${t.isActive ? " · active" : ""}`,
+              }))}
+              value={termId}
+              onChange={(e) => setTermId(e.target.value)}
+              disabled={terms.length === 0}
+            />
+          </div>
         </Card>
 
         <div>
           <h2 className="mb-3 text-lg font-semibold text-foreground">Assignment workflow</h2>
-          <TeachingAssignmentSteps level={level} yearId={yearId} hrefWithLevel={hrefWithLevel} />
+          <TeachingAssignmentSteps
+            level={level}
+            yearId={yearId}
+            hrefWithLevel={hrefWithLevel}
+            academicBasePath={academicBasePath}
+          />
         </div>
 
         {loading ? (
@@ -109,6 +185,10 @@ export default function AdminTeachingAssignmentsPage() {
             classSubjects={classSubjects}
             classTeachers={classTeachers}
             hrefWithLevel={hrefWithLevel}
+            academicBasePath={academicBasePath}
+            termLabel={termLabel}
+            hasPublishedTimetable={hasPublishedTimetable}
+            lessonCountByClassId={lessonCountByClassId}
           />
         )}
 

@@ -4,11 +4,14 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import type { AcademicLevel } from "@/lib/academicLevel";
 import { parseAcademicLevel } from "@/lib/academicLevel";
+import { academicSegment, getAcademicBasePath } from "@/lib/academicModulePaths";
 
 export function useAcademicLevelScope(defaultLevel: AcademicLevel = "O_LEVEL") {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  const academicBasePath = useMemo(() => getAcademicBasePath(pathname), [pathname]);
 
   const level = useMemo(
     () => parseAcademicLevel(searchParams.get("level") ?? defaultLevel),
@@ -39,5 +42,11 @@ export function useAcademicLevelScope(defaultLevel: AcademicLevel = "O_LEVEL") {
     [level],
   );
 
-  return { level, setLevel, hrefWithLevel };
+  const academicHref = useCallback(
+    (segment: string, extra?: Record<string, string>) =>
+      hrefWithLevel(academicSegment(academicBasePath, segment), extra),
+    [academicBasePath, hrefWithLevel],
+  );
+
+  return { level, setLevel, hrefWithLevel, academicBasePath, academicHref };
 }

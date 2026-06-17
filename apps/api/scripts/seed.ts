@@ -123,6 +123,23 @@ function buildSampleStudents(refs: RefIds): StudentSeed[] {
   });
 }
 
+async function ensureClassHomeroom(
+  client: PoolClient,
+  tenantId: string,
+  classId: string,
+  yearId: string,
+  teacherId: string | null,
+) {
+  if (!teacherId) return;
+  await client.query(
+    `INSERT INTO class_teacher_assignments (tenant_id, class_id, teacher_id, academic_year_id, is_homeroom)
+     VALUES ($1, $2, $3, $4, true)
+     ON CONFLICT (class_id, teacher_id, academic_year_id) DO UPDATE SET is_homeroom = true`,
+    [tenantId, classId, teacherId, yearId],
+  );
+  await client.query(`UPDATE classes SET class_teacher_id = $1 WHERE id = $2`, [teacherId, classId]);
+}
+
 async function ensureAcademicBaseline(
   tenantId: string,
   classTeacherId: string | null,
@@ -195,6 +212,7 @@ async function ensureAcademicBaseline(
   if (!oLevelClassId) {
     throw new Error("Could not create or locate O-Level class for student seed");
   }
+  await ensureClassHomeroom(client, tenantId, oLevelClassId, yearId, classTeacherId);
 
   let aLevelClassId =
     (
@@ -218,6 +236,7 @@ async function ensureAcademicBaseline(
   if (!aLevelClassId) {
     throw new Error("Could not create or locate A-Level class for student seed");
   }
+  await ensureClassHomeroom(client, tenantId, aLevelClassId, yearId, classTeacherId);
 
   let comboId =
     (

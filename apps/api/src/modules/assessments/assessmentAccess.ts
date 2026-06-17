@@ -41,7 +41,7 @@ export async function assertTeacherOwnsClassSubject(
   if (!ok) {
     throw new HttpError(
       403,
-      "You can only submit marks for subjects assigned to you on the class timetable.",
+      "You can only submit marks for subjects assigned to you on Subject teachers. Homeroom alone does not grant subject access.",
     );
   }
 }

@@ -318,13 +318,27 @@ export async function getSubjectsAssigned(req: Request, res: Response) {
   const trackRaw = req.query["track"] as string | undefined;
   const track =
     trackRaw === "alevel" || trackRaw === "cbc" ? (trackRaw as "alevel" | "cbc") : undefined;
+  const yearId = req.query["yearId"] as string | undefined;
+  const termId = req.query["termId"] as string | undefined;
+  const classId = req.query["classId"] as string | undefined;
   const rows = await svc.subjectsAssigned(req.user!.id, {
-    classId: req.query["classId"] as string | undefined,
-    termId: req.query["termId"] as string | undefined,
-    yearId: req.query["yearId"] as string | undefined,
+    classId,
+    termId,
+    yearId,
     track,
   });
-  res.json({ success: true, data: rows });
+  let meta: { cbcSetupIncomplete?: boolean } | undefined;
+  if (track === "cbc" && rows.length === 0) {
+    const missingStrands = await svc.teacherHasCbcAssignmentsMissingStrands(req.user!.id, {
+      classId,
+      termId,
+      yearId,
+    });
+    if (missingStrands) {
+      meta = { cbcSetupIncomplete: true };
+    }
+  }
+  res.json({ success: true, data: rows, ...(meta ? { meta } : {}) });
 }
 
 export async function getStrands(req: Request, res: Response) {

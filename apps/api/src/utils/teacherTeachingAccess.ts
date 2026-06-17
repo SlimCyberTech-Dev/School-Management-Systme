@@ -11,11 +11,10 @@ export const TEACHING_ASSIGNMENT_ROLES = new Set([
 ]);
 
 /**
- * A teacher may enter marks / take a class–subject slot when:
- * - they are explicitly assigned on class_subjects, or
- * - they are the homeroom (class) teacher for that class and the subject is on the class timetable.
+ * Subject marks, exams, and timetable slots require an explicit class_subjects.teacher_id assignment.
+ * Homeroom (class_teacher_assignments) governs class-level duties only — see teacherCanAccessClassForAttendance.
  */
-/** True only when this teacher is the assigned subject teacher on class_subjects. */
+/** True when this teacher is the assigned subject teacher on class_subjects. */
 export async function teacherIsAssignedSubjectTeacher(
   teacherId: string,
   classId: string,
@@ -45,38 +44,9 @@ export async function assertTeacherIsAssignedSubjectTeacher(
   if (!ok) {
     throw new HttpError(
       403,
-      "You can only enter or submit marks for subjects assigned to you on the class timetable. Contact the administrator if an assignment is wrong.",
+      "You can only enter or submit marks for subjects assigned to you on Subject teachers (class_subjects). Homeroom alone does not grant subject access — contact the administrator if an assignment is wrong.",
     );
   }
-}
-
-export async function teacherCanTeachClassSubject(
-  teacherId: string,
-  classId: string,
-  subjectId: string,
-  academicYearId: string,
-): Promise<boolean> {
-  const { rows } = await query<{ ok: number }>(
-    `SELECT 1 AS ok
-     FROM class_subjects cs
-     JOIN classes c ON c.id = cs.class_id
-     WHERE cs.class_id = $2
-       AND cs.subject_id = $3
-       AND cs.academic_year_id = $4
-       AND (
-         cs.teacher_id = $1
-         OR c.class_teacher_id = $1
-         OR EXISTS (
-           SELECT 1 FROM class_teacher_assignments cta
-           WHERE cta.class_id = $2
-             AND cta.teacher_id = $1
-             AND cta.academic_year_id = $4
-         )
-       )
-     LIMIT 1`,
-    [teacherId, classId, subjectId, academicYearId],
-  );
-  return Boolean(rows[0]);
 }
 
 export async function teacherCanAccessClassForAttendance(
@@ -96,7 +66,10 @@ export async function teacherCanAccessClassForAttendance(
   return false;
 }
 
-/** SQL: teacher param is eligible for class_subjects row cs (join classes c, subjects s). */
+/**
+ * SQL: whether a user may appear in admin assignment pickers for class_subjects row cs.
+ * Homeroom + teachable subjects affect eligibility only — not runtime mark/exam access.
+ */
 export function teacherEligibilitySql(teacherParam: string): string {
   return `(
     EXISTS (
@@ -119,8 +92,7 @@ export function teacherEligibilitySql(teacherParam: string): string {
           OR (
             u.role = 'class_teacher'
             AND (
-              c.class_teacher_id = u.id
-              OR EXISTS (
+              EXISTS (
                 SELECT 1 FROM class_teacher_assignments cta
                 WHERE cta.class_id = c.id
                   AND cta.teacher_id = u.id

@@ -182,19 +182,26 @@ export function TeacherAssessmentAssignmentsList({
           />
         }
         empty={
-          <EmptyState
-            title={emptyTitle}
-            description={
-              track === "cbc"
-                ? `${emptyDescription} Formal exam papers for subjects you teach are listed under Exams.`
-                : emptyDescription
-            }
-            action={
-              track === "cbc"
-                ? { label: "Go to Exams", href: `${roleBase}/exams` }
-                : undefined
-            }
-          />
+          track === "cbc" && assignments.cbcSetupIncomplete ? (
+            <EmptyState
+              title="CBC strands not configured"
+              description="You are assigned to teach O-Level subjects, but CBC strands have not been set up for those subjects yet. Ask an administrator to configure strands under Academic → Subjects before you can enter CBC marks."
+            />
+          ) : (
+            <EmptyState
+              title={emptyTitle}
+              description={
+                track === "cbc"
+                  ? `${emptyDescription} Formal exam papers for subjects you teach are listed under Exams.`
+                  : emptyDescription
+              }
+              action={
+                track === "cbc"
+                  ? { label: "Go to Exams", href: `${roleBase}/exams` }
+                  : undefined
+              }
+            />
+          )
         }
       >
         <Table

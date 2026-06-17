@@ -115,10 +115,6 @@ const TEACHER_STUDENT_ACCESS_SQL = ` AND (
       SELECT 1 FROM class_subjects cs
       WHERE cs.class_id = s.class_id AND cs.teacher_id = $1
     )
-    OR EXISTS (
-      SELECT 1 FROM classes c
-      WHERE c.id = s.class_id AND c.class_teacher_id = $1
-    )
   )`;
 
 function listWhereClause(
@@ -154,9 +150,6 @@ async function teacherMayViewClass(role: Role, userId: string, classId: string):
        OR EXISTS (
          SELECT 1 FROM class_subjects cs
          WHERE cs.class_id = $2 AND cs.teacher_id = $1
-       )
-       OR EXISTS (
-         SELECT 1 FROM classes c WHERE c.id = $2 AND c.class_teacher_id = $1
        )`,
       [userId, classId],
     );
@@ -203,10 +196,6 @@ export async function canViewStudent(id: string, role: Role, userId: string): Pr
            OR EXISTS (
              SELECT 1 FROM class_subjects cs
              WHERE cs.class_id = s.class_id AND cs.teacher_id = $2
-           )
-           OR EXISTS (
-             SELECT 1 FROM classes c
-             WHERE c.id = s.class_id AND c.class_teacher_id = $2
            )
          )`,
       [id, userId],
@@ -392,10 +381,6 @@ export async function browseStudents(
           SELECT 1 FROM class_subjects cs
           WHERE cs.class_id = s.class_id AND cs.teacher_id = $${p}
         )
-        OR EXISTS (
-          SELECT 1 FROM classes c0
-          WHERE c0.id = s.class_id AND c0.class_teacher_id = $${p}
-        )
       )`,
       userId,
     );
@@ -522,7 +507,6 @@ export async function getClassEnrollmentSummary(
            SELECT 1 FROM class_subjects cs
            WHERE cs.class_id = c.id AND cs.teacher_id = $1
          )
-         OR c.class_teacher_id = $1
        )
        GROUP BY c.id, c.name, c.stream
        ORDER BY c.name, c.stream NULLS LAST`,
@@ -556,7 +540,10 @@ export async function searchStudents(q: string, role: Role, userId: string) {
       const { rows } = await query(
         `SELECT s.* FROM students s
          WHERE (s.full_name ILIKE $1 OR s.student_number ILIKE $2)
-         AND EXISTS (SELECT 1 FROM classes c WHERE c.id = s.class_id AND c.class_teacher_id = $3)
+         AND EXISTS (
+           SELECT 1 FROM class_teacher_assignments cta
+           WHERE cta.class_id = s.class_id AND cta.teacher_id = $3
+         )
          ORDER BY s.student_number LIMIT 50`,
         [term, term, userId],
       );

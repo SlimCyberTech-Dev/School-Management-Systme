@@ -1,7 +1,7 @@
 import { getRequestDbClient, query } from "../../config/db";
 import { HttpError } from "../../utils/httpError";
 import { syncHomeroomOnClass } from "../../utils/classTeacherAssignments";
-import { teacherEligibilitySql } from "../../utils/teacherTeachingAccess";
+import { teacherEligibilitySql, TEACHING_ASSIGNMENT_ROLES } from "../../utils/teacherTeachingAccess";
 import { validateGradingScaleRows } from "../../utils/gradingScales";
 import * as sharedSchemas from "@uganda-cbc-sms/shared";
 import type { z } from "zod";
@@ -128,6 +128,28 @@ function mapClass(r: {
     classTeacherId: r.class_teacher_id,
     curriculumTrack: (r.curriculum_track as "SCIENCES" | "ARTS" | "GENERAL" | null | undefined) ?? null,
   };
+}
+
+/** Homeroom from class_teacher_assignments; legacy column is fallback until cache is synced. */
+const CLASS_ROW_SELECT = `
+  SELECT
+    c.id,
+    c.name,
+    c.stream,
+    c.level,
+    c.academic_year_id,
+    c.curriculum_track,
+    COALESCE(cta.teacher_id, c.class_teacher_id) AS class_teacher_id
+  FROM classes c
+  LEFT JOIN class_teacher_assignments cta
+    ON cta.class_id = c.id
+   AND cta.academic_year_id = c.academic_year_id
+   AND cta.is_homeroom = true`;
+
+async function fetchClassRow(classId: string) {
+  const { rows } = await query(`${CLASS_ROW_SELECT} WHERE c.id = $1`, [classId]);
+  if (!rows[0]) throw new HttpError(404, "Class not found");
+  return mapClass(rows[0] as never);
 }
 
 function mapSubject(r: { id: string; name: string; code: string; level: string }) {
@@ -354,17 +376,17 @@ export async function createClass(input: ClassIn) {
   try {
     const { rows } = await query(
       `INSERT INTO classes (name, stream, level, academic_year_id, class_teacher_id)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [input.name, input.stream, normalizeLevel(input.level), input.academicYearId, input.classTeacherId ?? null],
+       VALUES ($1, $2, $3, $4, NULL) RETURNING id`,
+      [input.name, input.stream, normalizeLevel(input.level), input.academicYearId],
     );
-    const created = mapClass(rows[0]! as never);
+    const createdId = String((rows[0] as { id: string }).id);
     if (input.classTeacherId) {
-      await setClassTeacherAssignments(created.id, {
+      await setClassTeacherAssignments(createdId, {
         academicYearId: input.academicYearId,
         teachers: [{ teacherId: input.classTeacherId, isHomeroom: true }],
       });
     }
-    return created;
+    return fetchClassRow(createdId);
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : "Could not create class");
   }
@@ -372,7 +394,7 @@ export async function createClass(input: ClassIn) {
 
 export async function listClasses() {
   try {
-    const { rows } = await query(`SELECT * FROM classes ORDER BY name, stream`);
+    const { rows } = await query(`${CLASS_ROW_SELECT} ORDER BY c.name, c.stream`);
     return (rows as never[]).map((r) => mapClass(r as never));
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : "Could not list classes");
@@ -399,18 +421,20 @@ export async function updateClass(id: string, input: ClassUpdateIn) {
     sets.push(`academic_year_id = $${i++}`);
     values.push(input.academicYearId);
   }
-  if (input.classTeacherId !== undefined) {
-    sets.push(`class_teacher_id = $${i++}`);
-    values.push(input.classTeacherId);
-  }
   if (input.curriculumTrack !== undefined) {
     sets.push(`curriculum_track = $${i++}`);
     values.push(input.curriculumTrack);
   }
   values.push(id);
-  const { rows } = await query(`UPDATE classes SET ${sets.join(", ")} WHERE id = $${i} RETURNING *`, values);
-  if (!rows[0]) throw new HttpError(404, "Class not found");
-  const updated = mapClass(rows[0] as never);
+  if (sets.length === 0 && input.classTeacherId === undefined) {
+    throw new HttpError(400, "At least one field is required");
+  }
+  let updated = await fetchClassRow(id);
+  if (sets.length > 0) {
+    const { rows } = await query(`UPDATE classes SET ${sets.join(", ")} WHERE id = $${i} RETURNING id`, values);
+    if (!rows[0]) throw new HttpError(404, "Class not found");
+    updated = await fetchClassRow(id);
+  }
   if (input.classTeacherId !== undefined) {
     const yearId = input.academicYearId ?? updated.academicYearId;
     if (input.classTeacherId) {
@@ -423,8 +447,16 @@ export async function updateClass(id: string, input: ClassUpdateIn) {
         teachers: [{ teacherId: input.classTeacherId, isHomeroom: true }, ...others],
       });
     } else {
-      await syncHomeroomOnClass(id, yearId);
+      const existing = await listClassTeacherAssignments({ classId: id, academicYearId: yearId });
+      const others = existing
+        .filter((a) => !a.isHomeroom)
+        .map((a) => ({ teacherId: a.teacherId, isHomeroom: false }));
+      await setClassTeacherAssignments(id, {
+        academicYearId: yearId,
+        teachers: others,
+      });
     }
+    updated = await fetchClassRow(id);
   }
   return updated;
 }
@@ -510,6 +542,10 @@ export async function deleteSubject(id: string) {
 
 export async function createClassSubject(input: ClassSubjectIn) {
   try {
+    if (input.teacherId) {
+      await assertTeachingAssignmentRole(input.teacherId);
+      await assertTeacherCanTeachNewClassSubject(input.teacherId, input.classId, input.subjectId);
+    }
     const { rows } = await query(
       `INSERT INTO class_subjects (class_id, subject_id, teacher_id, academic_year_id, term_id)
        VALUES ($1, $2, $3, $4, $5)
@@ -520,6 +556,7 @@ export async function createClassSubject(input: ClassSubjectIn) {
   } catch (e: unknown) {
     const err = e as { code?: string };
     if (err.code === "23505") throw new HttpError(400, "Subject already assigned to class");
+    if (e instanceof HttpError) throw e;
     throw new Error(e instanceof Error ? e.message : "Could not assign subject");
   }
 }
@@ -621,6 +658,10 @@ export async function getClassSubjectById(id: string) {
 }
 
 export async function updateClassSubject(id: string, input: ClassSubjectUpdateIn) {
+  if (input.teacherId) {
+    await assertTeachingAssignmentRole(input.teacherId);
+    await assertTeacherCanTeachClassSubjects(input.teacherId, [id]);
+  }
   const sets: string[] = [];
   const values: unknown[] = [];
   let i = 1;
@@ -649,11 +690,65 @@ export async function deleteClassSubject(id: string) {
 
 export type BulkUpdatedClassSubject = { id: string; teacherId: string | null };
 
-export async function bulkAssignTeacher(
+async function assertTeachingAssignmentRole(teacherId: string): Promise<void> {
+  const { rows } = await query<{ role: string }>(
+    `SELECT role FROM users WHERE id = $1 AND deleted_at IS NULL`,
+    [teacherId],
+  );
+  if (!rows[0]) throw new HttpError(404, "Teacher not found");
+  if (!TEACHING_ASSIGNMENT_ROLES.has(rows[0].role)) {
+    throw new HttpError(
+      400,
+      `User role '${rows[0].role.replace(/_/g, " ")}' cannot be assigned to teach a class subject`,
+    );
+  }
+}
+
+async function assertTeacherCanTeachNewClassSubject(
+  teacherId: string,
+  classId: string,
+  subjectId: string,
+): Promise<void> {
+  const { rows } = await query<{
+    class_id: string;
+    subject_id: string;
+    subject_level: string;
+    class_level: string;
+  }>(
+    `SELECT c.id AS class_id, s.id AS subject_id, s.level AS subject_level, c.level AS class_level
+     FROM classes c
+     JOIN subjects s ON s.id = $2
+     WHERE c.id = $1`,
+    [classId, subjectId],
+  );
+  if (!rows[0]) throw new HttpError(400, "Class or subject not found");
+  const x = rows[0];
+  if (normalizeLevel(x.subject_level) !== normalizeLevel(x.class_level)) {
+    throw new HttpError(400, "Cannot assign: subject level does not match class level");
+  }
+  const eligible = await getEligibleTeachers({
+    subjectIds: [x.subject_id],
+    classId: x.class_id,
+  });
+  if (!eligible.some((t) => t.id === teacherId)) {
+    const { rows: userRows } = await query<{ full_name: string }>(
+      `SELECT full_name FROM users WHERE id = $1`,
+      [teacherId],
+    );
+    const name = userRows[0]?.full_name ?? "Teacher";
+    throw new HttpError(
+      400,
+      `${name} cannot be assigned to teach this subject in this class. Homeroom teachers may be eligible for any subject in their class; other teachers need matching teachable subjects.`,
+    );
+  }
+}
+
+export async function assignTeacherToClassSubjectRows(
   teacherId: string | null,
   classSubjectIds: string[],
 ): Promise<BulkUpdatedClassSubject[]> {
   if (teacherId) {
+    await assertTeachingAssignmentRole(teacherId);
     await assertTeacherCanTeachClassSubjects(teacherId, classSubjectIds);
   }
   const { rows } = await query(
@@ -667,6 +762,13 @@ export async function bulkAssignTeacher(
     const x = r as { id: string; teacher_id: string | null };
     return { id: String(x.id), teacherId: x.teacher_id ? String(x.teacher_id) : null };
   });
+}
+
+export async function bulkAssignTeacher(
+  teacherId: string | null,
+  classSubjectIds: string[],
+): Promise<BulkUpdatedClassSubject[]> {
+  return assignTeacherToClassSubjectRows(teacherId, classSubjectIds);
 }
 
 export type TeacherAssignmentRow = {
@@ -992,15 +1094,9 @@ export async function getEligibleTeachers(filters: {
     ) = $2
   )`;
   const homeroomSql = filters.classId
-    ? `(
-         EXISTS (
-           SELECT 1 FROM class_teacher_assignments cta
-           WHERE cta.class_id = $3 AND cta.teacher_id = u.id AND cta.is_homeroom = true
-         )
-         OR EXISTS (
-           SELECT 1 FROM classes hc
-           WHERE hc.id = $3 AND hc.class_teacher_id = u.id
-         )
+    ? `EXISTS (
+         SELECT 1 FROM class_teacher_assignments cta
+         WHERE cta.class_id = $3 AND cta.teacher_id = u.id AND cta.is_homeroom = true
        )`
     : "FALSE";
   const queryParams: unknown[] = [uniqueSubjectIds, uniqueSubjectIds.length];
@@ -1085,7 +1181,7 @@ export async function assertTeacherCanTeachClassSubjects(
       const name = userRows[0]?.full_name ?? "Teacher";
       throw new HttpError(
         400,
-        `${name} cannot be assigned to teach all selected subject(s) in this class. Class teachers may teach any subject in their homeroom class; other teachers need matching teachable subjects.`,
+        `${name} cannot be assigned to teach all selected subject(s) in this class. Homeroom teachers may be eligible for any subject in their class; other teachers need matching teachable subjects. Assignment here is required before they can enter marks or exams.`,
       );
     }
   }

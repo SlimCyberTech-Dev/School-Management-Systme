@@ -7,8 +7,6 @@ import type {
 } from "@uganda-cbc-sms/shared";
 import * as sharedSchemas from "@uganda-cbc-sms/shared";
 import { HttpError } from "../../utils/httpError";
-import { TEACHING_ASSIGNMENT_ROLES } from "../../utils/teacherTeachingAccess";
-import { getUserById } from "../users/users.service";
 import * as curriculumMaintenance from "./curriculumMaintenance";
 import * as gradingMaintenance from "./gradingScaleMaintenance";
 import * as structureMaintenance from "./structureMaintenance";
@@ -220,16 +218,7 @@ export async function postBulkAssignTeacher(req: Request, res: Response): Promis
     teacherId: string | null;
     classSubjectIds: string[];
   };
-  if (body.teacherId) {
-    const teacher = await getUserById(body.teacherId);
-    if (!TEACHING_ASSIGNMENT_ROLES.has(teacher.role)) {
-      throw new HttpError(
-        400,
-        `User role '${teacher.role}' cannot be assigned to teach a class subject`,
-      );
-    }
-  }
-  const updated = await svc.bulkAssignTeacher(body.teacherId, body.classSubjectIds);
+  const updated = await svc.assignTeacherToClassSubjectRows(body.teacherId, body.classSubjectIds);
   res.json({
     success: true,
     data: { updated, count: updated.length },

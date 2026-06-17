@@ -16,10 +16,6 @@ export async function teacherAssignedToClass(
     `SELECT 1
      FROM class_teacher_assignments cta
      WHERE cta.teacher_id = $1 AND cta.class_id = $2${yearClause}
-     UNION
-     SELECT 1
-     FROM classes c
-     WHERE c.id = $2 AND c.class_teacher_id = $1
      LIMIT 1`,
     values,
   );

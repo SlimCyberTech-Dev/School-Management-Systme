@@ -78,8 +78,9 @@ export function ShellNavGroup({ item, pathname, allItems, pendingHref, onNavClic
   const [open, setOpen] = useState(groupActive);
   const Icon = NAV_ICON_MAP[item.icon];
 
+  // Keep expanded state in sync with the current route: open the active group, close others on navigation.
   useEffect(() => {
-    if (groupActive) setOpen(true);
+    setOpen(groupActive);
   }, [groupActive, pathname]);
 
   const handleParentClick = (e: MouseEvent<HTMLAnchorElement>) => {

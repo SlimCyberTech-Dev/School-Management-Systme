@@ -43,7 +43,7 @@ export default function AdminAcademicClassSubjectsPage() {
   const searchParams = useSearchParams();
   const initialClassId = searchParams.get("classId") ?? "";
   const initialYearId = searchParams.get("academicYearId") ?? "";
-  const { level, setLevel, hrefWithLevel } = useAcademicLevelScope("O_LEVEL");
+  const { level, setLevel, hrefWithLevel, academicBasePath, academicHref } = useAcademicLevelScope("O_LEVEL");
   const [years, setYears] = useState<AcademicYear[]>([]);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -171,7 +171,7 @@ export default function AdminAcademicClassSubjectsPage() {
     { key: "subjectCode", header: "Code" },
     {
       key: "teacherName",
-      header: "Teacher",
+      header: "Assigned teacher (read-only)",
       render: (r) =>
         r.teacherName ? (
           r.teacherName
@@ -202,12 +202,12 @@ export default function AdminAcademicClassSubjectsPage() {
     >
       <div className="mb-3 flex flex-wrap items-center gap-4">
         <Link
-          href={hrefWithLevel("/admin/academic/assignments", { academicYearId })}
+          href={academicHref("/assignments", { academicYearId })}
           className="text-sm font-medium text-brand hover:underline"
         >
           ← Teaching assignments
         </Link>
-        <Link href="/admin/academic" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link href={academicBasePath} className="text-sm text-muted-foreground hover:text-foreground">
           Academic hub
         </Link>
       </div>
@@ -220,7 +220,7 @@ export default function AdminAcademicClassSubjectsPage() {
         <Alert tone="info">
           No subjects on this class yet.{" "}
           <Link
-            href={hrefWithLevel("/admin/academic/curriculum", { academicYearId })}
+            href={academicHref("/curriculum", { academicYearId })}
             className="font-medium text-brand hover:underline"
           >
             Use Curriculum setup
@@ -260,7 +260,7 @@ export default function AdminAcademicClassSubjectsPage() {
         {classOptions.length === 0 && academicYearId ? (
           <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
             No {levelShortLabel(level)} classes for this year. Create them under{" "}
-            <Link href={hrefWithLevel("/admin/academic/classes")} className="font-medium text-brand hover:underline">
+            <Link href={academicHref("/classes")} className="font-medium text-brand hover:underline">
               Classes
             </Link>
             .
@@ -273,7 +273,7 @@ export default function AdminAcademicClassSubjectsPage() {
           <p className="mb-3 text-sm text-muted-foreground">
             Add or remove subjects on the class timetable here. To assign or change teachers, use{" "}
             <Link
-              href={hrefWithLevel("/admin/academic/teacher-assignments", {
+              href={academicHref("/teacher-assignments", {
                 academicYearId,
                 classId,
               })}
@@ -320,7 +320,7 @@ export default function AdminAcademicClassSubjectsPage() {
           {filteredSubjects.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No {levelShortLabel(level)} subjects in the catalogue. Add them under{" "}
-              <Link href={`/admin/academic/subjects?level=${level}`} className="font-medium text-brand hover:underline">
+              <Link href={academicHref("/subjects")} className="font-medium text-brand hover:underline">
                 Subjects
               </Link>
               .

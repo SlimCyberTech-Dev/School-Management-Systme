@@ -47,7 +47,7 @@ export default function AdminClassTeachersPage() {
   const initialYearId = searchParams.get("academicYearId") ?? "";
   const initialTeacherId = searchParams.get("teacherId") ?? "";
   const initialView = searchParams.get("view") === "teacher" ? "teacher" : "class";
-  const { level, setLevel, hrefWithLevel } = useAcademicLevelScope("O_LEVEL");
+  const { level, setLevel, hrefWithLevel, academicBasePath, academicHref } = useAcademicLevelScope("O_LEVEL");
   const { staff, options: teacherOptions, loading: staffLoading } = useTeachingStaff();
   const [viewMode, setViewMode] = useState<ViewMode>(initialView);
   const [years, setYears] = useState<AcademicYear[]>([]);
@@ -190,12 +190,12 @@ export default function AdminClassTeachersPage() {
     >
       <div className="mb-3 flex flex-wrap items-center gap-4">
         <Link
-          href={hrefWithLevel("/admin/academic/assignments", { academicYearId })}
+          href={academicHref("/assignments", { academicYearId })}
           className="text-sm font-medium text-brand hover:underline"
         >
           ← Teaching assignments
         </Link>
-        <Link href="/admin/academic" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link href={academicBasePath} className="text-sm text-muted-foreground hover:text-foreground">
           Academic hub
         </Link>
       </div>
@@ -219,7 +219,7 @@ export default function AdminClassTeachersPage() {
           This is the only page for class teacher assignment. Use <strong>By class</strong> to set all teachers on one
           class, or <strong>By teacher</strong> to see every class a staff member leads. Subject teaching slots are on{" "}
           <Link
-            href={hrefWithLevel("/admin/academic/teacher-assignments", { academicYearId })}
+            href={academicHref("/teacher-assignments", { academicYearId })}
             className="font-medium text-brand hover:underline"
           >
             Subject teachers
@@ -282,7 +282,7 @@ export default function AdminClassTeachersPage() {
         {viewMode === "class" && classOptions.length === 0 && academicYearId ? (
           <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
             No {levelShortLabel(level)} classes for this year.{" "}
-            <Link href={hrefWithLevel("/admin/academic/classes")} className="font-medium text-brand hover:underline">
+            <Link href={academicHref("/classes")} className="font-medium text-brand hover:underline">
               Create classes
             </Link>
             .

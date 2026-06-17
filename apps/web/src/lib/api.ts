@@ -126,7 +126,7 @@ api.interceptors.response.use(
   },
 );
 
-export type ApiEnvelope<T> = { success: boolean; data?: T; error?: string };
+export type ApiEnvelope<T> = { success: boolean; data?: T; error?: string; meta?: Record<string, unknown> };
 
 const GENERIC = "Something went wrong. Please try again.";
 
@@ -275,6 +275,29 @@ function axiosFailureToMessage(err: AxiosError<unknown>): string {
   return GENERIC;
 }
 
+async function parseEnvelopeWithMeta<T, M = Record<string, unknown>>(
+  run: () => Promise<AxiosResponse<ApiEnvelope<T>>>,
+): Promise<{ data: T; meta?: M }> {
+  try {
+    const { data } = await run();
+    if (!data.success) {
+      const msg =
+        typeof data.error === "string" && data.error.trim()
+          ? data.error.trim()
+          : "We couldn't complete that request.";
+      throw new Error(msg);
+    }
+    return { data: data.data as T, meta: data.meta as M | undefined };
+  } catch (e) {
+    if (axios.isCancel(e)) throw e;
+    if (isAxiosError(e)) {
+      throw new Error(getApiErrorMessage(e));
+    }
+    if (e instanceof Error) throw e;
+    throw new Error(GENERIC);
+  }
+}
+
 async function parseEnvelope<T>(run: () => Promise<AxiosResponse<ApiEnvelope<T>>>): Promise<T> {
   try {
     const { data } = await run();
@@ -298,6 +321,12 @@ async function parseEnvelope<T>(run: () => Promise<AxiosResponse<ApiEnvelope<T>>
 
 export async function apiGet<T>(url: string): Promise<T> {
   return parseEnvelope(() => api.get<ApiEnvelope<T>>(url));
+}
+
+export async function apiGetWithMeta<T, M = Record<string, unknown>>(
+  url: string,
+): Promise<{ data: T; meta?: M }> {
+  return parseEnvelopeWithMeta<T, M>(() => api.get<ApiEnvelope<T>>(url));
 }
 
 export async function apiPost<T>(url: string, body?: unknown): Promise<T> {
