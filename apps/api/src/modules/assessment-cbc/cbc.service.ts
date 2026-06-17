@@ -1,6 +1,7 @@
 import * as sharedSchemas from "@uganda-cbc-sms/shared";
 import type { z } from "zod";
 import { query } from "../../config/db";
+import { syncLegacyCbcToAssessments } from "../../utils/cbcRatingWrite";
 import { HttpError } from "../../utils/httpError";
 
 const { cbcScoresBulkSchema } = sharedSchemas;
@@ -36,6 +37,15 @@ export async function upsertCbcScores(input: BulkIn, teacherId: string) {
           teacherId,
         ],
       );
+      await syncLegacyCbcToAssessments({
+        studentId: item.studentId,
+        subjectId: item.subjectId,
+        strandId: item.strandId,
+        competency: item.competency,
+        rating: item.rating,
+        termId: item.termId,
+        teacherId,
+      });
     }
     return { saved: input.items.length };
   } catch (e) {

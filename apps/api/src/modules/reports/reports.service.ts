@@ -660,6 +660,14 @@ async function payloadToCbcPdf(payload: CbcReportPayload, tenantId: string): Pro
       rating: s.rating,
     })),
     formalExam: payload.formalExam,
+    subjectSummaries: payload.subjectSummaries,
+    certification: payload.certification
+      ? {
+          resultCode: payload.certification.resultCode,
+          label: payload.certification.label,
+          reasonLabels: payload.certification.reasonLabels,
+        }
+      : undefined,
     daysAttended: payload.daysAttended,
     totalDays: payload.totalDays,
     teacherComment: payload.teacherComment,

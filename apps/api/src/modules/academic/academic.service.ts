@@ -3,6 +3,7 @@ import { HttpError } from "../../utils/httpError";
 import { syncHomeroomOnClass } from "../../utils/classTeacherAssignments";
 import { teacherEligibilitySql, TEACHING_ASSIGNMENT_ROLES } from "../../utils/teacherTeachingAccess";
 import { validateGradingScaleRows } from "../../utils/gradingScales";
+import { DEFAULT_ASSESSMENT_GRADING_SCALES } from "@uganda-cbc-sms/shared";
 import * as sharedSchemas from "@uganda-cbc-sms/shared";
 import type { z } from "zod";
 
@@ -1806,7 +1807,7 @@ export async function listGradingScales(level?: "O_LEVEL" | "A_LEVEL") {
     grade: r["grade"],
     minScore: Number(r["min_score"]),
     maxScore: Number(r["max_score"]),
-    points: Number(r["points"]),
+    points: r["points"] != null ? Number(r["points"]) : null,
     descriptor: r["descriptor"] as string | null,
     sortOrder: Number(r["sort_order"]),
     isActive: Boolean(r["is_active"]),
@@ -1839,7 +1840,7 @@ export async function replaceGradingScale(input: GradingScaleUpsertIn) {
           row.grade.toUpperCase(),
           row.minScore,
           row.maxScore,
-          row.points,
+          row.points ?? null,
           row.descriptor ?? null,
           row.sortOrder ?? i + 1,
           row.isActive ?? true,
@@ -1852,4 +1853,46 @@ export async function replaceGradingScale(input: GradingScaleUpsertIn) {
     throw error;
   }
   return listGradingScales(input.level);
+}
+
+/** Apply CBC A–E defaults for O-Level when no rows exist, or when force=true. */
+export async function applyOlevelCbcDefaults(force = false) {
+  const { rows: countRows } = await query<{ c: string }>(
+    `SELECT COUNT(*)::text AS c FROM assessment_grading_scales WHERE level = 'O_LEVEL'`,
+  );
+  const existing = Number(countRows[0]?.c ?? 0);
+  if (existing > 0 && !force) {
+    throw new HttpError(
+      409,
+      "O-Level grading scale already exists. Use force apply to replace with CBC defaults.",
+    );
+  }
+  const defaults = DEFAULT_ASSESSMENT_GRADING_SCALES.O_LEVEL;
+  await query("BEGIN");
+  try {
+    if (force) {
+      await query(`DELETE FROM assessment_grading_scales WHERE level = 'O_LEVEL'`);
+    }
+    for (let i = 0; i < defaults.length; i += 1) {
+      const row = defaults[i]!;
+      await query(
+        `INSERT INTO assessment_grading_scales
+          (level, grade, min_score, max_score, points, descriptor, sort_order, is_active, updated_at)
+         VALUES ('O_LEVEL',$1,$2,$3,$4,$5,$6,true,NOW())`,
+        [
+          row.grade,
+          row.minScore,
+          row.maxScore,
+          row.points ?? null,
+          row.descriptor,
+          row.sortOrder ?? i + 1,
+        ],
+      );
+    }
+    await query("COMMIT");
+  } catch (error) {
+    await query("ROLLBACK");
+    throw error;
+  }
+  return listGradingScales("O_LEVEL");
 }

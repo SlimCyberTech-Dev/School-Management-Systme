@@ -105,6 +105,13 @@ Sidebar navigation in the app is **role-aware** (Zustand `authStore`).
 - **A-Level:** `POST|GET /assessments/alevel`
 - **Fees:** `/fees/structure`, `/fees/invoices`, `/fees/payments`, `/fees/balance/:studentId`, `/fees/reports`
 - **Reports:** `POST /reports/cbc/generate`, `POST /reports/alevel/generate`, `PATCH /reports/:id/approve`, `GET /reports/:id/pdf`
+
+### O-Level CBC assessment
+
+O-Level uses **A–E competency ratings**, a **20/80 CA+EOC composite**, separate **project work**, and **Result 1/2/3** certification (no divisions). Configure CA rules under **Settings → Assessment rules**; grade bands under **Grading scales (O-Level)**. Full policy notes: [`docs/uganda-cbc-assessment.md`](docs/uganda-cbc-assessment.md).
+
+- **Settings:** `GET|PUT /settings/assessment-config`
+- **Grading:** `POST /academic/grading-scales/apply-cbc-defaults` (O-Level CBC A–E bands)
 - **Analytics:** `GET /analytics/dashboard`, `GET /analytics/class-performance`, `GET /analytics/report-pipeline`, `GET /analytics/reports-overview`
 
 All JSON responses use `{ success, data?, error? }`. Password hashes are never returned.

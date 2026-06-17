@@ -165,7 +165,7 @@ export interface CbcScoreRow {
   strandId: string;
   termId: string;
   competency: string;
-  rating: "A" | "B" | "C" | "D";
+  rating: "A" | "B" | "C" | "D" | "E";
   submitted: boolean;
   submittedAt: string | null;
   teacherId: string | null;

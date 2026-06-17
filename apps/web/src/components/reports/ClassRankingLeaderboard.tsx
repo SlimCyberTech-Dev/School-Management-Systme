@@ -14,11 +14,13 @@ const METHOD_DESCRIPTION: Record<RankingMethod, string> = {
   alevel_best3_points:
     "UNEB-style ranking: sum of points from the best 3 subjects (lower aggregate = better position).",
   olevel_best8_points:
-    "UCE-style ranking: sum of points from the best 8 exam papers (lower aggregate = better position).",
+    "Legacy UCE points ranking (deprecated for CBC track).",
+  olevel_composite_average:
+    "Mean composite score across subjects (CA 20% + EOC 80%; higher average = better position).",
   exam_average_percent:
     "Mean exam score as a percentage across papers (higher average = better position).",
   cbc_competency_average:
-    "Mean CBC competency score (A=4, B=3, C=2, D=1; higher average = better position).",
+    "Mean CBC competency score (A=5 … E=1; higher average = better position).",
 };
 
 export function ClassRankingLeaderboard({

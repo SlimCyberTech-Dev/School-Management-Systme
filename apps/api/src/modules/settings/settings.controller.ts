@@ -1,7 +1,8 @@
-import { updateSchoolSettingsSchema } from "@uganda-cbc-sms/shared";
+import { assessmentConfigSchema, updateSchoolSettingsSchema } from "@uganda-cbc-sms/shared";
 import type { Request, Response } from "express";
 import { HttpError } from "../../utils/httpError";
 import { activeTenantId } from "../../utils/activeTenant.js";
+import { loadAssessmentConfig, saveAssessmentConfig } from "../../utils/assessmentConfig";
 import * as svc from "./settings.service";
 
 export async function getSchoolSettings(req: Request, res: Response): Promise<void> {
@@ -28,4 +29,15 @@ export async function uploadSchoolLogo(req: Request, res: Response): Promise<voi
   const logoUrl = `/uploads/${req.tenant!.id}/settings/${req.file.filename}`;
   const data = await svc.setSchoolLogo(logoUrl, req.user.id, activeTenantId(req));
   res.json({ success: true, data, message: "School logo uploaded." });
+}
+
+export async function getAssessmentConfig(req: Request, res: Response): Promise<void> {
+  const data = await loadAssessmentConfig(activeTenantId(req));
+  res.json({ success: true, data, message: "Assessment rules loaded." });
+}
+
+export async function putAssessmentConfig(req: Request, res: Response): Promise<void> {
+  const body = assessmentConfigSchema.parse(req.body);
+  const data = await saveAssessmentConfig(body as Parameters<typeof saveAssessmentConfig>[0], activeTenantId(req));
+  res.json({ success: true, data, message: "Assessment rules saved." });
 }

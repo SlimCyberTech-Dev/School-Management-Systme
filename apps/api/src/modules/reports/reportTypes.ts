@@ -31,6 +31,23 @@ export type CbcReportSubjectLine = {
   descriptor: string;
 };
 
+export type CbcReportSubjectSummary = {
+  code: string;
+  name: string;
+  finalGrade: string | null;
+  caScore: number | null;
+  eocScore: number | null;
+  composite: number | null;
+  projectStatus: string | null;
+};
+
+export type CbcReportCertification = {
+  resultCode: string;
+  label: string;
+  reasonCodes: string[];
+  reasonLabels: string[];
+};
+
 export type CbcReportPayload = {
   version: typeof REPORT_PAYLOAD_VERSION;
   schoolName: string;
@@ -42,6 +59,10 @@ export type CbcReportPayload = {
   yearName: string;
   photoUrl: string | null;
   subjects: CbcReportSubjectLine[];
+  /** Per-subject composite grades (CA 20% + EOC 80%). */
+  subjectSummaries?: CbcReportSubjectSummary[];
+  /** UCE Result 1 / 2 / 3 certification status. */
+  certification?: CbcReportCertification;
   daysAttended: number;
   totalDays: number;
   teacherComment: string;

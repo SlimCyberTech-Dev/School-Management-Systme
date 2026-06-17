@@ -447,7 +447,7 @@ export async function putGradingScales(req: Request, res: Response): Promise<voi
       grade: string;
       minScore: number;
       maxScore: number;
-      points: number;
+      points?: number | null;
       descriptor?: string | null;
       sortOrder?: number;
       isActive?: boolean;
@@ -455,6 +455,16 @@ export async function putGradingScales(req: Request, res: Response): Promise<voi
   };
   const rows = await svc.replaceGradingScale(body);
   res.json({ success: true, data: rows, message: "Grading scale updated." });
+}
+
+export async function postApplyOlevelCbcDefaults(req: Request, res: Response): Promise<void> {
+  const force = req.body?.force === true;
+  const rows = await svc.applyOlevelCbcDefaults(force);
+  res.json({
+    success: true,
+    data: rows,
+    message: "O-Level CBC A–E defaults applied. Confirm cut-points with NCDC/UNEB circular.",
+  });
 }
 
 export async function recalculateGradingScales(req: Request, res: Response): Promise<void> {

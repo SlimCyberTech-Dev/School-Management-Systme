@@ -21,7 +21,7 @@ type ScaleRow = {
   grade: string;
   minScore: number;
   maxScore: number;
-  points: number;
+  points: number | null;
   descriptor?: string | null;
   sortOrder: number;
   isActive: boolean;
@@ -35,7 +35,7 @@ function rowsFromDefaults(level: Level): ScaleRow[] {
     grade: row.grade,
     minScore: row.minScore,
     maxScore: row.maxScore,
-    points: row.points,
+    points: row.points ?? null,
     descriptor: row.descriptor,
     sortOrder: row.sortOrder,
     isActive: true,
@@ -50,6 +50,8 @@ export default function AdminGradingScalesPage() {
   const [recalculating, setRecalculating] = useState(false);
   const [confirmSave, setConfirmSave] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmApplyCbc, setConfirmApplyCbc] = useState(false);
+  const [applyingCbc, setApplyingCbc] = useState(false);
   const [confirmRecalculate, setConfirmRecalculate] = useState(false);
 
   const load = async (nextLevel: Level) => {
@@ -111,7 +113,7 @@ export default function AdminGradingScalesPage() {
           grade: r.grade.trim().toUpperCase(),
           minScore: Number(r.minScore),
           maxScore: Number(r.maxScore),
-          points: Number(r.points),
+          points: level === "O_LEVEL" ? null : Number(r.points ?? 0),
           descriptor: r.descriptor ?? "",
           sortOrder: i + 1,
           isActive: r.isActive,
@@ -156,15 +158,49 @@ export default function AdminGradingScalesPage() {
     }
   };
 
+  const applyCbcDefaults = async (force = false) => {
+    setApplyingCbc(true);
+    try {
+      const saved = await apiPost<ScaleRow[]>("/academic/grading-scales/apply-cbc-defaults", { force });
+      setRows(saved.length ? saved : rowsFromDefaults("O_LEVEL"));
+      toast.success("CBC A–E defaults applied. Confirm cut-points with NCDC/UNEB.", "Defaults applied");
+    } catch (e) {
+      toast.error(getApiErrorMessage(e), "Could not apply defaults");
+    } finally {
+      setApplyingCbc(false);
+      setConfirmApplyCbc(false);
+    }
+  };
+
   return (
     <PageWrapper
       title="Grading scales"
-      description="Admin-defined score ranges, grades, and points used when teachers save A-Level marks"
+      description={
+        level === "O_LEVEL"
+          ? "O-Level CBC competency bands (A–E). Points are not used; composites use CA + EOC."
+          : "A-Level score ranges, grades, and UNEB points"
+      }
     >
       <Card title="Scale settings">
+        {level === "O_LEVEL" ? (
+          <div className="mb-3">
+            <Alert tone="info">
+              Cut-points shown are <strong>UNCONFIRMED placeholders</strong>. Confirm with your NCDC/UNEB circular
+              before end-of-cycle reporting. Use &quot;Apply CBC defaults&quot; only when no O-Level scale exists, or
+              to force-replace with defaults.
+            </Alert>
+          </div>
+        ) : (
+          <div className="mb-3">
+            <Alert tone="info">
+              Post-CBC UACE scheme is unconfirmed — contact your exams office before changing A-Level bands.
+            </Alert>
+          </div>
+        )}
         <p className="mb-3 text-sm text-muted-foreground">
-          Subject teachers enter raw scores. The system maps each score to a grade and UNEB points using this table.
-          After changing ranges, recalculate stored A-Level grades so report cards and divisions stay accurate.
+          {level === "A_LEVEL"
+            ? "Subject teachers enter raw scores. The system maps each score to a grade and UNEB points using this table. After changing ranges, recalculate stored A-Level grades."
+            : "Final subject grades map composite scores (20% CA + 80% EOC) to A–E bands. Points column is not used for O-Level CBC."}
         </p>
         <div className="mb-3 flex flex-wrap items-end gap-3">
           <label className="text-sm">
@@ -187,6 +223,11 @@ export default function AdminGradingScalesPage() {
           <Button variant="secondary" onClick={() => setConfirmReset(true)} disabled={loading}>
             Reset to defaults
           </Button>
+          {level === "O_LEVEL" ? (
+            <Button variant="secondary" onClick={() => setConfirmApplyCbc(true)} disabled={loading || applyingCbc}>
+              {applyingCbc ? "Applying…" : "Apply CBC defaults"}
+            </Button>
+          ) : null}
           <Button onClick={() => setConfirmSave(true)} disabled={saving || loading || Boolean(validationError)}>
             {saving ? "Saving..." : "Save grading scale"}
           </Button>
@@ -208,7 +249,9 @@ export default function AdminGradingScalesPage() {
                   <th className="px-2 py-2 text-left">Grade</th>
                   <th className="px-2 py-2 text-right">Min score</th>
                   <th className="px-2 py-2 text-right">Max score</th>
-                  <th className="px-2 py-2 text-right">Points</th>
+                  {level === "A_LEVEL" ? (
+                    <th className="px-2 py-2 text-right">Points</th>
+                  ) : null}
                   <th className="px-2 py-2 text-left">Descriptor</th>
                   <th className="px-2 py-2 text-center">Active</th>
                   <th className="px-2 py-2 text-right">Action</th>
@@ -242,14 +285,16 @@ export default function AdminGradingScalesPage() {
                         className="w-24 rounded border border-border bg-background px-2 py-1 text-right"
                       />
                     </td>
-                    <td className="px-2 py-2">
-                      <input
-                        type="number"
-                        value={row.points}
-                        onChange={(e) => updateRow(idx, { points: Number(e.target.value) })}
-                        className="w-20 rounded border border-border bg-background px-2 py-1 text-right"
-                      />
-                    </td>
+                    {level === "A_LEVEL" ? (
+                      <td className="px-2 py-2">
+                        <input
+                          type="number"
+                          value={row.points ?? 0}
+                          onChange={(e) => updateRow(idx, { points: Number(e.target.value) })}
+                          className="w-20 rounded border border-border bg-background px-2 py-1 text-right"
+                        />
+                      </td>
+                    ) : null}
                     <td className="px-2 py-2">
                       <input
                         value={row.descriptor ?? ""}
@@ -298,6 +343,15 @@ export default function AdminGradingScalesPage() {
         confirmLabel="Reset"
         onConfirm={resetToDefaults}
         onCancel={() => setConfirmReset(false)}
+      />
+      <ConfirmDialog
+        open={confirmApplyCbc}
+        title="Apply O-Level CBC defaults?"
+        description="This loads A–E bands with UNCONFIRMED cut-points. If a scale already exists, use force from API or delete rows first."
+        confirmLabel="Apply"
+        loading={applyingCbc}
+        onConfirm={() => void applyCbcDefaults(false)}
+        onCancel={() => setConfirmApplyCbc(false)}
       />
       <ConfirmDialog
         open={confirmRecalculate}

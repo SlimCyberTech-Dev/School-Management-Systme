@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { CBC_RATING_OPTIONS, type CbcRating } from "@/lib/cbcRating";
 import { apiPost } from "@/lib/api";
 
 export type StudentRow = { id: string; fullName: string; studentNumber: string };
@@ -21,18 +22,9 @@ export function CbcScoreGrid({
   termId: string;
 }) {
   const key = (studentId: string, comp: string) => `${studentId}::${comp}`;
-  const [ratings, setRatings] = useState<Record<string, "A" | "B" | "C" | "D">>({});
+  const [ratings, setRatings] = useState<Record<string, CbcRating>>({});
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const ratingOptions = useMemo(
-    () =>
-      (["A", "B", "C", "D"] as const).map((r) => ({
-        value: r,
-        label: r,
-      })),
-    [],
-  );
 
   const save = async () => {
     setErr(null);
@@ -89,10 +81,10 @@ export function CbcScoreGrid({
               {competencies.map((c) => (
                 <td key={c} className="border border-slate-200 px-2 py-1 align-top">
                   <Select
-                    options={[{ value: "", label: "—" }, ...ratingOptions]}
+                    options={CBC_RATING_OPTIONS}
                     value={ratings[key(s.id, c)] ?? ""}
                     onChange={(e) => {
-                      const v = e.target.value as "A" | "B" | "C" | "D" | "";
+                      const v = e.target.value as CbcRating | "";
                       setRatings((prev) => {
                         const next = { ...prev };
                         if (!v) delete next[key(s.id, c)];

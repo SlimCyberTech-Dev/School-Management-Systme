@@ -4,6 +4,7 @@ import { HttpError } from "../../utils/httpError";
 import { getCbcDescriptor } from "../../utils/grading";
 import { computeAlevelAggregate } from "../../utils/alevelDivision";
 import { resolveConfiguredGrade } from "../../utils/gradingScales";
+import { getOlevelCertification } from "../assessments/olevelCertification.service";
 import type { AlevelReportPayload, CbcReportPayload } from "./reportTypes";
 import { REPORT_PAYLOAD_VERSION } from "./reportTypes";
 
@@ -130,6 +131,27 @@ export async function compileCbcReportPayload(
   const commentRow = comments[0];
   const legacyRow = legacy[0];
 
+  const { rows: summaries } = await query<{
+    subject_name: string;
+    subject_code: string;
+    ca_score: string | null;
+    eoc_score: string | null;
+    composite_score: string | null;
+    final_grade: string | null;
+    project_complete: boolean;
+  }>(
+    `SELECT sub.name AS subject_name, sub.code AS subject_code,
+            osr.ca_score::text, osr.eoc_score::text, osr.composite_score::text,
+            osr.final_grade, osr.project_complete
+     FROM olevel_subject_results osr
+     JOIN subjects sub ON sub.id = osr.subject_id
+     WHERE osr.student_id = $1 AND osr.academic_year_id = $2
+     ORDER BY sub.code`,
+    [studentId, academicYearId],
+  );
+
+  const certification = await getOlevelCertification(studentId, academicYearId);
+
   return {
     version: REPORT_PAYLOAD_VERSION,
     schoolName,
@@ -148,6 +170,23 @@ export async function compileCbcReportPayload(
       rating: r.rating,
       descriptor: getCbcDescriptor(r.rating),
     })),
+    subjectSummaries: summaries.map((r) => ({
+      code: r.subject_code,
+      name: r.subject_name,
+      finalGrade: r.final_grade,
+      caScore: r.ca_score != null ? Number(r.ca_score) : null,
+      eocScore: r.eoc_score != null ? Number(r.eoc_score) : null,
+      composite: r.composite_score != null ? Number(r.composite_score) : null,
+      projectStatus: r.project_complete ? "Complete" : "Incomplete",
+    })),
+    certification: certification
+      ? {
+          resultCode: certification.resultCode,
+          label: certification.label,
+          reasonCodes: certification.reasonCodes,
+          reasonLabels: certification.reasonLabels,
+        }
+      : undefined,
     daysAttended,
     totalDays,
     teacherComment:

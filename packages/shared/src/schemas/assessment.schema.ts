@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { curriculumTrackSchema } from "./curriculum.schema";
 
-export const cbcRatingSchema = z.enum(["A", "B", "C", "D"]);
+export const cbcRatingSchema = z.enum(["A", "B", "C", "D", "E"]);
 
 export const cbcScoreUpsertSchema = z.object({
   studentId: z.string().uuid(),
@@ -240,7 +240,7 @@ export const gradingScaleRowSchema = z
     grade: z.string().min(1).max(10),
     minScore: z.coerce.number().min(0).max(100),
     maxScore: z.coerce.number().min(0).max(100),
-    points: z.coerce.number().int().min(0).max(100),
+    points: z.coerce.number().int().min(0).max(100).nullable().optional(),
     descriptor: z.string().max(255).optional().nullable(),
     sortOrder: z.coerce.number().int().min(1).optional(),
     isActive: z.boolean().optional(),
@@ -356,3 +356,34 @@ export const alevelCommentUpdateSchema = z.object({
   classTeacherComment: z.string().max(5000).optional(),
   headteacherRemark: z.string().max(5000).optional(),
 });
+
+const caRatingScoreMapSchema = z.object({
+  A: z.coerce.number().min(0).max(100),
+  B: z.coerce.number().min(0).max(100),
+  C: z.coerce.number().min(0).max(100),
+  D: z.coerce.number().min(0).max(100),
+  E: z.coerce.number().min(0).max(100),
+});
+
+export const assessmentConfigSchema = z.object({
+  caWeight: z.coerce.number().min(0).max(1).optional(),
+  eocWeight: z.coerce.number().min(0).max(1).optional(),
+  caRules: z
+    .object({
+      method: z.enum(["school_defined", "rating_score_map", "weighted_strand_average"]).optional(),
+      ratingScoreMap: caRatingScoreMapSchema.partial().optional(),
+      strandWeights: z.record(z.string(), z.record(z.string(), z.coerce.number().min(0))).optional(),
+    })
+    .optional(),
+  minimumSubjects: z.coerce.number().int().min(1).max(20).optional(),
+  qualifyingGradeMin: cbcRatingSchema.optional(),
+  compulsorySubjectCodes: z.array(z.string().min(1).max(20)).nullable().optional(),
+});
+
+export const gradingConfigSchema = z.object({
+  oLevel: z.object({ scheme: z.string().min(1) }).optional(),
+  aLevel: z.object({ scheme: z.string().min(1) }).optional(),
+});
+
+export type AssessmentConfigInput = z.infer<typeof assessmentConfigSchema>;
+export type GradingConfigInput = z.infer<typeof gradingConfigSchema>;

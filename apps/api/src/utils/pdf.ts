@@ -42,6 +42,20 @@ export function streamCbcReportCard(data: {
     maxScore: number;
     subjects: { name: string; code: string; score: number; grade: string; maxScore: number }[];
   };
+  subjectSummaries?: {
+    code: string;
+    name: string;
+    finalGrade: string | null;
+    caScore: number | null;
+    eocScore: number | null;
+    composite: number | null;
+    projectStatus: string | null;
+  }[];
+  certification?: {
+    resultCode: string;
+    label: string;
+    reasonLabels: string[];
+  };
   daysAttended: number;
   totalDays: number;
   teacherComment: string;
@@ -149,6 +163,42 @@ export function streamCbcReportCard(data: {
       String(s.maxScore),
     ]);
     y = drawDataTable(doc, y, examCols, examRows, { branding: data.branding, layout: data.layout });
+  }
+
+  if (data.subjectSummaries && data.subjectSummaries.length > 0) {
+    y = drawSectionTitle(doc, y, "Subject final grades (CA 20% + EOC 80%)");
+    const sumCols = [
+      { header: "Subject", width: 120 },
+      { header: "CA %", width: 45, align: "center" as const },
+      { header: "EOC %", width: 45, align: "center" as const },
+      { header: "Composite", width: 55, align: "center" as const },
+      { header: "Grade", width: 40, align: "center" as const },
+      { header: "Project", width: 60, align: "center" as const },
+    ];
+    const sumRows = data.subjectSummaries.map((s) => [
+      s.name,
+      s.caScore != null ? String(s.caScore) : "—",
+      s.eocScore != null ? String(s.eocScore) : "—",
+      s.composite != null ? String(s.composite) : "—",
+      s.finalGrade ?? "—",
+      s.projectStatus ?? "—",
+    ]);
+    y = drawDataTable(doc, y, sumCols, sumRows, { branding: data.branding, layout: data.layout });
+  }
+
+  if (data.certification) {
+    y = drawSectionTitle(doc, y, "UCE certification");
+    y = drawSummaryStrip(
+      doc,
+      y,
+      [{ label: "Status", value: data.certification.label }],
+      data.branding,
+    );
+    if (data.certification.reasonLabels.length > 0) {
+      doc.fillColor("#64748B").font("Helvetica").fontSize(8);
+      doc.text(`Reasons: ${data.certification.reasonLabels.join("; ")}`, PDF_MARGIN, y);
+      y += 18;
+    }
   }
 
   y = drawSectionTitle(doc, y, "Comments");

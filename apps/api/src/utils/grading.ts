@@ -1,3 +1,5 @@
+import { getCbcRatingDescriptor } from "@uganda-cbc-sms/shared";
+
 /** UNEB A-Level grade from score (exact SRS table) */
 export function computeUNEBGrade(score: number): { grade: string; points: number } {
   if (score >= 80) return { grade: "A", points: 1 };
@@ -22,13 +24,7 @@ export function computeDivision(totalPoints: number): string {
 export const getUnebGrade = computeUNEBGrade;
 export const getDivision = computeDivision;
 
-/** CBC rating descriptor */
+/** CBC rating descriptor (official A–E bands). */
 export function getCbcDescriptor(rating: string): string {
-  const map: Record<string, string> = {
-    A: "Exceptional",
-    B: "Satisfactory",
-    C: "Basic",
-    D: "Needs Improvement",
-  };
-  return map[rating] ?? "";
+  return getCbcRatingDescriptor(rating);
 }

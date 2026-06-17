@@ -101,6 +101,12 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
         children: [
           { href: "/admin/assessment", label: "Overview", icon: "clipboardCheck", exactMatch: true },
           {
+            href: "/admin/assessment/rules",
+            label: "Assessment rules",
+            icon: "clipboardCheck",
+            activePrefix: "/admin/assessment/rules",
+          },
+          {
             href: "/admin/assessment/cbc",
             label: "CBC assessment",
             icon: "clipboardCheck",

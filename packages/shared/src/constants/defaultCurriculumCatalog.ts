@@ -23,6 +23,9 @@ export const DEFAULT_O_LEVEL_SUBJECTS: CatalogSubject[] = [
   { code: "PE", name: "Physical Education" },
 ];
 
+/** Compulsory O-Level subjects for UCE certification (school may override in assessment_config). */
+export const DEFAULT_O_LEVEL_COMPULSORY_SUBJECT_CODES = ["ENG", "MATH", "SCI", "SST", "CRE"] as const;
+
 export const DEFAULT_A_LEVEL_SUBJECTS: CatalogSubject[] = [
   { code: "GP", name: "General Paper" },
   { code: "MATH", name: "Mathematics" },

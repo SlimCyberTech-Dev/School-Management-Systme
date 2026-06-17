@@ -1,4 +1,4 @@
-/** UNEB A-Level score ranges → grade & points (SRS table) */
+/** @deprecated legacy-pre-CBC stanine table — use assessment_grading_scales for O-Level CBC bands. */
 export const UNEB_GRADE_TABLE = [
   { min: 80, max: 100, grade: "A", points: 1, descriptor: "Distinction" },
   { min: 75, max: 79, grade: "B", points: 2, descriptor: "Very Good" },
@@ -9,9 +9,4 @@ export const UNEB_GRADE_TABLE = [
   { min: 0, max: 44, grade: "F", points: 9, descriptor: "Failure" },
 ] as const;
 
-export const CBC_RATING_DESCRIPTORS: Record<string, string> = {
-  A: "Exceptional",
-  B: "Satisfactory",
-  C: "Basic",
-  D: "Needs Improvement",
-};
+export { CBC_RATING_DESCRIPTORS, getCbcRatingDescriptor } from "./cbcRatingBands";

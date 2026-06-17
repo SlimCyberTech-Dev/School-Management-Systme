@@ -1,18 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { CBC_RATING_CELL_COLORS, CBC_RATING_OPTIONS, type CbcRating } from "@/lib/cbcRating";
 
 type Student = { id: string; fullName: string; studentNumber: string };
 type Strand = { id: string; name: string; competencies: string[] };
-
-const COLORS: Record<string, string> = {
-  A: "bg-green-100",
-  B: "bg-blue-100",
-  C: "bg-amber-100",
-  D: "bg-red-100",
-};
 
 export function CbcAssessmentGrid({
   students,
@@ -23,19 +17,15 @@ export function CbcAssessmentGrid({
 }: {
   students: Student[];
   strands: Strand[];
-  onSave: (items: Array<{ studentId: string; strand: string; competency: string; rating: "A" | "B" | "C" | "D" }>) => Promise<void>;
+  onSave: (items: Array<{ studentId: string; strand: string; competency: string; rating: CbcRating }>) => Promise<void>;
   onSubmit: () => Promise<void>;
   disabled?: boolean;
 }) {
-  const [ratings, setRatings] = useState<Record<string, "A" | "B" | "C" | "D">>({});
+  const [ratings, setRatings] = useState<Record<string, CbcRating>>({});
   const key = (studentId: string, strand: string, competency: string) => `${studentId}::${strand}::${competency}`;
-  const options = useMemo(
-    () => [{ value: "", label: "—" }, { value: "A", label: "A" }, { value: "B", label: "B" }, { value: "C", label: "C" }, { value: "D", label: "D" }],
-    [],
-  );
 
   const savePayload = async () => {
-    const items: Array<{ studentId: string; strand: string; competency: string; rating: "A" | "B" | "C" | "D" }> = [];
+    const items: Array<{ studentId: string; strand: string; competency: string; rating: CbcRating }> = [];
     for (const student of students) {
       for (const strand of strands) {
         for (const competency of strand.competencies) {
@@ -73,13 +63,13 @@ export function CbcAssessmentGrid({
                   const k = key(student.id, cell.strand, cell.competency);
                   const value = ratings[k] ?? "";
                   return (
-                    <td key={k} className={`px-2 py-2 ${value ? COLORS[value] : ""}`}>
+                    <td key={k} className={`px-2 py-2 ${value ? CBC_RATING_CELL_COLORS[value] : ""}`}>
                       <Select
-                        options={options}
+                        options={CBC_RATING_OPTIONS}
                         value={value}
                         disabled={disabled}
                         onChange={(e) => {
-                          const next = e.target.value as "A" | "B" | "C" | "D" | "";
+                          const next = e.target.value as CbcRating | "";
                           setRatings((prev) => {
                             const copy = { ...prev };
                             if (!next) delete copy[k];

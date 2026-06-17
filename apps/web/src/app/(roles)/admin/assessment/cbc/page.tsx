@@ -103,7 +103,7 @@ export default function AdminCbcAssessmentPage() {
   }, []);
 
   return (
-    <PageWrapper title="CBC assessment" description="Enter A–D ratings per competency">
+    <PageWrapper title="CBC assessment" description="Enter A–E competency ratings per strand">
       <div className="mb-6 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
         <Select
           label="Academic year"

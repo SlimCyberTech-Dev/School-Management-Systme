@@ -1,3 +1,4 @@
+import { cbcRatingSchema } from "@uganda-cbc-sms/shared";
 import { z } from "zod";
 import type { Request, Response } from "express";
 import { HttpError } from "../../utils/httpError";
@@ -9,7 +10,7 @@ const cbcItemSchema = z.object({
   subjectId: z.string().uuid(),
   strand: z.string().min(1),
   competency: z.string().min(1),
-  rating: z.enum(["A", "B", "C", "D"]),
+  rating: cbcRatingSchema,
 });
 
 const cbcSingleSchema = z.object({
@@ -17,7 +18,7 @@ const cbcSingleSchema = z.object({
   subjectId: z.string().uuid(),
   strand: z.string().min(1),
   competency: z.string().min(1),
-  rating: z.enum(["A", "B", "C", "D"]),
+  rating: cbcRatingSchema,
   termId: z.string().uuid(),
   yearId: z.string().uuid(),
 });

@@ -8,15 +8,28 @@ type ScaleRow = {
   grade: string;
   minScore: number;
   maxScore: number;
-  points: number;
+  points?: number | null;
   sortOrder?: number;
   isActive?: boolean;
 };
 
-function hardcodedGrade(score: number, level: GradingScaleLevel): { grade: string; points: number } {
+function hardcodedGrade(
+  score: number,
+  level: GradingScaleLevel,
+): { grade: string; points: number | null } {
   const rows = DEFAULT_ASSESSMENT_GRADING_SCALES[level];
   const fromDefaults = resolveGradeFromScaleRows(score, rows);
-  if (fromDefaults) return fromDefaults;
+  if (fromDefaults) {
+    if (level === "O_LEVEL") return { grade: fromDefaults.grade, points: null };
+    return { grade: fromDefaults.grade, points: fromDefaults.points ?? 9 };
+  }
+  if (level === "O_LEVEL") {
+    if (score >= 80) return { grade: "A", points: null };
+    if (score >= 70) return { grade: "B", points: null };
+    if (score >= 60) return { grade: "C", points: null };
+    if (score >= 50) return { grade: "D", points: null };
+    return { grade: "E", points: null };
+  }
   if (score >= 80) return { grade: "A", points: 1 };
   if (score >= 75) return { grade: "B", points: 2 };
   if (score >= 65) return { grade: "C", points: 3 };
@@ -31,24 +44,28 @@ export function computeGradeForLevel(
   score: number,
   level: GradingScaleLevel,
   configuredRows?: ScaleRow[],
-): { grade: string; points: number } {
+): { grade: string; points: number | null } {
   if (configuredRows?.length) {
     const fromConfig = resolveGradeFromScaleRows(score, configuredRows);
-    if (fromConfig) return fromConfig;
+    if (fromConfig) {
+      if (level === "O_LEVEL") return { grade: fromConfig.grade, points: null };
+      return { grade: fromConfig.grade, points: fromConfig.points ?? 9 };
+    }
   }
   return hardcodedGrade(score, level);
 }
 
 /** @deprecated Use computeGradeForLevel(score, "A_LEVEL") */
 export function computeUNEBGrade(score: number): { grade: string; points: number } {
-  return computeGradeForLevel(score, "A_LEVEL");
+  const r = computeGradeForLevel(score, "A_LEVEL");
+  return { grade: r.grade, points: r.points ?? 9 };
 }
 
 export function computeGradeFromConfiguredScale(
   score: number,
   rows: ScaleRow[],
   level: GradingScaleLevel = "A_LEVEL",
-): { grade: string; points: number } {
+): { grade: string; points: number | null } {
   return computeGradeForLevel(score, level, rows);
 }
 

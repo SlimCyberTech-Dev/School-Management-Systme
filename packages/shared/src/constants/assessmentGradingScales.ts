@@ -4,7 +4,7 @@ export type DefaultGradingScaleRow = {
   grade: string;
   minScore: number;
   maxScore: number;
-  points: number;
+  points?: number | null;
   descriptor: string;
   sortOrder: number;
 };
@@ -21,13 +21,11 @@ export const DEFAULT_ASSESSMENT_GRADING_SCALES: Record<GradingScaleLevel, Defaul
     { grade: "F", minScore: 0, maxScore: 44.99, points: 9, descriptor: "Fail", sortOrder: 7 },
   ],
   O_LEVEL: [
-    { grade: "A", minScore: 80, maxScore: 100, points: 1, descriptor: "Excellent", sortOrder: 1 },
-    { grade: "B", minScore: 75, maxScore: 79.99, points: 2, descriptor: "Very Good", sortOrder: 2 },
-    { grade: "C", minScore: 65, maxScore: 74.99, points: 3, descriptor: "Good", sortOrder: 3 },
-    { grade: "D", minScore: 60, maxScore: 64.99, points: 4, descriptor: "Satisfactory", sortOrder: 4 },
-    { grade: "E", minScore: 55, maxScore: 59.99, points: 5, descriptor: "Pass", sortOrder: 5 },
-    { grade: "O", minScore: 45, maxScore: 54.99, points: 6, descriptor: "Ordinary", sortOrder: 6 },
-    { grade: "F", minScore: 0, maxScore: 44.99, points: 9, descriptor: "Fail", sortOrder: 7 },
+    { grade: "A", minScore: 80, maxScore: 100, points: null, descriptor: "Exceptional (confirm cut-points)", sortOrder: 1 },
+    { grade: "B", minScore: 70, maxScore: 79.99, points: null, descriptor: "Outstanding (confirm cut-points)", sortOrder: 2 },
+    { grade: "C", minScore: 60, maxScore: 69.99, points: null, descriptor: "Satisfactory (confirm cut-points)", sortOrder: 3 },
+    { grade: "D", minScore: 50, maxScore: 59.99, points: null, descriptor: "Basic (confirm cut-points)", sortOrder: 4 },
+    { grade: "E", minScore: 0, maxScore: 49.99, points: null, descriptor: "Elementary (confirm cut-points)", sortOrder: 5 },
   ],
 };
 
@@ -61,14 +59,16 @@ export function resolveGradeFromScaleRows(
     grade: string;
     minScore: number;
     maxScore: number;
-    points: number;
+    points?: number | null;
     sortOrder?: number;
     isActive?: boolean;
   }>,
-): { grade: string; points: number } | null {
+): { grade: string; points: number | null } | null {
   const match = rows
     .filter((r) => r.isActive !== false)
     .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
     .find((r) => score >= r.minScore && score <= r.maxScore);
-  return match ? { grade: match.grade, points: match.points } : null;
+  return match
+    ? { grade: match.grade, points: match.points ?? null }
+    : null;
 }

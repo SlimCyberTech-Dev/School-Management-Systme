@@ -168,7 +168,7 @@ export function TeacherExamMarksPanel({
                 <>
                   Enter numeric <strong className="text-foreground">exam scores</strong> (0–max). Grades use
                   the <strong className="text-foreground">O-Level</strong> numeric scale — not CBC competency
-                  ratings (A–D). Term CBC competencies are entered separately under{" "}
+                  ratings (A–E). Term CBC competencies are entered separately under{" "}
                   <Link href={termAssessmentHref} className="font-medium text-brand hover:underline">
                     CBC Assessment
                   </Link>{" "}

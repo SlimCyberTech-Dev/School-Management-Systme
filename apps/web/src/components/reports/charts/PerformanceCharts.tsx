@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { ChartPanel } from "@/components/reports/ChartPanel";
 import { CBC_RATING_COLORS, CHART_COLORS } from "@/components/reports/chartTheme";
+import { CBC_RATINGS } from "@uganda-cbc-sms/shared";
 
 type CbcRow = { name: string; rating: string; cnt: number };
 type AlevelRow = { name: string; avg_score: string };
@@ -41,7 +42,7 @@ export function PerformanceCharts({
     avgScore: Number(r.avg_score),
   }));
 
-  const ratingTotals = ["A", "B", "C", "D"].map((rating) => ({
+  const ratingTotals = CBC_RATINGS.map((rating) => ({
     rating,
     count: cbc.filter((r) => r.rating === rating).reduce((s, r) => s + r.cnt, 0),
   }));
@@ -57,7 +58,7 @@ export function PerformanceCharts({
               <YAxis allowDecimals={false} />
               <Tooltip />
               <Legend />
-              {(["A", "B", "C", "D"] as const).map((rating) => (
+              {CBC_RATINGS.map((rating) => (
                 <Bar key={rating} dataKey={rating} stackId="ratings" name={`Rating ${rating}`} fill={CBC_RATING_COLORS[rating]} />
               ))}
             </BarChart>

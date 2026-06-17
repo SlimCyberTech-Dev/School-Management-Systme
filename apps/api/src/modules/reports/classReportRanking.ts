@@ -1,7 +1,6 @@
 import {
   assignCompetitionRanks,
   cbcCompetencyAverage,
-  computeBestNPointsAggregate,
   computeExamAveragePercent,
   type RankableStudent,
   type RankingMethod,
@@ -10,7 +9,7 @@ import {
 import type { AlevelReportPayload, CbcReportPayload, ReportTrack } from "./reportTypes";
 
 function lowerIsBetterForMethod(method: RankingMethod): boolean {
-  return method === "alevel_best3_points" || method === "olevel_best8_points";
+  return method === "alevel_best3_points";
 }
 
 export function rankableFromAlevelPayload(
@@ -35,24 +34,23 @@ export function rankableFromCbcPayload(
   studentId: string,
   payload: CbcReportPayload,
 ): RankableStudent | null {
-  const examSubjects = payload.formalExam?.subjects ?? [];
-  const examPoints = examSubjects
-    .map((s) => s.points)
-    .filter((p): p is number => p != null && !Number.isNaN(p));
-
-  if (examPoints.length >= 3) {
-    const { aggregate, subjectsUsed } = computeBestNPointsAggregate(examPoints, 8);
-    if (subjectsUsed === 0) return null;
+  const summaries = payload.subjectSummaries ?? [];
+  const composites = summaries
+    .map((s) => s.composite)
+    .filter((c): c is number => c != null && !Number.isNaN(c));
+  if (composites.length >= 1) {
+    const avg = Math.round((composites.reduce((s, c) => s + c, 0) / composites.length) * 10) / 10;
     return {
       studentId,
-      sortKey: aggregate,
-      aggregateValue: aggregate,
-      aggregateLabel: `Aggregate ${aggregate} (best ${subjectsUsed} of ${examPoints.length} papers)`,
-      method: "olevel_best8_points",
-      subjectsCounted: subjectsUsed,
+      sortKey: avg,
+      aggregateValue: avg,
+      aggregateLabel: `Composite average ${avg}% (${composites.length} subjects)`,
+      method: "olevel_composite_average",
+      subjectsCounted: composites.length,
     };
   }
 
+  const examSubjects = payload.formalExam?.subjects ?? [];
   if (examSubjects.length >= 1) {
     const avg = computeExamAveragePercent(
       examSubjects.map((s) => ({ score: s.score, maxScore: s.maxScore })),
@@ -75,7 +73,7 @@ export function rankableFromCbcPayload(
     studentId,
     sortKey: avg,
     aggregateValue: Math.round(avg * 100) / 100,
-    aggregateLabel: `CBC average ${avg.toFixed(2)} / 4`,
+    aggregateLabel: `CBC average ${avg.toFixed(2)} / 5`,
     method: "cbc_competency_average",
     subjectsCounted: ratings.length,
   };
@@ -99,7 +97,7 @@ export function attachClassRankings(entries: CompiledReportEntry[]): CompiledRep
     if (row) rankables.push(row);
   }
 
-  const method = rankables[0]?.method ?? (track === "alevel" ? "alevel_best3_points" : "cbc_competency_average");
+  const method = rankables[0]?.method ?? (track === "alevel" ? "alevel_best3_points" : "olevel_composite_average");
   const lowerIsBetter = lowerIsBetterForMethod(method);
   const rankMap = assignCompetitionRanks(rankables, lowerIsBetter);
 
@@ -121,6 +119,7 @@ export function listClassRankingLeaderboard(
   ranking: ReportRankingSnapshot | null;
   division?: string | null;
   totalPoints?: number | null;
+  certificationLabel?: string | null;
 }> {
   const withMeta = entries.map((e) => {
     const base = {
@@ -132,7 +131,10 @@ export function listClassRankingLeaderboard(
     if (e.track === "alevel") {
       return { ...base, division: e.payload.division, totalPoints: e.payload.totalPoints };
     }
-    return base;
+    return {
+      ...base,
+      certificationLabel: e.payload.certification?.label ?? null,
+    };
   });
 
   return withMeta.sort((a, b) => {

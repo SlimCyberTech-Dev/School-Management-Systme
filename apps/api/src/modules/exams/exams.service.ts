@@ -9,6 +9,7 @@ import { writeAuditLog } from "../audit/audit.service";
 import { HttpError } from "../../utils/httpError";
 import { normalizeClassLevel } from "../../utils/classLevel";
 import { resolveConfiguredGrade } from "../../utils/gradingScales";
+import { recomputeOlevelSubjectResults } from "../../utils/olevelSubjectGrade";
 import {
   assertTeacherIsAssignedSubjectTeacher,
   teacherIsAssignedSubjectTeacher,
@@ -892,6 +893,9 @@ export async function upsertExamMarks(
        WHERE exam_marks.is_locked = false`,
       [examId, item.studentId, input.subjectId, item.score, grade, points, teacherId],
     );
+    if (level === "O_LEVEL") {
+      void recomputeOlevelSubjectResults(item.studentId, exam.academic_year_id).catch(() => undefined);
+    }
     saved += 1;
   }
 

@@ -22,7 +22,7 @@ export function isValidAlevelScore(value: unknown): boolean {
   return Number.isInteger(n) && n >= 0 && n <= 100;
 }
 
-const CBC_RATINGS = new Set(["A", "B", "C", "D"]);
+const CBC_RATINGS = new Set(["A", "B", "C", "D", "E"]);
 
 export function isValidCbcRating(value: unknown): boolean {
   return typeof value === "string" && CBC_RATINGS.has(value.toUpperCase());

@@ -18,11 +18,15 @@ export default function AdminAssessmentHubPage() {
 
       <Card title="Grading scales">
         <p className="text-sm text-muted-foreground">
-          O-Level and A-Level numeric grade bands (A–F, points, descriptors) are configured under{" "}
+          O-Level CBC uses A–E competency bands and{" "}
+          <Link href="/admin/assessment/rules" className="font-medium text-brand hover:underline">
+            Assessment rules
+          </Link>{" "}
+          for CA conversion. Bands are configured under{" "}
           <Link href="/admin/academic/grading-scales" className="font-medium text-brand hover:underline">
             Academic → Grading scales
           </Link>
-          . Exam marking and A-Level assessment both read from the scale that matches the class level.
+          . A-Level numeric grades and UNEB points use the same page (A-Level tab).
         </p>
       </Card>
     </PageWrapper>

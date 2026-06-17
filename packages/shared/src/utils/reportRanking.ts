@@ -1,13 +1,14 @@
 /**
  * Class ranking for report cards — aligned with Uganda school practice:
  * - A-Level / O-Level numeric exams: UNEB-style grade points (lower = better), aggregate from best subjects.
- * - CBC competency: mean of A–D ratings (higher = better).
+ * - CBC competency: mean of A–E ratings (higher = better).
  * - Exam percentage: mean of (score ÷ max) × 100 when points are not used for ranking.
  */
 
 export type RankingMethod =
   | "alevel_best3_points"
   | "olevel_best8_points"
+  | "olevel_composite_average"
   | "exam_average_percent"
   | "cbc_competency_average";
 
@@ -27,13 +28,14 @@ export type ReportRankingSnapshot = {
 };
 
 export const CBC_RATING_SCORE: Record<string, number> = {
-  A: 4,
-  B: 3,
-  C: 2,
-  D: 1,
+  A: 5,
+  B: 4,
+  C: 3,
+  D: 2,
+  E: 1,
 };
 
-/** Mean competency score from CBC ratings (A=4 … D=1). Higher is better. */
+/** Mean competency score from CBC ratings (A=5 … E=1). Higher is better. */
 export function cbcCompetencyAverage(ratings: string[]): number | null {
   const scores = ratings
     .map((r) => CBC_RATING_SCORE[String(r).trim().toUpperCase()] ?? 0)

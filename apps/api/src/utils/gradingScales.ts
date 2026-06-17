@@ -5,11 +5,13 @@ import {
   type GradingScaleLevel,
 } from "@uganda-cbc-sms/shared";
 import { query } from "../config/db";
+import { getGradingScheme } from "./assessmentConfig";
+
 export type GradingScaleBand = {
   grade: string;
   minScore: number;
   maxScore: number;
-  points: number;
+  points: number | null;
   sortOrder: number;
   isActive: boolean;
 };
@@ -19,7 +21,7 @@ export { validateGradingScaleRows };
 export function resolveGradeFromBands(
   score: number,
   bands: GradingScaleBand[],
-): { grade: string; points: number } | null {
+): { grade: string; points: number | null } | null {
   return resolveGradeFromScaleRows(score, bands);
 }
 
@@ -28,7 +30,7 @@ export async function loadActiveGradingBands(level: GradingScaleLevel): Promise<
     grade: string;
     min_score: string;
     max_score: string;
-    points: number;
+    points: number | null;
     sort_order: number;
     is_active: boolean;
   }>(
@@ -43,7 +45,7 @@ export async function loadActiveGradingBands(level: GradingScaleLevel): Promise<
     grade: r.grade,
     minScore: Number(r.min_score),
     maxScore: Number(r.max_score),
-    points: Number(r.points),
+    points: r.points != null ? Number(r.points) : null,
     sortOrder: Number(r.sort_order),
     isActive: Boolean(r.is_active),
   }));
@@ -52,30 +54,44 @@ export async function loadActiveGradingBands(level: GradingScaleLevel): Promise<
 export async function resolveConfiguredGrade(
   score: number,
   level: GradingScaleLevel,
-): Promise<{ grade: string; points: number }> {
+): Promise<{ grade: string; points: number | null }> {
+  const scheme = await getGradingScheme(level);
   const bands = await loadActiveGradingBands(level);
   const fromConfig = resolveGradeFromBands(score, bands);
-  if (fromConfig) return fromConfig;
+  if (fromConfig) {
+    if (level === "O_LEVEL" && scheme === "cbc_2024_v1") {
+      return { grade: fromConfig.grade, points: fromConfig.points ?? null };
+    }
+    return fromConfig;
+  }
   const fromDefaults = resolveGradeFromBands(
     score,
     defaultScaleRows(level).map((r) => ({
       ...r,
       sortOrder: r.sortOrder,
+      points: r.points ?? null,
     })),
   );
-  if (fromDefaults) return fromDefaults;
+  if (fromDefaults) {
+    if (level === "O_LEVEL") return { grade: fromDefaults.grade, points: null };
+    return fromDefaults;
+  }
   const lastResort = resolveGradeFromBands(
     score,
     DEFAULT_ASSESSMENT_GRADING_SCALES[level].map((r) => ({
       grade: r.grade,
       minScore: r.minScore,
       maxScore: r.maxScore,
-      points: r.points,
+      points: r.points ?? null,
       sortOrder: r.sortOrder,
       isActive: true,
     })),
   );
-  if (lastResort) return lastResort;
+  if (lastResort) {
+    if (level === "O_LEVEL") return { grade: lastResort.grade, points: null };
+    return lastResort;
+  }
+  if (level === "O_LEVEL") return { grade: "E", points: null };
   return { grade: "F", points: 9 };
 }
 

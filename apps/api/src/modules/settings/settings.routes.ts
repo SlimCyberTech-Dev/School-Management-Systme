@@ -14,4 +14,6 @@ const settingsEditors = requireRoles("admin");
 
 settingsRouter.get("/", settingsReaders, asyncHandler(c.getSchoolSettings));
 settingsRouter.put("/", settingsEditors, asyncHandler(c.putSchoolSettings));
+settingsRouter.get("/assessment-config", settingsReaders, asyncHandler(c.getAssessmentConfig));
+settingsRouter.put("/assessment-config", settingsEditors, asyncHandler(c.putAssessmentConfig));
 settingsRouter.post("/logo", settingsEditors, schoolLogoUpload.single("logo"), asyncHandler(c.uploadSchoolLogo));

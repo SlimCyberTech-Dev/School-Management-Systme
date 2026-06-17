@@ -32,7 +32,7 @@ export function TeacherAssessmentScopeNote({
     <Card>
       <div className="space-y-2 text-sm text-muted-foreground">
         <p>
-          This page is for <strong className="text-foreground">term CBC competency ratings</strong> (A–D per
+          This page is for <strong className="text-foreground">term CBC competency ratings</strong> (A–E per
           strand). Only subjects explicitly assigned to you on Subject teachers appear below, and only when CBC
           strands are configured.
         </p>
