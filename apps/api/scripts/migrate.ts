@@ -5,8 +5,10 @@ import { fileURLToPath } from "url";
 import pg from "pg";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
-dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+const rootEnv = path.resolve(__dirname, "../../../.env");
+const apiEnv = path.resolve(__dirname, "../.env");
+dotenv.config({ path: rootEnv, override: true });
+dotenv.config({ path: apiEnv, override: true });
 
 const { Pool } = pg;
 const migrateUrl =
@@ -18,6 +20,8 @@ async function main(): Promise<void> {
     console.error("DATABASE_URL or DATABASE_URL_MIGRATE is not set");
     process.exit(1);
   }
+  const migrateUser = new URL(migrateUrl.replace(/^postgresql:\/\//, "postgres://")).username;
+  console.log(`Using migrate role: ${migrateUser}`);
   const pool = new Pool({ connectionString: migrateUrl });
   const dir = path.join(__dirname, "../src/database/migrations");
   const files = (await readdir(dir))
@@ -67,10 +71,11 @@ main().catch((e) => {
   const pgErr = e as { code?: string; message?: string };
   if (pgErr.code === "42501" && pgErr.message?.includes("owner")) {
     console.error(
-      "\nMigration failed: migration_admin does not own the table.\n" +
-        "Run once as PostgreSQL superuser:\n" +
+      "\nMigration failed: the migrate role does not own the table.\n" +
+        "Local Postgres: run once as superuser:\n" +
         "  npm run transfer:db-ownership\n" +
-        "Or: sudo -u postgres psql -d school_manage -f apps/api/scripts/sql/transfer-public-ownership.sql\n",
+        "Render / managed Postgres (no superuser): set DATABASE_URL_MIGRATE to DATABASE_URL_SUPERUSER\n" +
+        "  (the Render owner role, e.g. slim_school_user) in .env, then npm run migrate again.\n",
     );
   }
   console.error(e);
