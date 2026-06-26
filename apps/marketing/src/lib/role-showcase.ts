@@ -13,7 +13,7 @@ export const roleShowcaseItems: RoleShowcaseItem[] = [
     title: "Headteacher",
     description:
       "See school-wide attendance, fee collection, and class performance at a glance. Review submitted assessments and approve report cards before they go to parents.",
-    image: "/images/Headteacher.png",
+    image: "/images/Headteacher.webp",
     imageAlt: "Headteachers reviewing the school dashboard on desktop",
     points: [
       "Dashboard with enrolment, attendance, and fee KPIs",
@@ -26,7 +26,7 @@ export const roleShowcaseItems: RoleShowcaseItem[] = [
     title: "Class teacher",
     description:
       "Work with your class list every day. Mark attendance, browse learners, and keep student records current without digging through paper registers.",
-    image: "/images/ClassTeacher.png",
+    image: "/images/ClassTeacher.webp",
     imageAlt: "Class teacher recording attendance on a laptop in the classroom",
     points: [
       "Daily attendance for your assigned class",
@@ -39,7 +39,7 @@ export const roleShowcaseItems: RoleShowcaseItem[] = [
     title: "Subject teacher",
     description:
       "Enter O-Level CBC ratings and project work, or A-Level exam marks, from a focused assessment screen built for the subjects you teach.",
-    image: "/images/SubjectTeacher.png",
+    image: "/images/SubjectTeacher.webp",
     imageAlt: "Subject teacher entering assessment scores on a computer",
     points: [
       "CBC strand and competency entry (O-Level)",
@@ -52,7 +52,7 @@ export const roleShowcaseItems: RoleShowcaseItem[] = [
     title: "Bursar",
     description:
       "Run school finances in Ugandan shillings. Issue invoices, record cash or mobile money payments, and pull up a learner's balance when a parent visits the office.",
-    image: "/images/Bursar.png",
+    image: "/images/Bursar.webp",
     imageAlt: "Bursar recording a cash fee payment in the school office",
     points: [
       "Fee schedules, invoices, and payment recording",
@@ -65,7 +65,7 @@ export const roleShowcaseItems: RoleShowcaseItem[] = [
     title: "School setup",
     description:
       "School admins configure academic years, classes, subjects, and grading scales once. New staff accounts are added with the right role so everyone lands on the correct dashboard.",
-    image: "/images/StaffOnboarding.png",
+    image: "/images/StaffOnboarding.webp",
     imageAlt: "School admin setting up school structure and staff accounts",
     points: [
       "Guided setup for years, terms, and classes",
@@ -78,7 +78,7 @@ export const roleShowcaseItems: RoleShowcaseItem[] = [
     title: "Works on mobile too",
     description:
       "Staff can check the dashboard and key figures from a phone between lessons or at the school gate. No separate app install required.",
-    image: "/images/MobileResponsive.png",
+    image: "/images/MobileResponsive.webp",
     imageAlt: "Teacher viewing the school dashboard on a smartphone on campus",
     points: [
       "Responsive layout for phones and tablets",

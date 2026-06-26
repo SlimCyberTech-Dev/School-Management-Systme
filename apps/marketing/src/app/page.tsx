@@ -104,11 +104,12 @@ export default function HomePage() {
             </div>
           </RevealOnScroll>
           <ImageReveal
-            src="/images/Hero.png"
+            src="/images/Hero.webp"
             alt="School administrator reviewing the SchoolManage dashboard on a laptop in the office"
             variant="hero"
             priority
-            delay={120}
+            delay={80}
+            sizes="(max-width: 1024px) 100vw, 560px"
             className="aspect-[4/3] lg:aspect-[5/4]"
           />
         </Container>

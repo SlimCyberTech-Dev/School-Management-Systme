@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { contactEmail } from "@/lib/contact";
 
-const formEndpoint = process.env.NEXT_PUBLIC_CONTACT_FORM_ENDPOINT ?? "";
-
 type FormState = "idle" | "submitting" | "success" | "error";
 
 const inputClass =
@@ -19,29 +17,30 @@ export function ContactForm() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    const data = new FormData(form);
-
-    if (!formEndpoint) {
-      const subject = encodeURIComponent(`SchoolManage enquiry from ${data.get("name")}`);
-      const body = encodeURIComponent(
-        `Name: ${data.get("name")}\nSchool: ${data.get("school")}\nEmail: ${data.get("email")}\nPhone: ${data.get("phone")}\n\n${data.get("message")}`,
-      );
-      window.location.href = `mailto:${contactEmail}?subject=${subject}&body=${body}`;
-      return;
-    }
 
     setState("submitting");
     setErrorMessage("");
 
+    const payload = {
+      name: (form.elements.namedItem("name") as HTMLInputElement).value.trim(),
+      school: (form.elements.namedItem("school") as HTMLInputElement).value.trim(),
+      email: (form.elements.namedItem("email") as HTMLInputElement).value.trim(),
+      phone: (form.elements.namedItem("phone") as HTMLInputElement).value.trim(),
+      message: (form.elements.namedItem("message") as HTMLTextAreaElement).value.trim(),
+      website: (form.elements.namedItem("website") as HTMLInputElement).value,
+    };
+
     try {
-      const response = await fetch(formEndpoint, {
+      const response = await fetch("/api/contact", {
         method: "POST",
-        body: data,
-        headers: { Accept: "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload),
       });
 
+      const result = (await response.json().catch(() => ({}))) as { error?: string };
+
       if (!response.ok) {
-        throw new Error("Unable to send your message. Please try the email link below.");
+        throw new Error(result.error ?? "Unable to send your message. Please try again.");
       }
 
       form.reset();
@@ -57,22 +56,21 @@ export function ContactForm() {
       <div className="border-b border-border bg-brand-light/40 px-6 py-5 dark:bg-brand-dark/20 md:px-8">
         <h2 className="text-heading-2 text-foreground">Send a message</h2>
         <p className="mt-1 text-small text-muted-foreground">
-          We typically reply within one business day.
+          We typically reply within one business day. You will receive a confirmation email.
         </p>
       </div>
 
       <div className="p-6 md:p-8">
-        {!formEndpoint ? (
-          <p className="mb-6 rounded-lg border border-border bg-muted/40 px-4 py-3 text-small text-muted-foreground">
-            Form handler not configured yet. Submit will open your email app, or write to{" "}
-            <a href={`mailto:${contactEmail}`} className="link-brand">
-              {contactEmail}
-            </a>
-            .
-          </p>
-        ) : null}
-
         <form onSubmit={handleSubmit} className="space-y-8">
+          <input
+            type="text"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            className="hidden"
+            aria-hidden
+          />
+
           <fieldset className="space-y-4">
             <legend className="text-caption uppercase text-muted-foreground">About you</legend>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -147,7 +145,7 @@ export function ContactForm() {
 
           {state === "success" ? (
             <p className="rounded-lg border border-brand/25 bg-brand-light/50 px-4 py-3 text-small font-medium text-brand-dark dark:bg-brand-dark/30 dark:text-green-200">
-              Thank you. We received your message and will be in touch soon.
+              Thank you. We received your message and sent a confirmation to your inbox.
             </p>
           ) : null}
           {state === "error" ? (
