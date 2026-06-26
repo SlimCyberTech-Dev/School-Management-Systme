@@ -8,7 +8,7 @@ try {
 }
 
 const nextConfig = {
-  transpilePackages: ["@uganda-cbc-sms/shared"],
+  transpilePackages: ["@uganda-cbc-sms/brand", "@uganda-cbc-sms/shared"],
   reactStrictMode: true,
   allowedDevOrigins: [
     "localhost:3000",

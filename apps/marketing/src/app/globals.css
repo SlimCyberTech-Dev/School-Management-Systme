@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
+  --border: #e2e8f0;
+  --ring: #1b6b3a;
+  --grid-line: rgba(15, 23, 42, 0.05);
+}
+
+.dark {
+  --background: #020617;
+  --foreground: #f8fafc;
+  --card: #0f172a;
+  --card-foreground: #f8fafc;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --border: #334155;
+  --ring: #4ade80;
+  --grid-line: rgba(248, 250, 252, 0.04);
+}
+
+@layer base {
+  body {
+    @apply bg-background text-body text-foreground antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display text-foreground;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+}
+
+@layer components {
+  .eyebrow {
+    @apply font-display text-caption uppercase text-brand;
+  }
+
+  .surface-card {
+    @apply rounded-xl border border-border bg-card shadow-card;
+  }
+
+  .surface-card-interactive {
+    @apply rounded-xl border border-border bg-card shadow-card transition-shadow duration-300 hover:shadow-card-hover;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-md bg-brand px-5 py-2.5 text-small font-semibold text-white transition-colors duration-200 hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-md border border-border bg-card px-5 py-2.5 text-small font-semibold text-foreground transition-colors duration-200 hover:border-neutral-300 hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
+  }
+
+  .link-brand {
+    @apply font-medium text-brand underline-offset-4 transition-colors hover:text-brand-dark hover:underline;
+  }
+
+  .section-pad {
+    @apply py-section-sm md:py-section;
+  }
+
+  .page-pad {
+    @apply py-section-sm md:py-16;
+  }
+}
+
+@layer utilities {
+  .reveal-hidden {
+    @apply translate-y-5 opacity-0;
+  }
+
+  .reveal-visible {
+    @apply translate-y-0 opacity-100;
+    transition:
+      opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-hidden,
+  .reveal-visible {
+    @apply translate-y-0 opacity-100;
+    transition: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -3,6 +3,7 @@
 import { ThemeProvider } from "next-themes";
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { THEME_STORAGE_KEY } from "@/lib/brand";
 import { AuthBootGate } from "@/components/auth/AuthBootGate";
 import { SessionIdleGuard } from "@/components/auth/SessionIdleGuard";
 import { ToastHost } from "@/components/ui/ToastHost";
@@ -27,7 +28,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         attribute="class"
         defaultTheme="system"
         enableSystem
-        storageKey="uganda-cbc-sms-theme"
+        storageKey={THEME_STORAGE_KEY}
       >
         <AuthBootGate>{children}</AuthBootGate>
         <SessionIdleGuard />

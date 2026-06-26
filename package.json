@@ -5,6 +5,10 @@
   "scripts": {
     "dev:api": "npm run dev --workspace=apps/api",
     "dev:web": "npm run dev --workspace=apps/web",
+    "dev:marketing": "npm run dev --workspace=apps/marketing",
+    "build:marketing": "npm run build --workspace=apps/marketing",
+    "clean:deps": "rm -rf node_modules apps/*/node_modules packages/*/node_modules",
+    "reinstall": "npm run clean:deps && npm install",
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
     "build": "npm run build --workspaces --if-present",
     "migrate": "npm run migrate --workspace=apps/api",
@@ -28,6 +32,8 @@
     "concurrently": "^8.2.2"
   },
   "overrides": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "axios": "^1.17.0",
     "glob": "^10.4.6",
     "postcss": "^8.5.10",

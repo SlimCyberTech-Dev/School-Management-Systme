@@ -1,10 +1,9 @@
-export const BRAND = {
-  productName: "SchoolManage",
-  companyName: "SlimCyberTech",
-  companyTagline: "Building the future with code.",
-  logoIcon: "/images/Logo.jpeg",
-  logoFull: "/images/Slim.jpeg",
-} as const;
+export {
+  BRAND,
+  COLORS,
+  FONTS,
+  THEME_STORAGE_KEY,
+} from "@uganda-cbc-sms/brand";
 
 /** Shared with auth panels and dashboard chrome */
 export const BRAND_GRADIENT_CLASS = "bg-gradient-to-br from-[#1E3A8A] to-[#1D4ED8]";
