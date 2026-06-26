@@ -3,11 +3,13 @@ import Link from "next/link";
 import { BRAND } from "@uganda-cbc-sms/brand";
 import { Container } from "@/components/Container";
 import { PageHero } from "@/components/PageHero";
+import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: "Privacy Policy",
-  description: `Privacy policy for ${BRAND.productName} — placeholder text pending legal review.`,
-};
+  description: `Read how ${BRAND.productName} by ${BRAND.companyName} collects, uses, and protects school and user data.`,
+  path: "/privacy",
+});
 
 const listClass = "mt-2 list-disc space-y-1 pl-5";
 

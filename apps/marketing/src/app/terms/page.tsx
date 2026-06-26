@@ -3,11 +3,13 @@ import Link from "next/link";
 import { BRAND } from "@uganda-cbc-sms/brand";
 import { Container } from "@/components/Container";
 import { PageHero } from "@/components/PageHero";
+import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: "Terms of Service",
-  description: `Terms of service for ${BRAND.productName} — placeholder text pending legal review.`,
-};
+  description: `Terms of service for using ${BRAND.productName}, the school management platform for Ugandan secondary schools.`,
+  path: "/terms",
+});
 
 export default function TermsPage() {
   return (

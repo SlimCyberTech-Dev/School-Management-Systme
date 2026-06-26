@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { faqItems } from "@/lib/faq-data";
+import { FaqPageJsonLd } from "@/components/JsonLd";
 import { Container } from "./Container";
 import { FaqAccordion } from "./FaqAccordion";
 import { RevealOnScroll } from "./RevealOnScroll";
@@ -8,6 +9,7 @@ import { SectionHeading } from "./SectionHeading";
 export function HomeFaqSection() {
   return (
     <section id="faq" className="section-pad scroll-mt-20 bg-neutral-50 dark:bg-neutral-950/50">
+      <FaqPageJsonLd items={faqItems} />
       <Container className="max-w-3xl">
         <RevealOnScroll>
           <SectionHeading

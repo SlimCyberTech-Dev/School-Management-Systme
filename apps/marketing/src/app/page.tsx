@@ -4,6 +4,7 @@ import { Container } from "@/components/Container";
 import { CtaBanner } from "@/components/CtaBanner";
 import { CtaButton } from "@/components/CtaButton";
 import { CurriculumComparison } from "@/components/CurriculumComparison";
+import { SoftwareApplicationJsonLd, WebSiteJsonLd } from "@/components/JsonLd";
 import { HomeFaqSection } from "@/components/HomeFaqSection";
 import { HomePricingSection } from "@/components/HomePricingSection";
 import { ImageReveal } from "@/components/ImageReveal";
@@ -11,6 +12,14 @@ import { RevealOnScroll } from "@/components/RevealOnScroll";
 import { RoleShowcase } from "@/components/RoleShowcase";
 import { SectionHeading } from "@/components/SectionHeading";
 import { IconAlevel, IconCbc, IconFees, IconRoles } from "@/components/icons";
+import { createPageMetadata } from "@/lib/seo";
+
+export const metadata = createPageMetadata({
+  title: "CBC & UNEB School Management",
+  description:
+    "SchoolManage helps Ugandan secondary schools manage students, O-Level CBC assessments, A-Level UNEB grading, fees in UGX, and report cards on one platform.",
+  path: "/",
+});
 
 const highlights = [
   {
@@ -71,6 +80,8 @@ const steps = [
 export default function HomePage() {
   return (
     <>
+      <WebSiteJsonLd />
+      <SoftwareApplicationJsonLd />
       <section className="relative overflow-hidden border-b border-border">
         <div className="pointer-events-none absolute inset-0 bg-grid-subtle bg-grid" aria-hidden />
         <Container className="relative grid items-center gap-10 py-section-sm lg:grid-cols-2 lg:gap-14 lg:py-section">

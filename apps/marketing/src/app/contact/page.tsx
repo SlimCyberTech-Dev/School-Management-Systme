@@ -4,11 +4,14 @@ import { ContactChannels } from "@/components/ContactChannels";
 import { ContactForm } from "@/components/ContactForm";
 import { PageHero } from "@/components/PageHero";
 import { RevealOnScroll } from "@/components/RevealOnScroll";
+import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: "Contact",
-  description: "Request a demo, ask about pricing, or get help setting up SchoolManage for your school.",
-};
+  description:
+    "Request a SchoolManage demo, get a quote for your school, or ask about O-Level CBC and A-Level UNEB setup. Call, WhatsApp, or send a message.",
+  path: "/contact",
+});
 
 const tips = [
   {

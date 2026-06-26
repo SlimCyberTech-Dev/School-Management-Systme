@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Container } from "@/components/Container";
+import { createPageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = createPageMetadata({
+  title: "Page not found",
+  description: "The page you requested could not be found on the SchoolManage marketing site.",
+  noIndex: true,
+});
 
 export default function NotFound() {
   return (

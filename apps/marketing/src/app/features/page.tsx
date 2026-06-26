@@ -3,6 +3,7 @@ import { Container } from "@/components/Container";
 import { CheckIcon } from "@/components/CheckIcon";
 import { PageHero } from "@/components/PageHero";
 import { RevealOnScroll } from "@/components/RevealOnScroll";
+import { createPageMetadata } from "@/lib/seo";
 import {
   IconAcademic,
   IconAlevel,
@@ -12,10 +13,12 @@ import {
   IconStudents,
 } from "@/components/icons";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: "Features",
-  description: "Academic structure, student management, CBC and UNEB assessment, fees, and reporting for Ugandan schools.",
-};
+  description:
+    "Explore SchoolManage features: academic structure, student management, O-Level CBC assessment, A-Level UNEB grading, fees in Ugandan shillings, and PDF report cards.",
+  path: "/features",
+});
 
 const sections = [
   {

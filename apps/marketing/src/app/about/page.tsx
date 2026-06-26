@@ -4,11 +4,13 @@ import { Container } from "@/components/Container";
 import { CtaBanner } from "@/components/CtaBanner";
 import { PageHero } from "@/components/PageHero";
 import { RevealOnScroll } from "@/components/RevealOnScroll";
+import { createPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: "About",
-  description: `Learn about ${BRAND.companyName} and why we built ${BRAND.productName} for Ugandan secondary schools.`,
-};
+  description: `Learn about ${BRAND.companyName} and why we built ${BRAND.productName} for Ugandan secondary schools running O-Level CBC and A-Level UNEB.`,
+  path: "/about",
+});
 
 export default function AboutPage() {
   return (
