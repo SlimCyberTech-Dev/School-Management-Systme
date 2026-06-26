@@ -5,9 +5,13 @@ apps/api/.keys/
 cache/
 dist/
 .next/
+out/
+apps/marketing/out/
 uploads/
 backups/
 *.log
+*.tsbuildinfo
+.vercel
 
 AGENTS.md
 Cursor_Prompt.md
