@@ -39,9 +39,9 @@ export function HeaderMobileMenu({ links }: HeaderMobileMenuProps) {
 
       <button
         type="button"
-        className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors lg:hidden ${
+        className={`inline-flex h-10 w-10 items-center justify-center rounded-full border shadow-sm transition-colors lg:hidden ${
           mobileOpen
-            ? "border-brand/30 bg-brand-light text-brand dark:bg-brand-dark/30 dark:text-green-200"
+            ? "border-brand/30 bg-brand-light text-brand dark:bg-brand-dark/40 dark:text-green-200"
             : "border-border bg-card text-foreground hover:bg-muted"
         }`}
         aria-expanded={mobileOpen}
@@ -61,51 +61,62 @@ export function HeaderMobileMenu({ links }: HeaderMobileMenuProps) {
       </button>
 
       <div
-        className={`fixed inset-0 z-40 bg-foreground/30 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
+        className={`fixed inset-0 z-[59] bg-foreground/50 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
           mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
-        aria-hidden={!mobileOpen}
+        aria-hidden
         onClick={close}
       />
 
-      <aside
+      <div
         id="mobile-nav"
-        className={`fixed inset-y-0 right-0 z-50 flex w-[min(100%,19.5rem)] flex-col border-l border-border bg-card shadow-elevated transition-transform duration-300 ease-smooth lg:hidden ${
-          mobileOpen ? "translate-x-0" : "pointer-events-none translate-x-full"
+        className={`fixed inset-0 z-[60] flex flex-col bg-card transition-[visibility,opacity] duration-300 lg:hidden ${
+          mobileOpen ? "visible opacity-100" : "invisible pointer-events-none opacity-0"
         }`}
         aria-hidden={!mobileOpen}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation menu"
       >
-        <div className="border-b border-border bg-brand-light/30 px-5 py-4 dark:bg-brand-dark/20">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-background ring-1 ring-brand/15">
+        <div className="shrink-0 border-b border-border bg-card px-4 sm:px-6">
+          <div className="mx-auto flex h-16 max-w-content items-center justify-between">
+            <Link
+              href="/"
+              className="flex min-w-0 items-center gap-2.5 font-display text-small font-bold text-foreground sm:text-heading-3"
+              onClick={close}
+              tabIndex={mobileOpen ? 0 : -1}
+            >
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-brand-light ring-1 ring-brand/15">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={BRAND.logoIcon} alt="" className="h-full w-full object-cover" />
               </span>
-              <span className="truncate font-display text-small font-bold text-foreground">{BRAND.productName}</span>
-            </div>
+              <span className="truncate">{BRAND.productName}</span>
+            </Link>
             <button
               type="button"
               onClick={close}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-muted text-foreground transition-colors hover:bg-background"
               aria-label="Close menu"
+              tabIndex={mobileOpen ? 0 : -1}
             >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                 <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
               </svg>
             </button>
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-4" aria-label="Mobile">
-          <p className="px-2 text-caption uppercase text-muted-foreground">Pages</p>
-          <ul className="mt-2 space-y-1">
+        <nav
+          className="mx-auto flex w-full max-w-content flex-1 flex-col justify-center bg-background px-4 py-8 sm:px-6"
+          aria-label="Mobile"
+        >
+          <ul className="space-y-2">
             {links.map(({ href, label }) => (
               <li key={href}>
                 <Link
                   href={href}
                   tabIndex={mobileOpen ? 0 : -1}
-                  className="flex items-center rounded-xl px-3 py-3 text-small font-medium text-foreground transition-colors hover:bg-brand-light/50 focus-visible:bg-brand-light/50 dark:hover:bg-brand-dark/20"
+                  className="block rounded-2xl border border-border bg-card px-4 py-4 font-display text-heading-1 text-foreground shadow-card transition-colors hover:border-brand/25 hover:bg-brand-light/30 active:bg-brand-light/50 dark:hover:bg-brand-dark/20"
                   onClick={close}
                 >
                   {label}
@@ -114,29 +125,32 @@ export function HeaderMobileMenu({ links }: HeaderMobileMenuProps) {
             ))}
           </ul>
 
-          <p className="mt-5 px-2 text-caption uppercase text-muted-foreground">On home page</p>
-          <ul className="mt-2 space-y-1">
-            {homeSectionLinks.map(({ href, label }) => (
-              <li key={href}>
+          <div className="mt-8 rounded-2xl border border-border bg-card p-4 shadow-card">
+            <p className="text-caption uppercase text-muted-foreground">Home sections</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {homeSectionLinks.map(({ href, label }) => (
                 <Link
+                  key={href}
                   href={href}
                   tabIndex={mobileOpen ? 0 : -1}
-                  className="flex items-center rounded-xl px-3 py-3 text-small font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted"
+                  className="rounded-full border border-border bg-muted px-4 py-2 text-small font-medium text-foreground transition-colors hover:border-brand/30 hover:bg-brand-light/40 dark:hover:bg-brand-dark/25"
                   onClick={close}
                 >
                   {label}
                 </Link>
-              </li>
-            ))}
-          </ul>
+              ))}
+            </div>
+          </div>
         </nav>
 
-        <div className="border-t border-border p-4">
-          <CtaButton href="/contact" className="w-full rounded-full" onClick={close}>
-            Get started
-          </CtaButton>
+        <div className="shrink-0 border-t border-border bg-card px-4 py-5 sm:px-6">
+          <div className="mx-auto max-w-content">
+            <CtaButton href="/contact" className="w-full rounded-full py-3" onClick={close}>
+              Get started
+            </CtaButton>
+          </div>
         </div>
-      </aside>
+      </div>
     </>
   );
 }

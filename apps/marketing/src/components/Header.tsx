@@ -39,7 +39,7 @@ export function Header() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={BRAND.logoIcon} alt={`${BRAND.productName} logo`} className="h-full w-full object-cover" />
             </span>
-            <span className="hidden truncate sm:inline">{BRAND.productName}</span>
+            <span className="truncate text-small font-bold sm:text-heading-3">{BRAND.productName}</span>
           </Link>
 
           <nav
