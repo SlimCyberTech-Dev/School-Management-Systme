@@ -4,9 +4,10 @@ import { Container } from "./Container";
 
 const navLinks = [
   { href: "/features", label: "Features" },
+  { href: "/#roles", label: "Roles" },
   { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About" },
-  { href: "/faq", label: "FAQ" },
+  { href: "/#faq", label: "FAQ" },
   { href: "/contact", label: "Contact" },
 ] as const;
 
@@ -32,7 +33,7 @@ export function Footer() {
             </Link>
             <p className="mt-4 max-w-xs text-small text-muted-foreground">{BRAND.companyTagline}</p>
             <p className="mt-2 max-w-xs text-small text-muted-foreground">
-              School management for Ugandan secondary schools — O-Level CBC and A-Level UNEB.
+              School management for Ugandan secondary schools. O-Level CBC and A-Level UNEB.
             </p>
           </div>
 

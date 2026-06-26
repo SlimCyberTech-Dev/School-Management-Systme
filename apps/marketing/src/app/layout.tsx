@@ -3,6 +3,7 @@ import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { BRAND } from "@uganda-cbc-sms/brand";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { ScrollProgressBar } from "@/components/ScrollProgressBar";
 import { themeInitScript } from "@/lib/theme";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${inter.variable} ${display.variable} min-h-screen font-sans antialiased`}>
         <Providers>
+          <ScrollProgressBar />
           <div className="flex min-h-screen flex-col">
             <Header />
             <main className="flex-1">{children}</main>

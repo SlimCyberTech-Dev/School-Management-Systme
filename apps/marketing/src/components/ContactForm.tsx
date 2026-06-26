@@ -2,19 +2,15 @@
 
 import { useState } from "react";
 
-/**
- * Static-export contact form. Wire up a third-party handler (Formspree, Tally, Getform, etc.):
- *
- * 1. Create a form endpoint at your provider and copy its POST URL.
- * 2. Set NEXT_PUBLIC_CONTACT_FORM_ENDPOINT in apps/marketing/.env (see .env.example).
- * 3. Rebuild the marketing site (`npm run build:marketing`).
- *
- * If the endpoint is unset, submit opens a mailto: fallback instead of posting.
- */
 const formEndpoint = process.env.NEXT_PUBLIC_CONTACT_FORM_ENDPOINT ?? "";
 const fallbackEmail = "hello@slimcybertech.com";
 
 type FormState = "idle" | "submitting" | "success" | "error";
+
+const inputClass =
+  "mt-1.5 w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-small text-foreground shadow-sm transition-[border-color,box-shadow] focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20";
+
+const labelClass = "block text-small font-medium text-foreground";
 
 export function ContactForm() {
   const [state, setState] = useState<FormState>("idle");
@@ -57,105 +53,110 @@ export function ContactForm() {
   }
 
   return (
-    <div className="surface-card p-6 md:p-8">
-      {!formEndpoint ? (
-        <p className="mb-6 rounded-lg border border-border bg-muted/50 px-4 py-3 text-small text-muted-foreground">
-          Form handler not configured yet. Submissions will open your email app, or you can email us directly at{" "}
-          <a href={`mailto:${fallbackEmail}`} className="link-brand">
-            {fallbackEmail}
-          </a>
-          .
+    <div className="surface-card overflow-hidden">
+      <div className="border-b border-border bg-brand-light/40 px-6 py-5 dark:bg-brand-dark/20 md:px-8">
+        <h2 className="text-heading-2 text-foreground">Send a message</h2>
+        <p className="mt-1 text-small text-muted-foreground">
+          We typically reply within one business day.
         </p>
-      ) : null}
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label htmlFor="name" className="block text-small font-medium text-foreground">
-              Your name
-            </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              required
-              autoComplete="name"
-              className="mt-1.5 w-full rounded-md border border-border bg-background px-3 py-2.5 text-small text-foreground transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25"
-            />
-          </div>
-          <div>
-            <label htmlFor="school" className="block text-small font-medium text-foreground">
-              School name
-            </label>
-            <input
-              id="school"
-              name="school"
-              type="text"
-              required
-              className="mt-1.5 w-full rounded-md border border-border bg-background px-3 py-2.5 text-small text-foreground transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25"
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label htmlFor="email" className="block text-small font-medium text-foreground">
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              className="mt-1.5 w-full rounded-md border border-border bg-background px-3 py-2.5 text-small text-foreground transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25"
-            />
-          </div>
-          <div>
-            <label htmlFor="phone" className="block text-small font-medium text-foreground">
-              Phone
-            </label>
-            <input
-              id="phone"
-              name="phone"
-              type="tel"
-              required
-              autoComplete="tel"
-              className="mt-1.5 w-full rounded-md border border-border bg-background px-3 py-2.5 text-small text-foreground transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="message" className="block text-small font-medium text-foreground">
-            Message
-          </label>
-          <textarea
-            id="message"
-            name="message"
-            rows={5}
-            required
-            className="mt-1.5 w-full rounded-md border border-border bg-background px-3 py-2.5 text-small text-foreground transition-colors focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25"
-            placeholder="Tell us about your school and what you need help with."
-          />
-        </div>
-
-        <button type="submit" disabled={state === "submitting"} className="btn-primary disabled:opacity-60">
-          {state === "submitting" ? "Sending…" : "Send message"}
-        </button>
-
-        {state === "success" ? (
-          <p className="text-small font-medium text-brand">Thank you — we received your message and will be in touch soon.</p>
+      <div className="p-6 md:p-8">
+        {!formEndpoint ? (
+          <p className="mb-6 rounded-lg border border-border bg-muted/40 px-4 py-3 text-small text-muted-foreground">
+            Form handler not configured yet. Submit will open your email app, or write to{" "}
+            <a href={`mailto:${fallbackEmail}`} className="link-brand">
+              {fallbackEmail}
+            </a>
+            .
+          </p>
         ) : null}
-        {state === "error" ? <p className="text-small text-red-700 dark:text-red-400">{errorMessage}</p> : null}
-      </form>
 
-      <p className="mt-6 text-small text-muted-foreground">
-        Prefer email?{" "}
-        <a href={`mailto:${fallbackEmail}`} className="link-brand">
-          {fallbackEmail}
-        </a>
-      </p>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <fieldset className="space-y-4">
+            <legend className="text-caption uppercase text-muted-foreground">About you</legend>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="name" className={labelClass}>
+                  Your name
+                </label>
+                <input id="name" name="name" type="text" required autoComplete="name" className={inputClass} />
+              </div>
+              <div>
+                <label htmlFor="school" className={labelClass}>
+                  School name
+                </label>
+                <input id="school" name="school" type="text" required className={inputClass} />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-4">
+            <legend className="text-caption uppercase text-muted-foreground">Contact details</legend>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="email" className={labelClass}>
+                  Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="phone" className={labelClass}>
+                  Phone
+                </label>
+                <input id="phone" name="phone" type="tel" required autoComplete="tel" className={inputClass} />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-4">
+            <legend className="text-caption uppercase text-muted-foreground">Your enquiry</legend>
+            <div>
+              <label htmlFor="message" className={labelClass}>
+                Message
+              </label>
+              <textarea
+                id="message"
+                name="message"
+                rows={5}
+                required
+                className={inputClass}
+                placeholder="School size, modules you need (CBC, UNEB, fees), and any questions."
+              />
+            </div>
+          </fieldset>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <button type="submit" disabled={state === "submitting"} className="btn-primary disabled:opacity-60">
+              {state === "submitting" ? "Sending…" : "Send message"}
+            </button>
+            <p className="text-small text-muted-foreground">
+              Or email{" "}
+              <a href={`mailto:${fallbackEmail}`} className="link-brand">
+                {fallbackEmail}
+              </a>
+            </p>
+          </div>
+
+          {state === "success" ? (
+            <p className="rounded-lg border border-brand/25 bg-brand-light/50 px-4 py-3 text-small font-medium text-brand-dark dark:bg-brand-dark/30 dark:text-green-200">
+              Thank you. We received your message and will be in touch soon.
+            </p>
+          ) : null}
+          {state === "error" ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-small text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+              {errorMessage}
+            </p>
+          ) : null}
+        </form>
+      </div>
     </div>
   );
 }

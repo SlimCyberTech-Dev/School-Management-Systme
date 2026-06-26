@@ -6,15 +6,16 @@ import { CtaButton } from "./CtaButton";
 
 const navLinks = [
   { href: "/features", label: "Features" },
+  { href: "/#roles", label: "Roles" },
   { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About" },
-  { href: "/faq", label: "FAQ" },
+  { href: "/#faq", label: "FAQ" },
   { href: "/contact", label: "Contact" },
 ] as const;
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-border/80 bg-background/85 backdrop-blur-md">
+    <header className="sticky top-1 z-50 border-b border-border/80 bg-background/85 backdrop-blur-md">
       <Container className="relative flex h-16 items-center justify-between gap-4">
         <Link
           href="/"
@@ -27,7 +28,7 @@ export function Header() {
           <span className="truncate">{BRAND.productName}</span>
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
+        <nav className="hidden items-center gap-1 lg:flex" aria-label="Main">
           {navLinks.map(({ href, label }) => (
             <Link
               key={href}

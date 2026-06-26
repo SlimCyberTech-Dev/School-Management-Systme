@@ -29,6 +29,13 @@
 @layer base {
   body {
     @apply bg-background text-body text-foreground antialiased;
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body {
+      scroll-behavior: auto;
+    }
   }
 
   h1,
