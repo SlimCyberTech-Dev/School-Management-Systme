@@ -159,19 +159,6 @@ export interface Subject {
   level: "O_LEVEL" | "A_LEVEL";
 }
 
-export interface CbcScoreRow {
-  id: string;
-  studentId: string;
-  subjectId: string;
-  strandId: string;
-  termId: string;
-  competency: string;
-  rating: "A" | "B" | "C" | "D" | "E";
-  submitted: boolean;
-  submittedAt: string | null;
-  teacherId: string | null;
-}
-
 export interface AlevelScoreRow {
   id: string;
   studentId: string;

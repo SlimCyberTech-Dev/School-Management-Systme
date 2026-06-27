@@ -1,7 +1,5 @@
 export {
   BRAND,
-  COLORS,
-  FONTS,
   THEME_STORAGE_KEY,
 } from "@uganda-cbc-sms/brand";
 
