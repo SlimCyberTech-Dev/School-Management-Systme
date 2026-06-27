@@ -1,4 +1,4 @@
-export const contactEmail = "hello@slimcybertech.com";
+export const contactEmail = "info@slimcybertech.com";
 export const contactPhone = "+256 772581510";
 export const contactWhatsApp = "256772581510";
 
