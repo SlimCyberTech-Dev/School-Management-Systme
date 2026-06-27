@@ -34,7 +34,7 @@ export function Footer() {
               {BRAND.productName}
             </Link>
             <p className="mt-4 text-small leading-relaxed text-muted-foreground">
-              {BRAND.companyTagline} O-Level CBC and A-Level UNEB on one platform for Ugandan secondary schools.
+              School management for Ugandan secondary schools O-Level CBC, A-Level UNEB, fees, and report cards.
             </p>
           </div>
 
@@ -47,7 +47,16 @@ export function Footer() {
 
         <div className="mt-10 border-t border-border pt-6 text-small text-muted-foreground">
           <p>
-            &copy; {year} {BRAND.companyName}. All rights reserved.
+            &copy; {year} {BRAND.productName}. Built & maintained by{" "}
+            <a
+              href="https://slimcybertech.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground/80 underline-offset-4 transition-colors hover:text-brand hover:underline"
+            >
+              {BRAND.companyName}
+            </a>
+            .
           </p>
         </div>
       </Container>

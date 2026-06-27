@@ -8,81 +8,136 @@ import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
   title: "About",
-  description: `Learn about ${BRAND.companyName} and why we built ${BRAND.productName} for Ugandan secondary schools running O-Level CBC and A-Level UNEB.`,
+  description: `${BRAND.productName} is school management software for Ugandan secondary schools — student records, O-Level CBC, A-Level UNEB, fees in UGX, and PDF report cards.`,
   path: "/about",
 });
+
+const modules = [
+  {
+    title: "Student records",
+    body: "Enrol learners, assign classes, upload photos, and keep attendance and history in one place.",
+  },
+  {
+    title: "O-Level CBC",
+    body: "Strand and competency ratings, project work, and end-of-cycle exams with grades calculated per NCDC rules.",
+  },
+  {
+    title: "A-Level UNEB",
+    body: "Enter exam marks; the system converts them to UNEB grades, points, and divisions for UACE reporting.",
+  },
+  {
+    title: "Fees",
+    body: "Fee structures, invoices, and payment records in Ugandan shillings, with balances visible to your bursar.",
+  },
+] as const;
+
+const roles = [
+  "School administrators — academic years, classes, subjects, and user accounts",
+  "Headteachers — school-wide dashboards and report-card approval",
+  "Class teachers — daily attendance and class student lists",
+  "Subject teachers — assessment entry for their subjects",
+  "Bursars — invoicing and payment tracking",
+] as const;
 
 export default function AboutPage() {
   return (
     <>
       <div className="page-pad">
-        <Container>
-          <PageHero
-            eyebrow="Company"
-            title={`About ${BRAND.productName}`}
-            description={`${BRAND.productName} is a school management system by ${BRAND.companyName} — built to help Ugandan secondary schools run on reliable digital records instead of paper.`}
-          />
+        <Container className="max-w-5xl">
+          <RevealOnScroll>
+            <PageHero
+              eyebrow="Product"
+              title={`About ${BRAND.productName}`}
+              description="A web-based school management system for Ugandan secondary schools — enrolment, assessments, fees, and report cards on one platform."
+            />
+          </RevealOnScroll>
 
-          <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
-            <RevealOnScroll>
-              <section className="surface-card h-full p-6 md:p-8">
-                <h2 className="text-heading-1">{BRAND.companyName}</h2>
-                <div className="mt-4 space-y-4 text-body text-muted-foreground">
-                  <p>
-                    {BRAND.companyName} builds software for organisations that need practical, dependable tools. Our
-                    tagline — &ldquo;{BRAND.companyTagline}&rdquo; — reflects a focus on shipping systems that work in
-                    the real world, not slide decks.
-                  </p>
-                  <p>
-                    With {BRAND.productName}, we apply that approach to Ugandan school administration: O-Level CBC
-                    assessment, A-Level UNEB grading, student records, fees in Ugandan shillings, and role-based
-                    dashboards for the people who run a school every day.
-                  </p>
-                </div>
-              </section>
-            </RevealOnScroll>
-
-            <RevealOnScroll delay={80}>
-              <section className="h-full rounded-2xl border border-brand/20 bg-brand-light/40 p-6 dark:bg-brand-dark/20 md:p-8">
-                <h2 className="text-heading-1">Our mission</h2>
-                <p className="mt-4 text-body-lg text-foreground/85">
-                  Digitise school administration for Ugandan secondary schools — so headteachers, teachers, and bursars
-                  spend less time on manual paperwork and more time supporting learners.
-                </p>
-              </section>
-            </RevealOnScroll>
-          </div>
-
-          <RevealOnScroll className="mt-12 md:mt-16">
-            <section className="border-l-4 border-accent pl-5 md:pl-6">
-              <h2 className="text-heading-1">Why we built this</h2>
-              <div className="mt-6 max-w-prose space-y-4 text-body text-muted-foreground">
+          <RevealOnScroll delay={60} className="mt-10 md:mt-12">
+            <section className="surface-card p-6 md:p-8">
+              <h2 className="text-heading-1">What it is</h2>
+              <div className="mt-4 max-w-prose space-y-4 text-body text-muted-foreground">
                 <p>
-                  Many secondary schools still rely on paper registers, handwritten report cards, and spreadsheets that
-                  do not talk to each other. When assessment policy shifts — CBC competency ratings and project work at
-                  O-Level, UNEB points and divisions at A-Level — manual processes become harder to sustain and easier to
-                  get wrong.
+                  {BRAND.productName} replaces the mix of paper registers, handwritten report cards, and disconnected
+                  spreadsheets that many secondary schools still rely on. Student data, assessment results, and fee
+                  records live in one system, tied to the same academic structure.
                 </p>
                 <p>
-                  {BRAND.productName} brings enrolment, assessment entry, fee collection, and report generation into one
-                  system. Teachers enter scores once; the platform applies the right grading rules; headteachers approve
-                  reports before they go out; bursars track who has paid — all with clear roles so staff see only what they
-                  need.
-                </p>
-                <p>
-                  We designed the product around workflows described by school administrators and the official assessment
-                  frameworks schools already follow — not around generic templates that ignore CBC and UNEB requirements.
+                  Each staff member signs in with a role that controls what they see. A subject teacher enters marks for
+                  their papers; a bursar works on invoices; a headteacher reviews reports before they leave the school.
                 </p>
               </div>
             </section>
           </RevealOnScroll>
+
+          <RevealOnScroll delay={100} className="mt-6 md:mt-8">
+            <h2 className="text-heading-1">Modules</h2>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {modules.map((item) => (
+                <article
+                  key={item.title}
+                  className="rounded-xl border border-border bg-card p-5 shadow-card md:p-6"
+                >
+                  <h3 className="text-heading-3 text-foreground">{item.title}</h3>
+                  <p className="mt-2 text-small leading-relaxed text-muted-foreground">{item.body}</p>
+                </article>
+              ))}
+            </div>
+          </RevealOnScroll>
+
+          <div className="mt-10 grid gap-6 md:mt-12 lg:grid-cols-2 lg:gap-8">
+            <RevealOnScroll delay={120}>
+              <section className="h-full rounded-2xl border border-brand/20 bg-brand-light/40 p-6 dark:bg-brand-dark/20 md:p-8">
+                <h2 className="text-heading-1">Roles</h2>
+                <ul className="mt-4 space-y-3 text-body text-muted-foreground">
+                  {roles.map((role) => (
+                    <li key={role} className="flex gap-3">
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" aria-hidden />
+                      <span>{role}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </RevealOnScroll>
+
+            <RevealOnScroll delay={160}>
+              <section className="surface-card h-full p-6 md:p-8">
+                <h2 className="text-heading-1">Typical term workflow</h2>
+                <ol className="mt-4 space-y-4 text-body text-muted-foreground">
+                  <li className="flex gap-4">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand/10 text-small font-semibold text-brand">
+                      1
+                    </span>
+                    <span>Set up the academic year, classes, and subjects, then enrol students.</span>
+                  </li>
+                  <li className="flex gap-4">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand/10 text-small font-semibold text-brand">
+                      2
+                    </span>
+                    <span>Teachers record attendance and enter CBC ratings or UNEB marks through the term.</span>
+                  </li>
+                  <li className="flex gap-4">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand/10 text-small font-semibold text-brand">
+                      3
+                    </span>
+                    <span>Headteachers review submitted assessments and approve report cards for PDF export.</span>
+                  </li>
+                  <li className="flex gap-4">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand/10 text-small font-semibold text-brand">
+                      4
+                    </span>
+                    <span>Bursars issue invoices and record payments against the same student records.</span>
+                  </li>
+                </ol>
+              </section>
+            </RevealOnScroll>
+          </div>
         </Container>
       </div>
 
       <CtaBanner
-        title="Want to learn more?"
-        description="We are happy to walk through the system and answer questions about CBC, UNEB, or fees setup for your school."
-        primaryLabel="Get in touch"
+        title="See it for your school"
+        description="Request a walkthrough or ask how CBC, UNEB, and fees would be set up for your classes."
+        primaryLabel="Contact us"
         primaryHref="/contact"
         secondaryLabel="View features"
         secondaryHref="/features"
