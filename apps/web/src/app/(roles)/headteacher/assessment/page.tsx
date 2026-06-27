@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Unlock } from "lucide-react";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { Card } from "@/components/ui/Card";
 
@@ -9,22 +8,18 @@ export default function HeadteacherAssessmentHubPage() {
   return (
     <PageWrapper
       title="Assessment oversight"
-      description="Use the Assessment menu in the sidebar for CBC, A-Level, and formal exam workflows."
+      description="Use the Assessment menu in the sidebar for competency assessment, A-Level, and formal exam workflows."
     >
       <p className="-mt-2 mb-6 text-sm text-muted-foreground">
-        Teachers enter marks on their portals. Use this hub to see submission progress, unlock locked CBC sheets, and
-        manage the exam lifecycle.
+        Teachers enter marks on their portals. Use this hub for oversight, report-card approval, and school-wide
+        analytics.
       </p>
 
       <Card title="Quick actions">
         <ul className="space-y-2 text-sm">
           <li>
-            <Link
-              href="/headteacher/assessment/cbc"
-              className="inline-flex items-center gap-2 font-medium text-brand hover:underline"
-            >
-              <Unlock className="h-4 w-4" />
-              Unlock legacy CBC sheet
+            <Link href="/headteacher/assessment/cbc" className="font-medium text-brand hover:underline">
+              Review competency assessments →
             </Link>
           </li>
           <li>
@@ -38,6 +33,16 @@ export default function HeadteacherAssessmentHubPage() {
             </Link>
           </li>
         </ul>
+        <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+          Pre-migration strand sheets:{" "}
+          <Link
+            href="/headteacher/assessment/cbc#legacy-cbc"
+            className="font-medium text-foreground/80 underline-offset-2 hover:text-brand hover:underline"
+          >
+            unlock legacy CBC sheet
+          </Link>{" "}
+          (secondary — on the competency page, legacy section)
+        </p>
       </Card>
     </PageWrapper>
   );

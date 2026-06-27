@@ -29,6 +29,8 @@ type Props = {
   statusPath: "/assessments/cbc/status" | "/assessments/alevel/status";
   canUnlock?: boolean;
   onUnlock?: (subjectId: string, filters: HeadteacherPeriodValue) => Promise<void>;
+  /** When true, omit the outer page heading (parent section provides context). */
+  embedded?: boolean;
 };
 
 export function HeadteacherAssessmentStatusPanel({
@@ -38,6 +40,7 @@ export function HeadteacherAssessmentStatusPanel({
   statusPath,
   canUnlock,
   onUnlock,
+  embedded = false,
 }: Props) {
   const [filters, setFilters] = useState<HeadteacherPeriodValue>({
     yearId: "",
@@ -119,10 +122,12 @@ export function HeadteacherAssessmentStatusPanel({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-      </div>
+      {!embedded ? (
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        </div>
+      ) : null}
 
       <Card title="Filters">
         <HeadteacherPeriodFilters
