@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { PageWrapper } from "@/components/layout/PageWrapper";
+import { HeadteacherTermSummaryPanel } from "@/components/cbc/HeadteacherTermSummaryPanel";
 import { HeadteacherAssessmentStatusPanel } from "@/components/headteacher/HeadteacherAssessmentStatusPanel";
 import type { HeadteacherPeriodValue } from "@/components/headteacher/HeadteacherPeriodFilters";
 import { useCbcActions } from "@/hooks/useCBCAssessment";
@@ -21,21 +22,26 @@ export default function HeadteacherCbcAssessmentPage() {
   return (
     <PageWrapper
       title="CBC assessments"
-      description="O-Level competency ratings — submission status and unlock"
+      description="Review NCDC term competency summaries, apply overrides, and manage legacy sheet unlock"
     >
       <p className="-mt-2 mb-4 text-sm text-muted-foreground">
         <Link href="/headteacher/assessment" className="font-medium text-brand hover:underline">
           ← Assessment hub
         </Link>
       </p>
-      <HeadteacherAssessmentStatusPanel
-        track="cbc"
-        title="CBC subject progress"
-        description="Each subject teacher submits strand ratings for their class. Unlock only when you approve corrections to a locked sheet."
-        statusPath="/assessments/cbc/status"
-        canUnlock
-        onUnlock={handleUnlock}
-      />
+
+      <HeadteacherTermSummaryPanel allowOverride />
+
+      <div className="mt-10">
+        <HeadteacherAssessmentStatusPanel
+          track="cbc"
+          title="Legacy CBC sheet progress"
+          description="Subject teachers lock activities per assessment event. Use unlock below only when correcting legacy strand sheets that were submitted under the old flow."
+          statusPath="/assessments/cbc/status"
+          canUnlock
+          onUnlock={handleUnlock}
+        />
+      </div>
     </PageWrapper>
   );
 }

@@ -1,4 +1,5 @@
 import * as sharedSchemas from "@uganda-cbc-sms/shared";
+import { legacyRatingToCompetencyLevel } from "@uganda-cbc-sms/shared";
 import type { z } from "zod";
 import { query } from "../../config/db";
 import { syncLegacyCbcToAssessments } from "../../utils/cbcRatingWrite";
@@ -19,12 +20,14 @@ export async function upsertCbcScores(input: BulkIn, teacherId: string) {
       if (existing[0]?.submitted) {
         throw new HttpError(400, "Score is submitted — headteacher must unlock to edit");
       }
+      const competencyLevel = legacyRatingToCompetencyLevel(item.rating);
       await query(
         `INSERT INTO cbc_scores (
-          student_id, subject_id, strand_id, term_id, competency, rating, teacher_id, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+          student_id, subject_id, strand_id, term_id, competency, rating, competency_level, teacher_id, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
         ON CONFLICT (student_id, subject_id, strand_id, competency, term_id) DO UPDATE SET
           rating = EXCLUDED.rating,
+          competency_level = EXCLUDED.competency_level,
           teacher_id = EXCLUDED.teacher_id,
           updated_at = NOW()`,
         [
@@ -34,6 +37,7 @@ export async function upsertCbcScores(input: BulkIn, teacherId: string) {
           item.termId,
           item.competency,
           item.rating,
+          competencyLevel,
           teacherId,
         ],
       );

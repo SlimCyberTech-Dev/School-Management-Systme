@@ -4,6 +4,7 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { requireAuth } from "../../middleware/auth";
 import { requireAssessmentRoles } from "./assessmentAccess";
 import * as c from "./assessments.controller";
+import * as cc from "./cbcCompetency.controller";
 
 export const assessmentsRouter = Router();
 
@@ -71,6 +72,42 @@ assessmentsRouter.put(
   asyncHandler(c.putCbcComment),
 );
 assessmentsRouter.get("/cbc/status", requireAssessmentRoles("headteacher", "admin"), asyncHandler(c.getCbcStatus));
+
+assessmentsRouter.post(
+  "/cbc/activities",
+  requireAssessmentRoles("subject_teacher", "class_teacher"),
+  asyncHandler(cc.postCbcActivity),
+);
+assessmentsRouter.patch(
+  "/cbc/activities/:id/lock",
+  requireAssessmentRoles("subject_teacher", "class_teacher"),
+  asyncHandler(cc.patchCbcActivityLock),
+);
+assessmentsRouter.post(
+  "/cbc/ratings",
+  requireAssessmentRoles("subject_teacher", "class_teacher"),
+  asyncHandler(cc.postCbcRatings),
+);
+assessmentsRouter.get(
+  "/cbc/term-summary",
+  requireAssessmentRoles("subject_teacher", "class_teacher", "admin", "headteacher"),
+  asyncHandler(cc.getCbcTermSummary),
+);
+assessmentsRouter.patch(
+  "/cbc/term-summary/:id/override",
+  requireAssessmentRoles("headteacher"),
+  asyncHandler(cc.patchCbcTermSummaryOverride),
+);
+assessmentsRouter.post(
+  "/cbc/learning-outcomes",
+  requireAssessmentRoles("subject_teacher", "class_teacher"),
+  asyncHandler(cc.postCbcLearningOutcome),
+);
+assessmentsRouter.post(
+  "/cbc/learning-outcome-records",
+  requireAssessmentRoles("subject_teacher", "class_teacher"),
+  asyncHandler(cc.postCbcLearningOutcomeRecord),
+);
 
 assessmentsRouter.get(
   "/alevel",

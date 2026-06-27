@@ -1,5 +1,8 @@
 "use client";
 
+import { CompetencyLevelBadge } from "@/components/cbc/CompetencyLevelBadge";
+import { pickCompetencyLevel } from "@/lib/cbcCompetency";
+
 function pick(r: Record<string, unknown>, keys: string[]): string {
   for (const k of keys) {
     const v = r[k];
@@ -20,7 +23,7 @@ export function ReadOnlyCbcRatingsTable({ rows }: { rows: Record<string, unknown
             <th className="px-2 py-2 text-left">Student</th>
             <th className="px-2 py-2 text-left">Strand</th>
             <th className="px-2 py-2 text-left">Competency</th>
-            <th className="px-2 py-2 text-left">Rating</th>
+            <th className="px-2 py-2 text-left">Level</th>
             <th className="px-2 py-2 text-left">Status</th>
           </tr>
         </thead>
@@ -31,6 +34,7 @@ export function ReadOnlyCbcRatingsTable({ rows }: { rows: Record<string, unknown
               r["is_locked"] === "t" ||
               r["is_submitted"] === true ||
               r["is_submitted"] === "t";
+            const level = pickCompetencyLevel(r);
             return (
               <tr key={`${pick(r, ["student_id", "id"])}-${i}`} className="border-t border-border">
                 <td className="px-2 py-2">
@@ -39,7 +43,13 @@ export function ReadOnlyCbcRatingsTable({ rows }: { rows: Record<string, unknown
                 </td>
                 <td className="px-2 py-2">{pick(r, ["strand"])}</td>
                 <td className="px-2 py-2">{pick(r, ["competency"])}</td>
-                <td className="px-2 py-2 font-medium">{pick(r, ["rating"])}</td>
+                <td className="px-2 py-2">
+                  {level ? (
+                    <CompetencyLevelBadge level={level} size="sm" />
+                  ) : (
+                    <span className="text-muted-foreground">{pick(r, ["rating"])}</span>
+                  )}
+                </td>
                 <td className="px-2 py-2 text-muted-foreground">
                   {locked ? "Submitted / locked" : "Draft"}
                 </td>

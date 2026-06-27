@@ -3,6 +3,23 @@ import { curriculumTrackSchema } from "./curriculum.schema";
 
 export const cbcRatingSchema = z.enum(["A", "B", "C", "D", "E"]);
 
+export const competencyLevelSchema = z.enum([
+  "exceeds_expectations",
+  "meets_expectations",
+  "approaching_expectations",
+  "below_expectations",
+]);
+
+export const assessmentActivityTypeSchema = z.enum([
+  "assignment",
+  "project",
+  "group_work",
+  "practical",
+  "participation",
+  "presentation",
+  "test",
+]);
+
 export const cbcScoreUpsertSchema = z.object({
   studentId: z.string().uuid(),
   subjectId: z.string().uuid(),
@@ -424,6 +441,53 @@ export const projectWorkBulkSchema = z.object({
 export const gradingConfigSchema = z.object({
   oLevel: z.object({ scheme: z.string().min(1) }).optional(),
   aLevel: z.object({ scheme: z.string().min(1) }).optional(),
+});
+
+export const cbcActivityCreateSchema = z.object({
+  subjectId: z.string().uuid(),
+  classId: z.string().uuid(),
+  termId: z.string().uuid(),
+  academicYearId: z.string().uuid(),
+  activityType: assessmentActivityTypeSchema,
+  title: z.string().min(1).max(255),
+  activityDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+export const cbcCompetencyRatingItemSchema = z.object({
+  studentId: z.string().uuid(),
+  competencyId: z.string().uuid(),
+  strandId: z.string().uuid(),
+  competencyLevel: competencyLevelSchema,
+});
+
+export const cbcCompetencyRatingsBulkSchema = z.object({
+  assessmentActivityId: z.string().uuid(),
+  ratings: z.array(cbcCompetencyRatingItemSchema).min(1),
+});
+
+export const cbcTermSummaryQuerySchema = z.object({
+  studentId: z.string().uuid(),
+  subjectId: z.string().uuid(),
+  termId: z.string().uuid(),
+});
+
+export const cbcTermSummaryOverrideSchema = z.object({
+  overriddenLevel: competencyLevelSchema,
+  overrideJustification: z.string().min(1).max(2000),
+});
+
+export const cbcLearningOutcomeCreateSchema = z.object({
+  subjectId: z.string().uuid(),
+  strandId: z.string().uuid(),
+  termId: z.string().uuid(),
+  description: z.string().min(1).max(5000),
+});
+
+export const cbcLearningOutcomeRecordCreateSchema = z.object({
+  studentId: z.string().uuid(),
+  learningOutcomeId: z.string().uuid(),
+  achievementLevel: competencyLevelSchema,
+  remark: z.string().max(2000).optional(),
 });
 
 export type AssessmentConfigInput = z.infer<typeof assessmentConfigSchema>;

@@ -5,7 +5,10 @@ import { TeacherCbcEntryPanel } from "@/components/assessment/TeacherCbcEntryPan
 
 export default function SubjectTeacherCbcEntryPage() {
   return (
-    <PageWrapper title="CBC score entry" description="Enter A–E ratings per competency, then submit to lock">
+    <PageWrapper
+      title="CBC competency entry"
+      description="Create assessment activities, enter NCDC competency levels, and record learning outcomes."
+    >
       <TeacherCbcEntryPanel />
     </PageWrapper>
   );

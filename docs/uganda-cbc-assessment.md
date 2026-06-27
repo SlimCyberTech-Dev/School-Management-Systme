@@ -2,12 +2,23 @@
 
 This document describes how **SchoolManage** aligns O-Level assessment and grading with UNEB/NCDC CBC policy. Confirm cut-points, year windows, and project counts against your school's current NCDC/UNEB circular before end-of-cycle reporting.
 
-## §4 — A–E competency ratings
+## §4 — Competency ratings (NCDC 4-level descriptors)
 
-- Teachers record strand/competency ratings **A through E** (not A–D).
-- Descriptors: A Exceptional, B Outstanding, C Satisfactory, D Basic, E Elementary.
-- Ratings are stored in `assessments_cbc` and dual-synced to legacy `cbc_scores` when strand mapping exists.
-- **Strand ratings are provisional fallback only** — they do not constitute official CA.
+Teachers record strand/competency achievement using the NCDC descriptor scale:
+
+| Stored value | Display label |
+|--------------|----------------|
+| `exceeds_expectations` | Exceeds Expectations |
+| `meets_expectations` | Meets Expectations |
+| `approaching_expectations` | Approaching Expectations |
+| `below_expectations` | Below Expectations |
+
+- Ratings are stored per **assessment activity** in `competency_ratings` (linked via `assessment_activities`).
+- Term-level summaries use **most-frequent** aggregation (tie-break: higher rank wins) in `term_competency_summary`.
+- During transition, legacy letter columns (`rating` A–E on `assessments_cbc` / `cbc_scores`) are still dual-written for report/CA consumers — see `cbcRatingWrite.ts`.
+- REST API: [api-cbc-competency-endpoints.md](./api-cbc-competency-endpoints.md).
+
+**Legacy note:** Pre-migration letter grades A–E map to descriptors (E collapses to below). Strand ratings remain provisional fallback only for CA — they do not constitute official CA.
 
 ## §5 — 20/80 composite and project-work CA (HYBRID model)
 
