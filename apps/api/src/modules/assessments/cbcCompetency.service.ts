@@ -6,10 +6,11 @@ import {
   cbcLearningOutcomeCreateSchema,
   cbcLearningOutcomeRecordCreateSchema,
 } from "@uganda-cbc-sms/shared";
-import { query } from "../../config/db";
+import { query, tenantContext } from "../../config/db";
 import { aggregateTermCompetencyLevel } from "../../services/cbcCompetencyAggregation";
 import { dualWriteFromCompetencyRatingIds } from "../../utils/cbcRatingWrite";
 import { HttpError } from "../../utils/httpError";
+import { fireCompetencyOverrideNotification } from "../../services/notifications/notificationHooks";
 
 type ActivityIn = z.infer<typeof cbcActivityCreateSchema>;
 type RatingsBulkIn = z.infer<typeof cbcCompetencyRatingsBulkSchema>;
@@ -268,6 +269,8 @@ export async function overrideTermSummary(
   );
 
   if (!rows[0]) throw new HttpError(404, "Term competency summary not found");
+  const tenantId = tenantContext.getStore();
+  if (tenantId) fireCompetencyOverrideNotification(tenantId, rows[0].id);
   return rows[0];
 }
 

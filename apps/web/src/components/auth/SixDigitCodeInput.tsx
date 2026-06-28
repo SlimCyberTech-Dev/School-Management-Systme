@@ -27,7 +27,7 @@ export function SixDigitCodeInput({ value, onChange, error }: Props) {
 
   return (
     <div>
-      <label className="font-body mb-2 block text-sm font-medium text-slate-700">6-digit code</label>
+      <label className="font-body mb-2 block text-sm font-medium text-foreground">6-digit code</label>
       <div className="flex items-center gap-2">
         {digits.map((digit, index) => (
           <input
@@ -41,10 +41,10 @@ export function SixDigitCodeInput({ value, onChange, error }: Props) {
             onChange={(e) => setDigit(index, e.target.value)}
             onKeyDown={(e) => onKeyDown(index, e.key)}
             className={[
-              "font-heading h-11 w-11 rounded-xl border text-center text-lg outline-none transition",
+              "font-heading h-11 w-11 rounded-lg border text-center text-lg outline-none transition-ui focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background",
               error
-                ? "border-red-400 bg-red-50 text-red-700"
-                : "border-slate-200 bg-white text-slate-800 focus:border-[#2563EB] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.15)]",
+                ? "border-red-400 bg-red-500/10 text-red-700 dark:text-red-400"
+                : "border-border bg-background text-foreground",
             ].join(" ")}
             aria-label={`Digit ${index + 1}`}
           />

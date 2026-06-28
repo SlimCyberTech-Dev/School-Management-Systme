@@ -23,12 +23,12 @@ export function CountdownTimer({ secondsLeft, progress = 1, showCircular = false
     return (
       <div className="inline-flex items-center gap-2" aria-live="polite">
         <svg width="28" height="28" viewBox="0 0 28 28" className="-rotate-90">
-          <circle cx="14" cy="14" r={radius} stroke="#DBEAFE" strokeWidth="3" fill="none" />
+          <circle cx="14" cy="14" r={radius} className="stroke-muted" strokeWidth="3" fill="none" />
           <circle
             cx="14"
             cy="14"
             r={radius}
-            stroke="#2563EB"
+            className="stroke-brand"
             strokeWidth="3"
             fill="none"
             strokeDasharray={circumference}
@@ -36,13 +36,13 @@ export function CountdownTimer({ secondsLeft, progress = 1, showCircular = false
             strokeLinecap="round"
           />
         </svg>
-        <span className="font-body text-sm text-slate-500">{formatted}</span>
+        <span className="font-body text-sm text-muted-foreground">{formatted}</span>
       </div>
     );
   }
 
   return (
-    <span className="font-body text-sm text-slate-500" aria-live="polite">
+    <span className="font-body text-sm text-muted-foreground" aria-live="polite">
       {formatted}
     </span>
   );

@@ -35,6 +35,7 @@ import { securityRouter } from "./modules/security/security.routes.js";
 import { onboardingRouter } from "./modules/onboarding/onboarding.routes.js";
 import { platformRouter } from "./modules/platform/platform.routes.js";
 import { billingRouter, requireActiveSubscription } from "./modules/billing/billing.routes.js";
+import { notificationsRouter } from "./modules/notifications/notifications.routes.js";
 import { requireAuth } from "./middleware/jwtGuard.js";
 import { requestDbMiddleware } from "./middleware/requestDb.js";
 import { resolveTenant } from "./middleware/resolveTenant.js";
@@ -106,6 +107,7 @@ export function createApp(): Express {
   protectedSchoolApi.use("/analytics", analyticsRouter);
   protectedSchoolApi.use("/audit-logs", auditRouter);
   protectedSchoolApi.use("/security", securityRouter);
+  protectedSchoolApi.use("/notifications", notificationsRouter);
   app.use("/api", protectedSchoolApi);
 
   app.use((_req, res) => {

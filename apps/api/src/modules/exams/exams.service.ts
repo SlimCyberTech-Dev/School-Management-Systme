@@ -4,7 +4,7 @@ import type {
   SaveExamEntriesInput,
   UpdateExamInput,
 } from "@uganda-cbc-sms/shared";
-import { query } from "../../config/db";
+import { query, tenantContext } from "../../config/db";
 import { writeAuditLog } from "../audit/audit.service";
 import { HttpError } from "../../utils/httpError";
 import { normalizeClassLevel } from "../../utils/classLevel";
@@ -20,6 +20,7 @@ import {
   replaceExamPapers,
   seedCompulsoryEntries,
 } from "./examEntries";
+import { fireExamMarksSubmittedNotification } from "../../services/notifications/notificationHooks";
 
 type ExamRow = {
   id: string;
@@ -958,6 +959,16 @@ export async function submitExamMarks(
      WHERE exam_id = $1 AND subject_id = $2`,
     [examId, subjectId],
   );
+
+  const tenantId = tenantContext.getStore();
+  if (tenantId) {
+    fireExamMarksSubmittedNotification({
+      tenantId,
+      examId,
+      subjectId,
+      submittedByUserId: teacherId,
+    });
+  }
 
   return { submitted: true };
 }

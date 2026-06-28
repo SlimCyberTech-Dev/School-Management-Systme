@@ -18,7 +18,7 @@ export function AuthCard({ children, motionKey }: AuthCardProps) {
       transition={authPageTransition}
       className="w-full"
     >
-      <div className="rounded-3xl border border-white/70 bg-white/80 p-5 shadow-[0_30px_80px_-40px_rgba(37,99,235,0.5)] backdrop-blur-xl sm:p-6">
+      <div className="rounded-3xl border border-border bg-card/90 p-5 shadow-lg backdrop-blur-xl dark:bg-card/95 sm:p-6">
         {children}
       </div>
     </motion.div>

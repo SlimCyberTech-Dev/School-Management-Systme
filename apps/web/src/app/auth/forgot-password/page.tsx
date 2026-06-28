@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle, ChevronLeft, Mail } from "lucide-react";
+import { CheckCircle, Mail } from "lucide-react";
 import { useMemo, useState } from "react";
+import { AuthBackLink, AuthFooterLink } from "@/components/auth/AuthBackLink";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { stateMotion } from "@/components/auth/AuthMotion";
@@ -74,15 +75,9 @@ export default function ForgotPasswordPage() {
               exit="exit"
               transition={{ duration: 0.35, ease: "easeOut" }}
             >
-              <Link
-                href="/login"
-                className="font-body mb-4 inline-flex items-center gap-1 text-sm font-medium text-[#2563EB] hover:underline"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Back
-              </Link>
-              <h1 className="font-heading text-2xl font-semibold text-slate-900">Forgot your password?</h1>
-              <p className="font-body mt-1.5 text-sm text-slate-500">{AUTH_COPY.forgotSubtitle}</p>
+              <AuthBackLink href="/login" />
+              <h1 className="font-heading text-2xl font-semibold text-foreground">Forgot your password?</h1>
+              <p className="font-body mt-1.5 text-sm text-muted-foreground">{AUTH_COPY.forgotSubtitle}</p>
 
               <motion.div
                 className="mt-5 space-y-4"
@@ -105,11 +100,7 @@ export default function ForgotPasswordPage() {
                   Send Reset Code
                 </PrimaryButton>
               </motion.div>
-              <p className="mt-4">
-                <Link href="/login" className="font-body text-sm font-medium text-[#2563EB] hover:underline">
-                  ← Back to Sign In
-                </Link>
-              </p>
+              <AuthFooterLink href="/login">← Back to Sign In</AuthFooterLink>
             </motion.div>
           ) : (
             <motion.div
@@ -121,42 +112,39 @@ export default function ForgotPasswordPage() {
               transition={{ duration: 0.35, ease: "easeOut" }}
               className="py-3 text-center"
             >
+              <AuthBackLink href="/login" className="mb-4" />
               <motion.div
                 initial={{ scale: 0.7, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
                 className="mb-3 inline-flex"
               >
-                <CheckCircle className="h-12 w-12 text-[#10B981]" />
+                <CheckCircle className="h-12 w-12 text-emerald-500" />
               </motion.div>
-              <h2 className="font-heading text-2xl font-semibold text-slate-900">Check your inbox</h2>
-              <p className="font-body mt-2 text-sm text-slate-600">
-                If an account exists for <span className="font-semibold">{email}</span>, we sent a 6-digit reset
-                code. It expires in {PASSWORD_RESET_CODE_EXPIRES_MINUTES} minutes.
+              <h2 className="font-heading text-2xl font-semibold text-foreground">Check your inbox</h2>
+              <p className="font-body mt-2 text-sm text-muted-foreground">
+                We sent a 6-digit reset code to <span className="font-semibold text-foreground">{email}</span>.
+                It expires in {PASSWORD_RESET_CODE_EXPIRES_MINUTES} minutes.
               </p>
               <div className="mt-4">
                 <PrimaryButton onClick={() => router.push(`/auth/reset-password?email=${encodeURIComponent(email)}`)}>
                   Enter Reset Code
                 </PrimaryButton>
               </div>
-              <p className="font-body mt-5 text-sm text-slate-500">
+              <p className="font-body mt-5 text-sm text-muted-foreground">
                 Didn&apos;t receive it?{" "}
                 <button
                   type="button"
                   onClick={() => void resend()}
                   disabled={cooldown.secondsLeft > 0 || loading}
-                  className="font-semibold text-[#2563EB] disabled:text-slate-400"
+                  className="font-semibold text-brand hover:underline disabled:text-muted-foreground"
                 >
                   Resend
                 </button>{" "}
                 {cooldown.secondsLeft > 0 ? `in 0:${cooldown.secondsLeft.toString().padStart(2, "0")}` : ""}
               </p>
               {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
-              <p className="mt-4">
-                <Link href="/login" className="font-body text-sm font-medium text-[#2563EB] hover:underline">
-                  ← Back to Sign In
-                </Link>
-              </p>
+              <AuthFooterLink href="/login">← Back to Sign In</AuthFooterLink>
             </motion.div>
           )}
         </AnimatePresence>

@@ -8,6 +8,8 @@ import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useNavigationLoading } from "@/components/navigation/NavigationProvider";
 import { resolveUploadUrl } from "@/lib/media";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { NotificationPanel } from "@/components/notifications/NotificationPanel";
+import { useNotificationUnreadCount } from "@/hooks/useNotifications";
 import { useAuthStore } from "@/store/authStore";
 import { resolveActiveNavItem } from "./navActive";
 import { ShellSearchDialog } from "./ShellSearchDialog";
@@ -28,9 +30,13 @@ function HeaderIconButton({
   children: React.ReactNode;
   label: string;
   onClick?: () => void;
-  badge?: boolean;
+  badge?: boolean | number;
   className?: string;
 }) {
+  const showDot = badge === true;
+  const count = typeof badge === "number" ? badge : 0;
+  const showCount = count > 0;
+
   return (
     <button
       type="button"
@@ -39,7 +45,11 @@ function HeaderIconButton({
       className={`relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-ui hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${className}`}
     >
       {children}
-      {badge ? (
+      {showCount ? (
+        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-card">
+          {count > 9 ? "9+" : count}
+        </span>
+      ) : showDot ? (
         <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-card" />
       ) : null}
     </button>
@@ -54,8 +64,11 @@ export function ShellHeader({ config, onToggleMobileNav }: Props) {
   const { startNavigation } = useNavigationLoading();
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const hasUnread = true;
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  const unreadCountQ = useNotificationUnreadCount();
+  const unreadCount = unreadCountQ.data ?? 0;
 
   const pageTitle = useMemo(() => {
     const current = resolveActiveNavItem(config.items, pathname);
@@ -90,6 +103,28 @@ export function ShellHeader({ config, onToggleMobileNav }: Props) {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, []);
+
+  useEffect(() => {
+    if (notificationsOpen) setMenuOpen(false);
+  }, [notificationsOpen]);
+
+  useEffect(() => {
+    if (!notificationsOpen) return;
+    function onClickOutside(event: MouseEvent) {
+      if (!notificationsRef.current?.contains(event.target as Node)) {
+        setNotificationsOpen(false);
+      }
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setNotificationsOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [notificationsOpen]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -150,9 +185,19 @@ export function ShellHeader({ config, onToggleMobileNav }: Props) {
             <HeaderIconButton label="Search" onClick={openSearch} className="md:hidden">
               <Search className="h-4 w-4" strokeWidth={1.75} />
             </HeaderIconButton>
-            <HeaderIconButton label="Notifications" badge={hasUnread}>
-              <Bell className="h-4 w-4" strokeWidth={1.75} />
-            </HeaderIconButton>
+            <div className="relative" ref={notificationsRef}>
+              <HeaderIconButton
+                label={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
+                badge={unreadCount > 0 ? unreadCount : undefined}
+                onClick={() => {
+                  setNotificationsOpen((v) => !v);
+                  setMenuOpen(false);
+                }}
+              >
+                <Bell className="h-4 w-4" strokeWidth={1.75} />
+              </HeaderIconButton>
+              <NotificationPanel open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
+            </div>
             <ThemeToggle />
             <span className="mx-0.5 hidden h-6 w-px bg-border sm:block" aria-hidden />
             <div className="relative" ref={menuRef}>
@@ -191,6 +236,18 @@ export function ShellHeader({ config, onToggleMobileNav }: Props) {
                 }}
                   >
                     Profile
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="w-full rounded-md px-3 py-2 text-left text-sm text-foreground transition-ui hover:bg-accent/50"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      startNavigation();
+                      router.push("/profile/notifications");
+                    }}
+                  >
+                    Notification preferences
                   </button>
                   <button
                     type="button"

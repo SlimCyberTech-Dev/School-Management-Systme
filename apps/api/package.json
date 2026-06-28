@@ -23,6 +23,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js",
     "test:aggregation": "tsx --test tests/cbcCompetencyAggregation.test.ts",
+    "test:notifications": "tsx --test tests/notifications/notificationService.test.ts",
     "test:security": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js tests/security/jwt.test.ts tests/security/tenantIsolation.test.ts",
     "generate:jwt-keys": "tsx scripts/generate-jwt-keys.ts"
   },

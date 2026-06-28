@@ -26,16 +26,16 @@ export function PrimaryButton({
     <motion.button
       type={type}
       onClick={onClick}
-      whileHover={!disabled ? { scale: 1.01, y: -1 } : undefined}
-      whileTap={!disabled ? { scale: 0.98 } : undefined}
+      whileHover={!disabled && !loading ? { scale: 1.01, y: -1 } : undefined}
+      whileTap={!disabled && !loading ? { scale: 0.98 } : undefined}
       disabled={disabled || loading}
       aria-busy={loading}
       aria-label={loading ? "Loading" : undefined}
       className={[
-        "font-body w-full rounded-xl py-3 text-sm font-semibold transition",
+        "font-body w-full rounded-lg py-3 text-sm font-semibold transition-ui",
         isPrimary
-          ? "bg-[#2563EB] text-white shadow-[0_16px_30px_-16px_rgba(37,99,235,0.8)] hover:bg-[#1D4ED8] hover:shadow-[0_20px_34px_-16px_rgba(30,64,175,0.85)] disabled:cursor-not-allowed disabled:bg-blue-300"
-          : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100",
+          ? "bg-[#2563EB] text-white shadow-[0_16px_30px_-16px_rgba(37,99,235,0.8)] hover:bg-[#1D4ED8] hover:shadow-[0_20px_34px_-16px_rgba(30,64,175,0.85)] disabled:cursor-not-allowed disabled:opacity-70"
+          : "border border-border bg-card text-foreground hover:bg-accent disabled:cursor-not-allowed disabled:opacity-70",
         className ?? "",
       ].join(" ")}
     >

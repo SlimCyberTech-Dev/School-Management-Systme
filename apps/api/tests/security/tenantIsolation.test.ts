@@ -118,4 +118,59 @@ describe("tenant isolation", () => {
     expect(rowsB.rows).toHaveLength(1);
     expect(rowsB.rows[0]!.code_hash).toBe("hash-b");
   });
+
+  it("scopes notifications to current tenant", async () => {
+    if (!dbAvailable) return;
+    const emailA = `notify-a-${Date.now()}@test.local`;
+    const emailB = `notify-b-${Date.now()}@test.local`;
+
+    let userA: string;
+    let userB: string;
+
+    await withTenant(tenantA, async (client) => {
+      const u = await client.query<{ id: string }>(
+        `INSERT INTO users (tenant_id, full_name, email, password_hash, role)
+         VALUES ($1, 'Notify A', $2, 'hash', 'headteacher')
+         RETURNING id`,
+        [tenantA, emailA],
+      );
+      userA = u.rows[0]!.id;
+      await client.query(
+        `INSERT INTO notifications (tenant_id, user_id, type, title, body)
+         VALUES ($1, $2, 'assessment_submitted', 'A title', 'A body')`,
+        [tenantA, userA],
+      );
+    });
+
+    await withTenant(tenantB, async (client) => {
+      const u = await client.query<{ id: string }>(
+        `INSERT INTO users (tenant_id, full_name, email, password_hash, role)
+         VALUES ($1, 'Notify B', $2, 'hash', 'headteacher')
+         RETURNING id`,
+        [tenantB, emailB],
+      );
+      userB = u.rows[0]!.id;
+      await client.query(
+        `INSERT INTO notifications (tenant_id, user_id, type, title, body)
+         VALUES ($1, $2, 'assessment_submitted', 'B title', 'B body')`,
+        [tenantB, userB],
+      );
+    });
+
+    const rowsA = await tenantQuery<{ title: string }>(
+      tenantA,
+      `SELECT title FROM notifications WHERE user_id = $1`,
+      [userA!],
+    );
+    expect(rowsA.rows).toHaveLength(1);
+    expect(rowsA.rows[0]!.title).toBe("A title");
+
+    const rowsB = await tenantQuery<{ title: string }>(
+      tenantB,
+      `SELECT title FROM notifications WHERE user_id = $1`,
+      [userB!],
+    );
+    expect(rowsB.rows).toHaveLength(1);
+    expect(rowsB.rows[0]!.title).toBe("B title");
+  });
 });

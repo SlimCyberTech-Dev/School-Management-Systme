@@ -1,10 +1,12 @@
 "use client";
 
 import { Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, CheckIcon, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useMemo, useState } from "react";
+import { AuthBackLink, AuthFooterLink } from "@/components/auth/AuthBackLink";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { CountdownTimer } from "@/components/auth/CountdownTimer";
@@ -26,6 +28,10 @@ function ResetPasswordPageInner() {
   const email = params.get("email") ?? "";
   const router = useRouter();
   const resend = useCountdown(PASSWORD_RESET_RESEND_COOLDOWN_SECONDS, false);
+
+  const forgotHref = email.trim()
+    ? `/auth/forgot-password?email=${encodeURIComponent(email.trim())}`
+    : "/auth/forgot-password";
 
   const [stage, setStage] = useState<"code" | "password">("code");
   const [code, setCode] = useState("");
@@ -112,7 +118,7 @@ function ResetPasswordPageInner() {
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout supportingCopy="Enter your reset code and choose a new password.">
       <AuthCard motionKey="reset-password">
         <AnimatePresence mode="wait">
           {stage === "code" ? (
@@ -124,14 +130,24 @@ function ResetPasswordPageInner() {
               exit="exit"
               transition={{ duration: 0.35, ease: "easeOut" }}
             >
-              <h1 className="font-heading text-2xl font-semibold text-slate-900">Verify reset code</h1>
-              <p className="font-body mt-1.5 text-sm text-slate-500">
-                Enter the 6-digit code sent to <span className="font-semibold">{email || "your email"}</span>.
+              <AuthBackLink href={forgotHref} label="Back to forgot password" />
+              <h1 className="font-heading text-2xl font-semibold text-foreground">Verify reset code</h1>
+              <p className="font-body mt-1.5 text-sm text-muted-foreground">
+                Enter the 6-digit code sent to{" "}
+                <span className="font-semibold text-foreground">{email || "your email"}</span>.
               </p>
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#DBEAFE] px-4 py-2 text-sm text-[#1D4ED8]">
-                <Mail className="h-4 w-4" />
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm text-foreground">
+                <Mail className="h-4 w-4 text-brand" />
                 <span className="font-body font-semibold">{email || "Email required"}</span>
               </div>
+              {!email.trim() ? (
+                <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+                  <Link href="/auth/forgot-password" className="font-medium text-brand hover:underline">
+                    Start from forgot password
+                  </Link>{" "}
+                  to enter your email first.
+                </p>
+              ) : null}
               <motion.div
                 className="mt-5 space-y-4"
                 animate={codeError ? { x: [0, -6, 6, -4, 4, 0] } : { x: 0 }}
@@ -148,7 +164,7 @@ function ResetPasswordPageInner() {
                   type="button"
                   onClick={() => void requestCode()}
                   disabled={resend.secondsLeft > 0 || loading || !email.trim()}
-                  className="font-body text-sm font-medium text-[#2563EB] hover:underline disabled:text-slate-400"
+                  className="font-body text-sm font-medium text-brand hover:underline disabled:text-muted-foreground"
                 >
                   Resend code
                 </button>
@@ -156,6 +172,7 @@ function ResetPasswordPageInner() {
                   <CountdownTimer secondsLeft={resend.secondsLeft} progress={resend.progress} showCircular />
                 ) : null}
               </div>
+              <AuthFooterLink href="/login">← Back to Sign In</AuthFooterLink>
             </motion.div>
           ) : (
             <motion.div
@@ -166,8 +183,15 @@ function ResetPasswordPageInner() {
               exit="exit"
               transition={{ duration: 0.35, ease: "easeOut" }}
             >
-              <h1 className="font-heading text-2xl font-semibold text-slate-900">Set a new password</h1>
-              <p className="font-body mt-1.5 text-sm text-slate-500">{AUTH_COPY.resetSubtitle}</p>
+              <button
+                type="button"
+                onClick={() => setStage("code")}
+                className="font-body mb-4 inline-flex items-center gap-1 text-sm font-medium text-brand hover:underline"
+              >
+                ← Back to code entry
+              </button>
+              <h1 className="font-heading text-2xl font-semibold text-foreground">Set a new password</h1>
+              <p className="font-body mt-1.5 text-sm text-muted-foreground">{AUTH_COPY.resetSubtitle}</p>
 
               <div className="mt-5 space-y-3">
                 <FormInput
@@ -182,7 +206,7 @@ function ResetPasswordPageInner() {
                     <button
                       type="button"
                       onClick={() => setShowPwd((v) => !v)}
-                      className="transition hover:text-slate-700"
+                      className="transition-ui hover:text-foreground"
                     >
                       {showPwd ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
@@ -201,7 +225,7 @@ function ResetPasswordPageInner() {
                     <button
                       type="button"
                       onClick={() => setShowConfirm((v) => !v)}
-                      className="transition hover:text-slate-700"
+                      className="transition-ui hover:text-foreground"
                     >
                       {showConfirm ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
@@ -221,7 +245,7 @@ function ResetPasswordPageInner() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                     className={`font-body flex items-center gap-2 text-sm ${
-                      item.passed ? "text-[#10B981]" : "text-slate-500"
+                      item.passed ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
                     }`}
                   >
                     {item.passed ? <CheckCircle2 className="h-4 w-4" /> : <CheckIcon className="h-4 w-4" />}
@@ -237,6 +261,7 @@ function ResetPasswordPageInner() {
                   Reset Password
                 </PrimaryButton>
               </div>
+              <AuthFooterLink href="/login">← Back to Sign In</AuthFooterLink>
             </motion.div>
           )}
         </AnimatePresence>

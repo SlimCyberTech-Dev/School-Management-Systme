@@ -39,6 +39,11 @@ export default function ProfilePage() {
           ← Back to dashboard
         </Link>
       </div>
+      <div className="mb-6">
+        <Link href="/profile/notifications" className="text-sm font-medium text-brand hover:underline">
+          Notification preferences →
+        </Link>
+      </div>
       <AsyncContent
         status={status}
         loading={<FormSkeleton fields={4} />}

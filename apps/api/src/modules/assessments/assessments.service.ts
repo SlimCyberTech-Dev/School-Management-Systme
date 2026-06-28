@@ -1,9 +1,10 @@
 import type { CbcRating } from "@uganda-cbc-sms/shared";
 import { legacyRatingToCompetencyLevel } from "@uganda-cbc-sms/shared";
-import { query } from "../../config/db";
+import { query, tenantContext } from "../../config/db";
 import { syncAssessmentsCbcToLegacy } from "../../utils/cbcRatingWrite";
 import { HttpError } from "../../utils/httpError";
 import { resolveConfiguredGrade } from "../../utils/gradingScales";
+import { fireAssessmentSubmittedNotification } from "../../services/notifications/notificationHooks";
 
 type CbcUpsertItem = {
   studentId: string;
@@ -193,6 +194,17 @@ export async function submitCbc(subjectId: string, classId: string, termId: stri
     termId,
     yearId,
   });
+  const tenantId = tenantContext.getStore();
+  if (tenantId) {
+    fireAssessmentSubmittedNotification({
+      tenantId,
+      subjectId,
+      classId,
+      termId,
+      yearId,
+      submittedByUserId: actorId,
+    });
+  }
 }
 
 export async function unlockCbc(subjectId: string, classId: string, termId: string, yearId: string, actorId: string) {

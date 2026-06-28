@@ -329,7 +329,14 @@ export async function requestPasswordResetCode(
     `SELECT id FROM users WHERE tenant_id = $1 AND email = $2 AND is_active = true`,
     [tenantId, email],
   );
-  const userId = rows[0]?.id ?? null;
+  const user = rows[0];
+  if (!user) {
+    throw new HttpError(
+      404,
+      "No account found for this email. Check the address or contact your school administrator.",
+    );
+  }
+  const userId = user.id;
 
   await query(
     `DELETE FROM password_reset_codes WHERE tenant_id = $1 AND email = $2 AND used_at IS NULL`,
@@ -341,14 +348,12 @@ export async function requestPasswordResetCode(
     [tenantId, userId, email, codeHash, expiresAt],
   );
 
-  if (userId) {
-    void sendPasswordResetCodeEmail(email, code, expiresInSeconds / 60).catch((err) => {
-      console.error(
-        "[auth] password reset email dispatch failed:",
-        err instanceof Error ? err.message : err,
-      );
-    });
-  }
+  void sendPasswordResetCodeEmail(email, code, expiresInSeconds / 60).catch((err) => {
+    console.error(
+      "[auth] password reset email dispatch failed:",
+      err instanceof Error ? err.message : err,
+    );
+  });
 
   return { expiresInSeconds };
 }

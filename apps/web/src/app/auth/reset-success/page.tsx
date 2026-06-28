@@ -2,7 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { CheckCircle2 } from "lucide-react";
 import { useEffect } from "react";
+import { AuthBackLink, AuthFooterLink } from "@/components/auth/AuthBackLink";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { PrimaryButton } from "@/components/auth/PrimaryButton";
@@ -17,39 +19,28 @@ export default function ResetSuccessPage() {
   }, [countdown.secondsLeft, router]);
 
   return (
-    <AuthLayout>
+    <AuthLayout supportingCopy="Your password has been updated.">
       <AuthCard motionKey="reset-success">
+        <AuthBackLink href="/login" />
         <div className="text-center">
-          <svg viewBox="0 0 64 64" className="mx-auto mb-4 h-20 w-20">
-            <motion.path
-              d="M32 4l20 8v18c0 14-8 24-20 30C20 54 12 44 12 30V12l20-8z"
-              fill="none"
-              stroke="#2563EB"
-              strokeWidth="3"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1, fill: "#2563EB" }}
-              transition={{ duration: 0.6 }}
-            />
-            <motion.path
-              d="M22 33l7 7 13-13"
-              fill="none"
-              stroke="#FFFFFF"
-              strokeWidth="4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ delay: 0.5, duration: 0.5 }}
-            />
-          </svg>
-          <h1 className="font-heading text-2xl font-semibold text-slate-900">You&apos;re all set!</h1>
-          <p className="font-body mt-2 text-sm text-slate-600">Your password has been successfully reset.</p>
-          <p className="font-body mt-4 text-sm text-slate-500">
-            Redirecting to sign in in {countdown.secondsLeft}s...
+          <motion.div
+            initial={{ scale: 0.7, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="mb-4 inline-flex"
+          >
+            <CheckCircle2 className="h-16 w-16 text-emerald-500" />
+          </motion.div>
+          <h1 className="font-heading text-2xl font-semibold text-foreground">You&apos;re all set!</h1>
+          <p className="font-body mt-2 text-sm text-muted-foreground">
+            Your password has been successfully reset.
           </p>
-          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-slate-200">
+          <p className="font-body mt-4 text-sm text-muted-foreground">
+            Redirecting to sign in in {countdown.secondsLeft}s…
+          </p>
+          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-muted">
             <motion.div
-              className="h-full bg-[#2563EB]"
+              className="h-full bg-brand"
               animate={{ width: `${countdown.progress * 100}%` }}
               transition={{ ease: "linear" }}
             />
@@ -57,6 +48,7 @@ export default function ResetSuccessPage() {
           <div className="mt-5">
             <PrimaryButton onClick={() => router.push("/login")}>Sign In Now</PrimaryButton>
           </div>
+          <AuthFooterLink href="/login">← Back to Sign In</AuthFooterLink>
         </div>
       </AuthCard>
     </AuthLayout>

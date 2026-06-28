@@ -12,15 +12,15 @@ export function PasswordStrengthMeter({ score, label }: { score: number; label: 
 
   return (
     <div className="mt-2">
-      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <motion.div
           className="h-full rounded-full"
           animate={{ width, backgroundColor: color }}
           transition={{ duration: 0.3 }}
         />
       </div>
-      <p className="font-body mt-1 text-xs text-slate-500">
-        Strength: <span className="font-semibold">{label}</span>
+      <p className="font-body mt-1 text-xs text-muted-foreground">
+        Strength: <span className="font-semibold text-foreground">{label}</span>
       </p>
     </div>
   );
