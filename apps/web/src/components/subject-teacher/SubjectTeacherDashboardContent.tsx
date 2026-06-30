@@ -39,7 +39,7 @@ const QUICK_GROUPS = [
         icon: ClipboardCheck,
       },
       {
-        href: "/subject-teacher/assessment/cbc",
+        href: "/subject-teacher/exams",
         label: "Competency assessment",
         description: "UNEB A–E ratings and activities",
         icon: BookOpen,
@@ -224,7 +224,7 @@ export function SubjectTeacherDashboardContent({
             </div>
           ) : hasAssignments && cbcPending > 0 ? (
             <Link
-              href="/subject-teacher/assessment/cbc"
+              href="/subject-teacher/exams"
               className="mt-auto inline-block pt-4 text-sm font-medium text-brand hover:underline"
             >
               Continue competency entry →

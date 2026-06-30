@@ -13,7 +13,6 @@ export default function HeadteacherAlevelAssessmentPage() {
         </Link>
       </p>
       <HeadteacherAssessmentStatusPanel
-        track="alevel"
         title="A-Level subject progress"
         description="Monitor which subjects have submitted term scores. Teachers edit marks on their class portals until submission."
         statusPath="/assessments/alevel/status"

@@ -18,9 +18,17 @@ export type ProjectWorkAggregation = "mean_of_projects" | "mean_of_term_means";
 
 export const OLEVEL_FORMULA_VERSION = "cbc_ca_v2";
 
+export type ExamsIncludedPolicy = "compulsory_only" | "all_with_marks";
+
 export type AssessmentConfig = {
+  /** Project work weight in term final grade (when includeProjectWorkInTermGrade). */
   caWeight: number;
+  /** Exam-average weight in term final grade (when includeProjectWorkInTermGrade). */
   eocWeight: number;
+  /** When true, blend project average with exam average using caWeight/eocWeight. */
+  includeProjectWorkInTermGrade: boolean;
+  /** Which exam papers feed the term exam average. */
+  examsIncluded: ExamsIncludedPolicy;
   caYearWindow: CaYearWindow;
   caCustomForms: CurriculumForm[];
   allowIncompleteCaOverride: boolean;
@@ -52,6 +60,8 @@ export const DEFAULT_CA_RATING_SCORE_MAP: Record<CbcRating, number> = {
 export const DEFAULT_ASSESSMENT_CONFIG: AssessmentConfig = {
   caWeight: 0.2,
   eocWeight: 0.8,
+  includeProjectWorkInTermGrade: true,
+  examsIncluded: "compulsory_only",
   caYearWindow: "S1_S4",
   caCustomForms: ["S1", "S2", "S3", "S4"],
   allowIncompleteCaOverride: false,
@@ -142,6 +152,10 @@ export function mergeAssessmentConfig(
   return {
     caWeight: partial.caWeight ?? DEFAULT_ASSESSMENT_CONFIG.caWeight,
     eocWeight: partial.eocWeight ?? DEFAULT_ASSESSMENT_CONFIG.eocWeight,
+    includeProjectWorkInTermGrade:
+      partial.includeProjectWorkInTermGrade ??
+      DEFAULT_ASSESSMENT_CONFIG.includeProjectWorkInTermGrade,
+    examsIncluded: partial.examsIncluded ?? DEFAULT_ASSESSMENT_CONFIG.examsIncluded,
     caYearWindow: partial.caYearWindow ?? DEFAULT_ASSESSMENT_CONFIG.caYearWindow,
     caCustomForms: partial.caCustomForms?.length
       ? partial.caCustomForms

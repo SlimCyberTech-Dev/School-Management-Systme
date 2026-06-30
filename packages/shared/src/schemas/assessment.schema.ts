@@ -385,6 +385,8 @@ const curriculumFormSchema = z.enum(["S1", "S2", "S3", "S4"]);
 export const assessmentConfigSchema = z.object({
   caWeight: z.coerce.number().min(0).max(1).optional(),
   eocWeight: z.coerce.number().min(0).max(1).optional(),
+  includeProjectWorkInTermGrade: z.boolean().optional(),
+  examsIncluded: z.enum(["compulsory_only", "all_with_marks"]).optional(),
   caYearWindow: z.enum(["S1_S4", "S3_S4", "custom"]).optional(),
   caCustomForms: z.array(curriculumFormSchema).optional(),
   allowIncompleteCaOverride: z.boolean().optional(),

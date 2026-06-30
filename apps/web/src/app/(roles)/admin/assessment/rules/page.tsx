@@ -2,7 +2,6 @@
 
 import {
   DEFAULT_ASSESSMENT_CONFIG,
-  DEFAULT_O_LEVEL_COMPULSORY_SUBJECT_CODES,
   type AssessmentConfig,
 } from "@uganda-cbc-sms/shared";
 import { useEffect, useState } from "react";
@@ -18,7 +17,6 @@ export default function AdminAssessmentRulesPage() {
   const [config, setConfig] = useState<AssessmentConfig>(DEFAULT_ASSESSMENT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [compulsoryText, setCompulsoryText] = useState("");
 
   useEffect(() => {
     void (async () => {
@@ -26,10 +24,8 @@ export default function AdminAssessmentRulesPage() {
       try {
         const data = await apiGet<AssessmentConfig>("/settings/assessment-config");
         setConfig(data);
-        const codes = data.compulsorySubjectCodes ?? [...DEFAULT_O_LEVEL_COMPULSORY_SUBJECT_CODES];
-        setCompulsoryText(codes.join(", "));
       } catch (e) {
-        toast.error(getApiErrorMessage(e), "Could not load assessment rules");
+        toast.error(getApiErrorMessage(e), "Could not load term grade policy");
       } finally {
         setLoading(false);
       }
@@ -39,16 +35,9 @@ export default function AdminAssessmentRulesPage() {
   const save = async () => {
     setSaving(true);
     try {
-      const codes = compulsoryText
-        .split(/[,\s]+/)
-        .map((c) => c.trim().toUpperCase())
-        .filter(Boolean);
-      const saved = await apiPut<AssessmentConfig>("/settings/assessment-config", {
-        ...config,
-        compulsorySubjectCodes: codes.length ? codes : null,
-      });
+      const saved = await apiPut<AssessmentConfig>("/settings/assessment-config", config);
       setConfig(saved);
-      toast.success("Certification rules saved.", "Saved");
+      toast.success("Term grade policy saved.", "Saved");
     } catch (e) {
       toast.error(getApiErrorMessage(e), "Could not save");
     } finally {
@@ -58,48 +47,63 @@ export default function AdminAssessmentRulesPage() {
 
   return (
     <PageWrapper
-      title="Assessment rules"
-      description="UCE certification thresholds and compulsory subjects"
+      title="Term grade policy"
+      description="How compulsory exam averages and project work combine into term subject grades."
     >
       <p className="-mt-2 mb-4 text-sm text-muted-foreground">
-        CA weights, project work policy, and strand fallback maps are on{" "}
-        <Link href="/admin/academic/grading-scales#ca-policy" className="text-brand hover:underline">
-          Grading scales → O-Level CA policy
+        A–E score bands and descriptors are on{" "}
+        <Link href="/admin/academic/grading-scales" className="text-brand hover:underline">
+          Grading scales
         </Link>
-        . Grade bands (A–E) are on the same page.
+        . Expected project slots per term can also be set there.
       </p>
 
       {loading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
 
       {!loading ? (
-        <Card title="UCE certification (Result 1 / 2 / 3)">
+        <Card title="Term final grade weights">
           <Alert tone="info">
-            Result 1 requires official project-work CA per subject. Provisional strand-only CA does not qualify.
+            Term grades average <strong>compulsory exam marks</strong> for the reporting term. When project work is
+            enabled, the final score blends project average and exam average using the weights below.
           </Alert>
-          <label className="mb-4 mt-4 block text-sm">
-            <span className="mb-1 block text-muted-foreground">
-              Compulsory subject codes (comma-separated; blank = catalog default)
-            </span>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="text-sm">
+              <span className="mb-1 block text-muted-foreground">Project work weight</span>
+              <input
+                type="number"
+                step="0.01"
+                min={0}
+                max={1}
+                value={config.caWeight}
+                onChange={(e) => setConfig((c) => ({ ...c, caWeight: Number(e.target.value) }))}
+                className="w-full rounded border border-border bg-background px-2 py-2"
+              />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block text-muted-foreground">Exam average weight</span>
+              <input
+                type="number"
+                step="0.01"
+                min={0}
+                max={1}
+                value={config.eocWeight}
+                onChange={(e) => setConfig((c) => ({ ...c, eocWeight: Number(e.target.value) }))}
+                className="w-full rounded border border-border bg-background px-2 py-2"
+              />
+            </label>
+          </div>
+          <label className="mt-4 flex items-center gap-2 text-sm">
             <input
-              value={compulsoryText}
-              onChange={(e) => setCompulsoryText(e.target.value)}
-              placeholder={DEFAULT_O_LEVEL_COMPULSORY_SUBJECT_CODES.join(", ")}
-              className="w-full rounded border border-border bg-background px-2 py-2"
+              type="checkbox"
+              checked={config.includeProjectWorkInTermGrade}
+              onChange={(e) =>
+                setConfig((c) => ({ ...c, includeProjectWorkInTermGrade: e.target.checked }))
+              }
             />
+            Include project work in term final grade
           </label>
-          <label className="mb-4 block text-sm">
-            <span className="mb-1 block text-muted-foreground">Minimum subjects for Result 1</span>
-            <input
-              type="number"
-              min={1}
-              max={20}
-              value={config.minimumSubjects}
-              onChange={(e) => setConfig((c) => ({ ...c, minimumSubjects: Number(e.target.value) }))}
-              className="w-24 rounded border border-border bg-background px-2 py-2"
-            />
-          </label>
-          <Button onClick={() => void save()} disabled={saving}>
-            {saving ? "Saving…" : "Save certification rules"}
+          <Button className="mt-4" onClick={() => void save()} disabled={saving}>
+            {saving ? "Saving…" : "Save policy"}
           </Button>
         </Card>
       ) : null}

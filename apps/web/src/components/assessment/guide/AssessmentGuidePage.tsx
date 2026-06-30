@@ -3,7 +3,7 @@
 import {
   ArrowRight,
   BarChart3,
-  ClipboardCheck,
+  FileText,
   GraduationCap,
   HelpCircle,
   Sparkles,
@@ -74,28 +74,27 @@ function TwoTrackOverview() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        O-Level assessment has two parallel tracks. Both use the same UNEB A–E vocabulary, but they answer different
-        questions and feed different outputs.
+        Term grades combine compulsory <strong className="font-medium text-foreground">exam averages</strong> with
+        optional <strong className="font-medium text-foreground">project work</strong> when your school enables it.
+        Both map to the same A–E scale on report cards.
       </p>
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 transition-ui hover:bg-emerald-500/10">
-          <div className="mb-2 flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
-            <ClipboardCheck className="h-5 w-5" aria-hidden />
-            <h3 className="font-semibold">Competency assessment</h3>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Formative tracking via assessment activities. Teachers rate each competency A–E (Exceptional → Elementary) per
-            event. Aggregates into term competency summaries on report cards.
-          </p>
-        </div>
         <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-4 transition-ui hover:bg-blue-500/10">
           <div className="mb-2 flex items-center gap-2 text-blue-800 dark:text-blue-200">
-            <BarChart3 className="h-5 w-5" aria-hidden />
-            <h3 className="font-semibold">CA &amp; grading</h3>
+            <FileText className="h-5 w-5" aria-hidden />
+            <h3 className="font-semibold">Exams (compulsory average)</h3>
           </div>
           <p className="text-sm text-muted-foreground">
-            Certified subject grade from {CA_EOC_SPLIT_LABEL}: official project work (continuous assessment) plus formal
-            exam marks (end of cycle). Produces the composite A–E grade and UCE Result 1/2/3.
+            Admin creates multiple exams per term. Teachers enter marks; compulsory papers are averaged per subject.
+          </p>
+        </div>
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 transition-ui hover:bg-emerald-500/10">
+          <div className="mb-2 flex items-center gap-2 text-emerald-800 dark:text-emerald-200">
+            <BarChart3 className="h-5 w-5" aria-hidden />
+            <h3 className="font-semibold">Project work (optional blend)</h3>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            When enabled, project scores blend with the exam average ({CA_EOC_SPLIT_LABEL}) for the final A–E grade.
           </p>
         </div>
       </div>
@@ -252,7 +251,7 @@ function AssessmentGuideBody({
       <Card>
         <div className="mb-4 flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-brand" aria-hidden />
-          <h2 className="text-lg font-semibold">Overview — two assessment tracks</h2>
+          <h2 className="text-lg font-semibold">How term grades work</h2>
         </div>
         <TwoTrackOverview />
       </Card>
@@ -301,14 +300,15 @@ function AssessmentGuideBody({
         <AchievementScaleReference />
       </Card>
 
+      {CERTIFICATION_OUTCOMES.length > 0 ? (
       <Card>
         <h2 className="mb-4 text-lg font-semibold">Certification (Result 1 / 2 / 3)</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          UCE certification is computed from certified composite grades and official project-work completion — not from
-          competency activity ratings alone.
+          UCE certification is computed from certified composite grades and official project-work completion.
         </p>
         <CertificationExplainer />
       </Card>
+      ) : null}
 
       <Card>
         <h2 className="mb-4 text-lg font-semibold">FAQ &amp; troubleshooting</h2>

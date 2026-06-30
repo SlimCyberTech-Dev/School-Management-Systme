@@ -194,7 +194,6 @@ export function AcademicSetupStatusPanel({ initialYearId = "" }: { initialYearId
       };
     }
 
-    const strandsCount = summary?.cbcStrands ?? 0;
     const gradingCount = summary?.gradingScales ?? 0;
     const caPolicyLoaded = assessmentConfigQ.isSuccess && assessmentConfig != null;
     const gradingPolicyDone = gradingCount > 0 && caPolicyLoaded;
@@ -220,24 +219,14 @@ export function AcademicSetupStatusPanel({ initialYearId = "" }: { initialYearId
       },
       teacherStep,
       {
-        id: "strands",
-        label: "CBC strands & competencies",
-        description:
-          strandsCount > 0
-            ? `${strandsCount} CBC strand(s) defined across subjects (school-wide catalog).`
-            : "Define NCDC strands per O-Level subject before teachers record competency ratings.",
-        href: "/admin/academic/cbc-strands",
-        status: strandsCount > 0 ? "done" : "pending",
-      },
-      {
         id: "grading",
-        label: "Grading & CA policy",
+        label: "Grading & term grade policy",
         description: gradingPolicyDone
-          ? `${gradingCount} grade band row(s) saved and CA policy loaded from settings.`
+          ? `${gradingCount} grade band row(s) saved and term grade weights loaded from settings.`
           : gradingCount > 0
-            ? "O-Level grade bands exist — review CA weights and project-work policy on Grading scales."
-            : "Configure O-Level A–E grade bands and CA / project-work policy.",
-        href: "/admin/academic/grading-scales#ca-policy",
+            ? "O-Level grade bands exist — review exam/project weights on Assessment rules."
+            : "Configure O-Level A–E grade bands and exam/project weights for term grades.",
+        href: "/admin/assessment/rules",
         status: gradingPolicyDone ? "done" : "pending",
       },
     ];
@@ -312,7 +301,7 @@ export function AcademicSetupStatusPanel({ initialYearId = "" }: { initialYearId
         />
         <p className="mt-2 text-sm text-muted-foreground">
           Steps A–C use counts for <strong className="font-medium text-foreground">{selectedYear?.name ?? "…"}</strong>.
-          Strands and grading scales are school-wide (not year-specific).
+          Grading scales and term grade policy are school-wide (not year-specific).
         </p>
       </Card>
 
@@ -347,7 +336,7 @@ export function AcademicSetupStatusPanel({ initialYearId = "" }: { initialYearId
 
         <div className="mt-4">
           <Alert tone="info">
-            Teachers can begin entering competency ratings once steps A–D are complete.
+            Teachers can begin entering exam marks and project work once steps A–D are complete.
           </Alert>
         </div>
       </AsyncContent>

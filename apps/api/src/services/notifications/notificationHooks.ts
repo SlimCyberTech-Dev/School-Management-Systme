@@ -55,8 +55,8 @@ export async function notifyAssessmentSubmitted(input: {
   if (!ctx) return;
 
   const classLabel = formatClassLabel(ctx.class_name, ctx.class_stream);
-  const title = `Term ${ctx.term_number} ${ctx.subject_name} ${classLabel} competency ratings submitted`;
-  const body = `Competency ratings for ${ctx.subject_name} (${classLabel}, Term ${ctx.term_number}) were submitted and are ready for your review.`;
+  const title = `Term ${ctx.term_number} ${ctx.subject_name} ${classLabel} exam marks submitted`;
+  const body = `Exam marks for ${ctx.subject_name} (${classLabel}, Term ${ctx.term_number}) were submitted and are ready for your review.`;
 
   const headteachers = await listActiveHeadteacherIds(tenantId);
   if (headteachers.length === 0) return;
@@ -65,7 +65,7 @@ export async function notifyAssessmentSubmitted(input: {
     category: "assessment_submitted",
     title,
     body,
-    link: "/headteacher/assessment/cbc",
+    link: "/headteacher/exams",
     metadata: {
       subjectId: input.subjectId,
       classId: input.classId,
@@ -135,7 +135,7 @@ export async function notifyCompetencyOverride(
     category: "competency_override",
     title,
     body,
-    link: "/subject-teacher/assessment/cbc",
+    link: "/subject-teacher/exams",
     metadata: {
       summaryId,
       studentId: ctx.student_id,

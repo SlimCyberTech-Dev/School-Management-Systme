@@ -22,7 +22,7 @@ import {
 import { manualStatus } from "@/lib/queryStatus";
 
 type Props = {
-  track: "cbc" | "alevel";
+  track: "alevel" | "project-work";
   emptyTitle: string;
   emptyDescription: string;
   /** Class teachers: division summary and learner comments for their A-Level homeroom class. */
@@ -39,7 +39,10 @@ export function TeacherAssessmentAssignmentsList({
   const roleBase: "/class-teacher" | "/subject-teacher" = pathname.includes("/class-teacher/")
     ? "/class-teacher"
     : "/subject-teacher";
-  const entryPath = `${roleBase}/assessment/${track}/entry`;
+  const entryPath =
+    track === "project-work"
+      ? `${roleBase}/assessment/project-work/entry`
+      : `${roleBase}/assessment/alevel/entry`;
   const yearsQ = useAssessmentYears();
   const [yearId, setYearId] = useState("");
   const termsQ = useAssessmentTerms(yearId);
@@ -60,7 +63,7 @@ export function TeacherAssessmentAssignmentsList({
 
   const examSlotsQ = useExamMarkingSlots();
   const openExamCount =
-    track === "cbc" ? (examSlotsQ.data?.filter((s) => s.canEdit).length ?? 0) : undefined;
+    track === "project-work" ? (examSlotsQ.data?.filter((s) => s.canEdit).length ?? 0) : undefined;
 
   const assignments = useAssessmentAssignments(yearId, termId || undefined, track);
   const status = manualStatus({
@@ -91,7 +94,7 @@ export function TeacherAssessmentAssignmentsList({
             {r.subjectCode} — {r.subjectName}
           </div>
           <div className="text-xs text-muted-foreground">
-            {track === "cbc" ? "CBC competency ratings" : "A-Level UNEB scores"}
+            {track === "project-work" ? "Term project work" : "A-Level UNEB scores"}
           </div>
         </div>
       ),
@@ -114,7 +117,7 @@ export function TeacherAssessmentAssignmentsList({
           className="inline-flex h-8 items-center rounded-md border border-border bg-card px-3 text-xs font-medium text-foreground transition-ui hover:bg-accent"
           href={entryHref(r)}
         >
-          Enter marks
+          Enter {track === "project-work" ? "project work" : "marks"}
         </Link>
       ),
     },
@@ -182,26 +185,10 @@ export function TeacherAssessmentAssignmentsList({
           />
         }
         empty={
-          track === "cbc" && assignments.cbcSetupIncomplete ? (
-            <EmptyState
-              title="CBC strands not configured"
-              description="You are assigned to teach O-Level subjects, but CBC strands have not been set up for those subjects yet. Ask an administrator to configure strands under Academic → Subjects before you can enter CBC marks."
-            />
-          ) : (
-            <EmptyState
-              title={emptyTitle}
-              description={
-                track === "cbc"
-                  ? `${emptyDescription} Formal exam papers for subjects you teach are listed under Exams.`
-                  : emptyDescription
-              }
-              action={
-                track === "cbc"
-                  ? { label: "Go to Exams", href: `${roleBase}/exams` }
-                  : undefined
-              }
-            />
-          )
+          <EmptyState
+            title={emptyTitle}
+            description={emptyDescription}
+          />
         }
       >
         <Table

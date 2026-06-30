@@ -1,5 +1,6 @@
 import { query } from "../../config/db";
 import { HttpError } from "../../utils/httpError";
+import { scheduleTermRecompute } from "../../utils/termRecomputeSchedule";
 import { assertTeacherIsAssignedSubjectTeacher } from "../../utils/teacherTeachingAccess";
 
 export type ProjectWorkRow = {
@@ -159,6 +160,7 @@ export async function upsertProjectWorkBulk(
     );
   }
 
+  scheduleTermRecompute(input.classId, input.termId);
   return listProjectWork({
     classId: input.classId,
     subjectId: input.subjectId,

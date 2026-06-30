@@ -9,7 +9,7 @@ export default function HeadteacherCbcReportPreviewPage() {
   const reportId = String(params["reportId"] ?? "");
 
   return (
-    <PageWrapper title="CBC report preview" description="PDF preview">
+    <PageWrapper title="Term report preview" description="PDF preview">
       {reportId ? <ReportCardPreview reportId={reportId} /> : null}
     </PageWrapper>
   );

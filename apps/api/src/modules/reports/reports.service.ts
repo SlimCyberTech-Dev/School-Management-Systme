@@ -455,21 +455,12 @@ export async function generateReportsForClass(
           payload,
           exam ? { type: "exam", examId: exam.id, examName: exam.name } : { type: "term" },
         );
-        const hasCbc = payload.subjects.length > 0;
-        const hasExamMarks = (payload.formalExam?.subjects.length ?? 0) > 0;
-        if (!hasCbc && !hasExamMarks) {
+        const hasTermSubjects = (payload.termSubjectRows?.length ?? 0) > 0;
+        if (!hasTermSubjects) {
           warnings.push(
-            `${student.full_name}: no term CBC competency ratings and no formal exam marks on file.`,
+            `${student.full_name}: no term subject grades on file — enter compulsory exam marks (and project work if enabled).`,
           );
           continue;
-        }
-        if (!hasCbc && hasExamMarks) {
-          warnings.push(
-            `${student.full_name}: formal exam marks only — no term CBC competency ratings for other subjects.`,
-          );
-        }
-        if (exam && !hasExamMarks) {
-          warnings.push(`${student.full_name}: no marks on exam "${exam.name}" for this student.`);
         }
         compiled.push({ studentId: student.id, track: "cbc", payload });
       } else {
@@ -653,22 +644,11 @@ async function payloadToCbcPdf(payload: CbcReportPayload, tenantId: string): Pro
     term: payload.termLabel,
     year: payload.yearName,
     photoPath: payload.photoUrl,
-    subjects: payload.subjects.map((s) => ({
-      name: s.name,
-      strand: s.strand,
-      competency: s.competency,
-      rating: s.rating,
-      descriptor: s.descriptor,
-    })),
-    formalExam: payload.formalExam,
-    subjectSummaries: payload.subjectSummaries,
-    certification: payload.certification
-      ? {
-          resultCode: payload.certification.resultCode,
-          label: payload.certification.label,
-          reasonLabels: payload.certification.reasonLabels,
-        }
-      : undefined,
+    examColumns: payload.examColumns,
+    termSubjectRows: payload.termSubjectRows,
+    overallTotal: payload.overallTotal,
+    overallAverage: payload.overallAverage,
+    gradingScaleLegend: payload.gradingScaleLegend,
     daysAttended: payload.daysAttended,
     totalDays: payload.totalDays,
     teacherComment: payload.teacherComment,

@@ -98,8 +98,8 @@ export function TeacherAlevelEntryPanel() {
         <Link
           href={
             pathname.includes("/class-teacher/")
-              ? "/class-teacher/assessment/cbc"
-              : "/subject-teacher/assessment/cbc"
+              ? "/class-teacher/exams"
+              : "/subject-teacher/exams"
           }
           className="font-medium text-brand hover:underline"
         >

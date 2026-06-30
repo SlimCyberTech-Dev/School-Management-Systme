@@ -28,7 +28,7 @@ export function TeacherExamsPageContent({
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
           Term work is separate:{" "}
-          <Link href={`${roleBase}/assessment/cbc`} className="font-medium text-brand hover:underline">
+          <Link href={`${roleBase}/assessment/project-work`} className="font-medium text-brand hover:underline">
             Competency assessment
           </Link>{" "}
           for O-Level competencies,{" "}

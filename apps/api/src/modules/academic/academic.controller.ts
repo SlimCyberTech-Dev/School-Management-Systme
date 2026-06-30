@@ -480,20 +480,18 @@ export async function recalculateGradingScales(req: Request, res: Response): Pro
 }
 
 export async function recalculateOlevelGrades(req: Request, res: Response): Promise<void> {
-  const { recalculateOlevelGrades: recalc } = await import("../../utils/olevelSubjectGrade.js");
-  const academicYearId = typeof req.body?.yearId === "string" ? req.body.yearId : undefined;
+  const { recalculateTermGrades } = await import("../../utils/termSubjectGrade.js");
+  const termId = typeof req.body?.termId === "string" ? req.body.termId : undefined;
   const classId = typeof req.body?.classId === "string" ? req.body.classId : undefined;
   const studentId = typeof req.body?.studentId === "string" ? req.body.studentId : undefined;
-  const data = await recalc({
-    academicYearId,
-    classId,
-    studentId,
-    computedBy: req.user?.id ?? null,
-  });
+  if (!termId) {
+    throw new HttpError(400, "termId is required for term grade recalculation.");
+  }
+  const data = await recalculateTermGrades({ termId, classId, studentId });
   res.json({
     success: true,
     data,
-    message: "O-Level subject composites and certification were recalculated.",
+    message: "Term subject grades were recalculated from exam and project work marks.",
   });
 }
 

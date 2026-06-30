@@ -1,6 +1,5 @@
 import PDFDocument from "pdfkit";
 import { PassThrough, type Readable } from "stream";
-import { getCbcDescriptorStatic } from "./grading";
 import {
   drawCommentBlocks,
   drawDataTable,
@@ -36,26 +35,24 @@ export function streamCbcReportCard(data: {
   term: string;
   year: string;
   photoPath?: string | null;
-  subjects: { name: string; strand: string; competency: string; rating: string; descriptor?: string }[];
-  formalExam?: {
-    examName: string;
-    maxScore: number;
-    subjects: { name: string; code: string; score: number; grade: string; maxScore: number }[];
-  };
-  subjectSummaries?: {
+  examColumns?: Array<{ examId: string; name: string; examDate: string | null }>;
+  termSubjectRows?: Array<{
     code: string;
     name: string;
+    examScores: Array<number | null>;
+    average: number | null;
     finalGrade: string | null;
-    caScore: number | null;
-    eocScore: number | null;
-    composite: number | null;
-    projectStatus: string | null;
-  }[];
-  certification?: {
-    resultCode: string;
-    label: string;
-    reasonLabels: string[];
-  };
+    descriptor: string;
+    teacherInitial: string | null;
+  }>;
+  overallTotal?: number | null;
+  overallAverage?: number | null;
+  gradingScaleLegend?: Array<{
+    minScore: number;
+    maxScore: number;
+    grade: string;
+    descriptor: string;
+  }>;
   daysAttended: number;
   totalDays: number;
   teacherComment: string;
@@ -91,7 +88,7 @@ export function streamCbcReportCard(data: {
 
   let y = drawReportHeader(doc, {
     schoolName,
-    subtitle: "O-Level CBC Report Card",
+    subtitle: "O-Level Term Report Card",
     termLine: `${data.term} · Academic year ${data.year}`,
     motto: data.motto,
     branding: data.branding,
@@ -106,99 +103,76 @@ export function streamCbcReportCard(data: {
     rows: identityRows,
   });
 
-  if (data.subjects.length > 0) {
-    y = drawSectionTitle(doc, y, "Term competency assessment (CBC)");
-    const cols = [
-      { header: "Subject", width: 95 },
-      { header: "Strand", width: 75 },
-      { header: "Competency", width: 130 },
-      { header: "Rating", width: 42, align: "center" as const },
-      { header: "Descriptor", width: 118 },
+  const termRows = data.termSubjectRows ?? [];
+  const examCols = data.examColumns ?? [];
+
+  if (termRows.length > 0) {
+    y = drawSectionTitle(doc, y, "Academic performance");
+    const colWidth = Math.min(42, Math.floor(320 / Math.max(examCols.length, 1)));
+    const tableCols = [
+      { header: "Code", width: 40, align: "center" as const },
+      { header: "Subject", width: 100 },
+      ...examCols.map((_, i) => ({
+        header: `C${i + 1}`,
+        width: colWidth,
+        align: "center" as const,
+      })),
+      { header: "AVG", width: 42, align: "center" as const },
+      { header: "Grade", width: 38, align: "center" as const },
+      { header: "Comment", width: 72 },
+      { header: "Init.", width: 32, align: "center" as const },
     ];
-    const rows = data.subjects.map((s) => [
+    const tableRows = termRows.map((s) => [
+      s.code,
       s.name,
-      s.strand,
-      s.competency,
-      s.rating,
-      s.descriptor || getCbcDescriptorStatic(s.rating) || "—",
+      ...s.examScores.map((sc) => (sc != null ? String(sc) : "—")),
+      s.average != null ? String(s.average) : "—",
+      s.finalGrade ?? "—",
+      s.descriptor,
+      s.teacherInitial ?? "—",
     ]);
-    y = drawDataTable(doc, y, cols, rows, {
-      rowHeight: 16,
-      fontSize: 7.5,
+    y = drawDataTable(doc, y, tableCols, tableRows, {
+      rowHeight: 15,
+      fontSize: 7,
       branding: data.branding,
       layout: data.layout,
     });
-  } else {
-    y = drawSectionTitle(doc, y, "Term competency assessment (CBC)");
-    doc.fillColor("#64748B").font("Helvetica").fontSize(9);
-    doc.text("No competency ratings recorded for this term.", PDF_MARGIN, y);
-    y += 22;
-  }
 
-  if (data.formalExam && data.formalExam.subjects.length > 0) {
-    y = drawSectionTitle(doc, y, `Formal examination — ${data.formalExam.examName}`);
     y = drawSummaryStrip(
       doc,
       y,
       [
-      { label: "Exam", value: data.formalExam.examName },
-      { label: "Maximum score", value: String(data.formalExam.maxScore) },
-      { label: "Papers", value: String(data.formalExam.subjects.length) },
+        { label: "Overall total", value: data.overallTotal != null ? String(data.overallTotal) : "—" },
+        { label: "Overall average", value: data.overallAverage != null ? String(data.overallAverage) : "—" },
+        { label: "Subjects", value: String(termRows.length) },
       ],
       data.branding,
     );
+  } else {
+    y = drawSectionTitle(doc, y, "Academic performance");
+    doc.fillColor("#64748B").font("Helvetica").fontSize(9);
+    doc.text("No term subject grades recorded.", PDF_MARGIN, y);
+    y += 22;
+  }
 
-    const examCols = [
-      { header: "Subject", width: 150 },
-      { header: "Code", width: 55, align: "center" as const },
-      { header: "Score", width: 70, align: "center" as const },
+  if (data.gradingScaleLegend && data.gradingScaleLegend.length > 0) {
+    y = drawSectionTitle(doc, y, "Grading scale");
+    const legendCols = [
+      { header: "Range", width: 100, align: "center" as const },
       { header: "Grade", width: 50, align: "center" as const },
-      { header: "Out of", width: 55, align: "center" as const },
+      { header: "Descriptor", width: 200 },
     ];
-    const examRows = data.formalExam.subjects.map((s) => [
-      s.name,
-      s.code,
-      String(s.score),
-      s.grade,
-      String(s.maxScore),
+    const legendRows = data.gradingScaleLegend.map((g) => [
+      `${g.minScore} – ${g.maxScore}`,
+      g.grade,
+      g.descriptor,
     ]);
-    y = drawDataTable(doc, y, examCols, examRows, { branding: data.branding, layout: data.layout });
-  }
-
-  if (data.subjectSummaries && data.subjectSummaries.length > 0) {
-    y = drawSectionTitle(doc, y, "Subject final grades (CA 20% + EOC 80%)");
-    const sumCols = [
-      { header: "Subject", width: 120 },
-      { header: "CA %", width: 45, align: "center" as const },
-      { header: "EOC %", width: 45, align: "center" as const },
-      { header: "Composite", width: 55, align: "center" as const },
-      { header: "Grade", width: 40, align: "center" as const },
-      { header: "Project", width: 60, align: "center" as const },
-    ];
-    const sumRows = data.subjectSummaries.map((s) => [
-      s.name,
-      s.caScore != null ? String(s.caScore) : "—",
-      s.eocScore != null ? String(s.eocScore) : "—",
-      s.composite != null ? String(s.composite) : "—",
-      s.finalGrade ?? "—",
-      s.projectStatus ?? "—",
-    ]);
-    y = drawDataTable(doc, y, sumCols, sumRows, { branding: data.branding, layout: data.layout });
-  }
-
-  if (data.certification) {
-    y = drawSectionTitle(doc, y, "UCE certification");
-    y = drawSummaryStrip(
-      doc,
-      y,
-      [{ label: "Status", value: data.certification.label }],
-      data.branding,
-    );
-    if (data.certification.reasonLabels.length > 0) {
-      doc.fillColor("#64748B").font("Helvetica").fontSize(8);
-      doc.text(`Reasons: ${data.certification.reasonLabels.join("; ")}`, PDF_MARGIN, y);
-      y += 18;
-    }
+    y = drawDataTable(doc, y, legendCols, legendRows, {
+      rowHeight: 14,
+      fontSize: 8,
+      branding: data.branding,
+      layout: data.layout,
+    });
   }
 
   y = drawSectionTitle(doc, y, "Comments");

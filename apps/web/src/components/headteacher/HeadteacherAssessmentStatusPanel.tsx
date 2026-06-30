@@ -23,10 +23,9 @@ type StatusRow = {
 };
 
 type Props = {
-  track: "cbc" | "alevel";
   title: string;
   description: string;
-  statusPath: "/assessments/cbc/status" | "/assessments/alevel/status";
+  statusPath: "/assessments/alevel/status";
   canUnlock?: boolean;
   onUnlock?: (subjectId: string, filters: HeadteacherPeriodValue) => Promise<void>;
   /** When true, omit the outer page heading (parent section provides context). */
@@ -34,7 +33,6 @@ type Props = {
 };
 
 export function HeadteacherAssessmentStatusPanel({
-  track,
   title,
   description,
   statusPath,
@@ -92,7 +90,7 @@ export function HeadteacherAssessmentStatusPanel({
 
   const ready = Boolean(filters.yearId && filters.termId && filters.classId);
   const statusQ = useQuery({
-    queryKey: [`${track}-status`, filters],
+    queryKey: ["alevel-status", filters],
     queryFn: () => {
       const qp = new URLSearchParams({
         classId: filters.classId,

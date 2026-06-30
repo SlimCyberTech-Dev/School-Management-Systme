@@ -1,77 +1,32 @@
-# Uganda CBC Assessment (O-Level)
+# O-Level term assessment policy
 
-This document describes how **SchoolManage** aligns O-Level assessment and grading with UNEB/NCDC CBC policy. Confirm cut-points, year windows, and project counts against your school's current NCDC/UNEB circular before end-of-cycle reporting.
+SchoolManage uses a **school-internal** term grading model (not UNEB strand descriptors).
 
-## §4 — Competency ratings (NCDC 4-level descriptors)
+## Term subject grade
 
-Teachers record strand/competency achievement using the NCDC descriptor scale:
+For each learner, subject, and term:
 
-| Stored value | Display label |
-|--------------|----------------|
-| `exceeds_expectations` | Exceeds Expectations |
-| `meets_expectations` | Meets Expectations |
-| `approaching_expectations` | Approaching Expectations |
-| `below_expectations` | Below Expectations |
+1. **Exam average** — arithmetic mean of `(score / max_score) × 100` from **compulsory** `exam_subjects` linked to exams in that term.
+2. **Project average** — arithmetic mean of normalized project work scores for that term only.
+3. **Composite** — when `includeProjectWorkInTermGrade` is true:  
+   `composite = caWeight × projectAverage + eocWeight × examAverage`  
+   Weights must sum to 1. Defaults: project 0.2, exam 0.8.
+4. **Final grade** — A–E from tenant `grading_scales` rows.
 
-- Ratings are stored per **assessment activity** in `competency_ratings` (linked via `assessment_activities`).
-- Term-level summaries use **most-frequent** aggregation (tie-break: higher rank wins) in `term_competency_summary`.
-- During transition, legacy letter columns (`rating` A–E on `assessments_cbc` / `cbc_scores`) are still dual-written for report/CA consumers — see `cbcRatingWrite.ts`.
-- REST API: [api-cbc-competency-endpoints.md](./api-cbc-competency-endpoints.md).
+Results are stored in `term_subject_results` with per-exam breakdown JSON and `formula_version = term_exam_avg_v1`.
 
-**Legacy note:** Pre-migration letter grades A–E map to descriptors (E collapses to below). Strand ratings remain provisional fallback only for CA — they do not constitute official CA.
+## Configuration
 
-## §5 — 20/80 composite and project-work CA (HYBRID model)
+Managed under **Assessment → Rules** (admin):
 
-- **Final subject grade** = `CA weight × CA + EOC weight × EOC` (default 20/80; configurable under **Grading scales → O-Level CA policy**).
-- **Official CA** is derived from **scored project work** in `project_work_scores` (default **4 projects per term**, configurable).
-- Cumulative CA aggregates project scores across a configurable **year window** (S1–S4, S3–S4, or custom forms). Set `curriculum_form` on each academic year under **Academic → Years**.
-- **Fallback CA** (only when zero project scores exist in the window): strand ratings mapped via admin **fallback rating → %** table — labeled `strand_fallback` on reports; never shown as official.
-- If required project slots are missing (and no admin override), CA is `incomplete` — not averaged into a final-looking number.
-- **EOC (end of cycle)** comes from formal exam marks (`exam_marks`), normalized to 0–100.
+- Exam weight / project weight
+- Include project work in term grade (toggle)
+- Expected projects per term
 
-Persisted composites live in `olevel_subject_results` with `ca_source`, `projects_completed`, `projects_expected`, and `formula_version`. Each explicit recompute appends a row to `olevel_subject_result_versions`.
+## Reports
 
-**Recompute is explicit:** `npm run recalculate:olevel-grades` or **Grading scales → Recalculate O-Level grades**. Saving strand or project data does not auto-update published composites.
-
-## §6 — Result 1 / 2 / 3 (divisions abolished at O-Level)
-
-UCE certification is computed per student per academic year (`olevel_certification_status`):
-
-| Code | Meaning |
-|------|---------|
-| **RESULT_1** | Qualifies for certificate |
-| **RESULT_2** | Does not qualify (reasons stored) |
-| **RESULT_3** | Every sat subject at grade E |
-
-**Result 1** requires (configurable defaults):
-
-- At least one subject at **D+** (grades A, B, C, or D)
-- At least **8** subjects with final grades
-- All **compulsory** subjects sat (catalog default: ENG, MATH, PHY, CHEM, BIO, GEO, HPE, CRE, KISW, ENT, PE — overridable per school; IRE replaces CRE where the school offers Islamic RE)
-- **Official project-work CA** (`ca_source = project_work`) with required project slots complete for each sat subject
-
-Result 2 stores explicit `reason_codes` (e.g. `ca_provisional_fallback`, `ca_incomplete_projects`, `missing_project`).
-
-## §7 — Report card fields
-
-CBC report payloads include:
-
-- Strand-level competency lines (existing)
-- **Subject summaries**: CA %, CA source label, EOC %, composite, final A–E grade, project completion counts
-- **Certification** block: Result 1/2/3 label and reasons when applicable
-- Class ranking uses **composite average** (not legacy best-8 points) when summaries exist
+Term report PDFs show: Subject | C1…Cn | AVG | GRADE | COMMENT | INITIAL, plus grading scale legend and overall average.
 
 ## A-Level
 
-A-Level grading is unchanged (`grading_config.aLevel.scheme = legacy_uneb_points_v1`). Divisions and UNEB points still apply.
-
-## Admin checklist
-
-1. Apply O-Level CBC defaults on **Grading scales** (O-Level tab) if no scale exists.
-2. Configure **O-Level CA policy** (weights, year window, projects/term, fallback map, verification dates).
-3. Set **curriculum form (S1–S4)** on academic years for cumulative CA.
-4. Configure **Assessment rules** (compulsory subjects, min subjects).
-5. Teachers enter **project work** on CBC entry (Project work tab); strand ratings optional.
-6. Enter EOC via formal exams.
-7. Run **Recalculate O-Level grades** before generating report cards.
-8. Verify certification reasons for incomplete or provisional CA.
+A-Level assessment remains a separate track (percentage marks, division summary). Unchanged by this policy.

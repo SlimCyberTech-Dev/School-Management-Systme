@@ -4,9 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { AcademicYear, SchoolClass, Term } from "@uganda-cbc-sms/shared";
 import { apiGet, apiGetWithMeta } from "@/lib/api";
 
-export type AssessmentAssignmentsMeta = {
-  cbcSetupIncomplete?: boolean;
-};
+export type AssessmentAssignmentsMeta = Record<string, never>;
 
 export type AssessmentAssignmentRow = {
   classId: string;
@@ -44,8 +42,9 @@ export function useAssessmentTerms(yearId: string | undefined) {
 export function useAssessmentAssignments(
   yearId: string | undefined,
   termId?: string,
-  track?: "cbc" | "alevel",
+  track?: "alevel" | "project-work",
 ) {
+  const apiTrack = track === "project-work" ? "cbc" : track;
   const classesQ = useQuery({
     queryKey: ["academic-classes"],
     queryFn: () => apiGet<SchoolClass[]>("/academic/classes"),
@@ -57,7 +56,7 @@ export function useAssessmentAssignments(
       const qp = new URLSearchParams();
       if (yearId) qp.set("yearId", yearId);
       if (termId) qp.set("termId", termId);
-      if (track) qp.set("track", track);
+      if (apiTrack) qp.set("track", apiTrack);
       const q = qp.toString();
       return apiGetWithMeta<AssignedApiRow[], AssessmentAssignmentsMeta>(
         `/assessments/subjects-assigned${q ? `?${q}` : ""}`,
@@ -82,7 +81,6 @@ export function useAssessmentAssignments(
 
   return {
     rows,
-    cbcSetupIncomplete: assignedQ.data?.meta?.cbcSetupIncomplete ?? false,
     isLoading: assignedQ.isLoading || classesQ.isLoading,
     isError: assignedQ.isError || classesQ.isError,
     error: assignedQ.error ?? classesQ.error,

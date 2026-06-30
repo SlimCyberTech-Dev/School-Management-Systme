@@ -21,6 +21,7 @@ import {
   seedCompulsoryEntries,
 } from "./examEntries";
 import { fireExamMarksSubmittedNotification } from "../../services/notifications/notificationHooks";
+import { scheduleTermRecompute } from "../../utils/termRecomputeSchedule";
 
 type ExamRow = {
   id: string;
@@ -423,6 +424,7 @@ export async function closeExam(id: string, options?: { force?: boolean }) {
     [id],
   );
   await recalculateExamMarkGrades(id);
+  scheduleTermRecompute(exam.class_id, exam.term_id);
   return getExamById(id);
 }
 
@@ -896,6 +898,7 @@ export async function upsertExamMarks(
     saved += 1;
   }
 
+  scheduleTermRecompute(exam.class_id, exam.term_id);
   return { saved, maxScore };
 }
 
@@ -970,6 +973,7 @@ export async function submitExamMarks(
     });
   }
 
+  scheduleTermRecompute(exam.class_id, exam.term_id);
   return { submitted: true };
 }
 

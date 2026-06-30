@@ -22,6 +22,29 @@ export type ReportFormalExamSection = {
   subjects: ReportFormalExamLine[];
 };
 
+export type TermReportExamColumn = {
+  examId: string;
+  name: string;
+  examDate: string | null;
+};
+
+export type TermReportSubjectRow = {
+  code: string;
+  name: string;
+  examScores: Array<number | null>;
+  average: number | null;
+  finalGrade: string | null;
+  descriptor: string;
+  teacherInitial: string | null;
+};
+
+export type GradingScaleLegendRow = {
+  minScore: number;
+  maxScore: number;
+  grade: string;
+  descriptor: string;
+};
+
 export type CbcReportSubjectLine = {
   name: string;
   code: string;
@@ -62,10 +85,17 @@ export type CbcReportPayload = {
   termLabel: string;
   yearName: string;
   photoUrl: string | null;
+  /** @deprecated Strand competency lines — empty in exam-centric reports. */
   subjects: CbcReportSubjectLine[];
-  /** Per-subject composite grades (CA 20% + EOC 80%). */
+  /** Term subject grid: C1..Cn, average, grade. */
+  examColumns?: TermReportExamColumn[];
+  termSubjectRows?: TermReportSubjectRow[];
+  overallTotal?: number | null;
+  overallAverage?: number | null;
+  gradingScaleLegend?: GradingScaleLegendRow[];
+  /** @deprecated Legacy year-level summaries. */
   subjectSummaries?: CbcReportSubjectSummary[];
-  /** UCE Result 1 / 2 / 3 certification status. */
+  /** @deprecated UCE certification — not used for internal term reports. */
   certification?: CbcReportCertification;
   daysAttended: number;
   totalDays: number;

@@ -34,6 +34,24 @@ export function rankableFromCbcPayload(
   studentId: string,
   payload: CbcReportPayload,
 ): RankableStudent | null {
+  const termRows = payload.termSubjectRows ?? [];
+  const averages = termRows
+    .map((s) => s.average)
+    .filter((a): a is number => a != null && !Number.isNaN(a));
+  if (averages.length >= 1) {
+    const avg =
+      payload.overallAverage ??
+      Math.round((averages.reduce((s, c) => s + c, 0) / averages.length) * 10) / 10;
+    return {
+      studentId,
+      sortKey: avg,
+      aggregateValue: avg,
+      aggregateLabel: `Term average ${avg}% (${averages.length} subjects)`,
+      method: "olevel_composite_average",
+      subjectsCounted: averages.length,
+    };
+  }
+
   const summaries = payload.subjectSummaries ?? [];
   const composites = summaries
     .map((s) => s.composite)

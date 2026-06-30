@@ -74,7 +74,7 @@ export function TeacherExamMarksPanel({
     subjectSubmitted || !activeSubject?.canEdit || !examOpen;
 
   const termAssessmentHref =
-    level === "A_LEVEL" ? `${roleBase}/assessment/alevel` : `${roleBase}/assessment/cbc`;
+    level === "A_LEVEL" ? `${roleBase}/assessment/alevel` : `${roleBase}/exams`;
 
   const save = async (items: Array<{ studentId: string; score: number }>) => {
     if (!subjectId) return;

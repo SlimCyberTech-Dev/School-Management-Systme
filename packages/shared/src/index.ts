@@ -1,6 +1,7 @@
 export * from "./utils/academicLevel";
 export * from "./utils/reportRanking";
 export * from "./utils/olevelCbcGrading";
+export * from "./utils/termSubjectGrading";
 export * from "./utils/letterGradeDescriptors";
 export * from "./utils/letterGradeAggregation";
 export * from "./constants/roles";

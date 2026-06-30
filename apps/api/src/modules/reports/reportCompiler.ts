@@ -1,12 +1,10 @@
-import { CA_SOURCE_LABELS, type CaSource } from "@uganda-cbc-sms/shared";
 import { query } from "../../config/db";
 import { activeTenantIdFromContext } from "../../utils/activeTenant.js";
 import { HttpError } from "../../utils/httpError";
-import { getCbcDescriptor } from "../../utils/grading";
-import { computeAlevelAggregate } from "../../utils/alevelDivision";
-import { resolveConfiguredGrade } from "../../utils/gradingScales";
-import { getOlevelCertification } from "../assessments/olevelCertification.service";
-import type { AlevelReportPayload, CbcReportPayload } from "./reportTypes";
+import { loadActiveGradingBands, loadActiveLetterGradeDescriptorMap } from "../../utils/gradingScales";
+import { recomputeTermSubjectResults } from "../../utils/termSubjectGrade";
+import { listExamsForReportOptions } from "./reportExamLinkage";
+import type { AlevelReportPayload, CbcReportPayload, GradingScaleLegendRow } from "./reportTypes";
 import { REPORT_PAYLOAD_VERSION } from "./reportTypes";
 
 const FALLBACK_SCHOOL_NAME = process.env.SCHOOL_NAME ?? "Uganda Secondary School";
@@ -78,29 +76,100 @@ async function loadStudentContext(studentId: string, termId: string) {
   return rows[0]!;
 }
 
+async function loadGradingLegend(): Promise<GradingScaleLegendRow[]> {
+  const bands = await loadActiveGradingBands("O_LEVEL");
+  return bands
+    .filter((b) => b.isActive)
+    .map((b) => ({
+      minScore: b.minScore,
+      maxScore: b.maxScore,
+      grade: b.grade,
+      descriptor: b.descriptor?.trim() || b.grade,
+    }));
+}
+
 export async function compileCbcReportPayload(
   studentId: string,
   termId: string,
-  academicYearId: string,
+  _academicYearId: string,
 ): Promise<CbcReportPayload> {
   const st = await loadStudentContext(studentId, termId);
   const schoolName = await resolveSchoolName();
 
-  const { rows: scores } = await query<{
-    subject_name: string;
+  if (!st.class_id) {
+    throw new HttpError(400, "Student is not assigned to a class.");
+  }
+
+  await recomputeTermSubjectResults(studentId, termId);
+
+  const examOptions = await listExamsForReportOptions(st.class_id, termId);
+  const examColumns = examOptions.map((e) => ({
+    examId: e.id,
+    name: e.name,
+    examDate: e.examDate,
+  }));
+  const examOrder = examColumns.map((e) => e.examId);
+
+  const descriptorMap = await loadActiveLetterGradeDescriptorMap();
+
+  const { rows: termRows } = await query<{
     subject_code: string;
-    strand: string;
-    competency: string;
-    rating: string;
+    subject_name: string;
+    composite_score: string | null;
+    final_grade: string | null;
+    exam_breakdown: unknown;
   }>(
-    `SELECT sub.name AS subject_name, sub.code AS subject_code,
-            ac.strand, ac.competency, ac.rating
-     FROM assessments_cbc ac
-     JOIN subjects sub ON sub.id = ac.subject_id
-     WHERE ac.student_id = $1 AND ac.term_id = $2 AND ac.academic_year_id = $3
-     ORDER BY sub.code, ac.strand, ac.competency`,
-    [studentId, termId, academicYearId],
+    `SELECT sub.code AS subject_code, sub.name AS subject_name,
+            tsr.composite_score::text, tsr.final_grade, tsr.exam_breakdown
+     FROM term_subject_results tsr
+     JOIN subjects sub ON sub.id = tsr.subject_id
+     WHERE tsr.student_id = $1 AND tsr.term_id = $2
+     ORDER BY sub.code`,
+    [studentId, termId],
   );
+
+  const termSubjectRows = termRows.map((r) => {
+    const breakdown = Array.isArray(r.exam_breakdown)
+      ? (r.exam_breakdown as Array<{
+          examId: string;
+          scorePct: number;
+          teacherInitial?: string | null;
+        }>)
+      : [];
+    const scoreByExam = new Map(breakdown.map((b) => [b.examId, b.scorePct]));
+    const examScores = examOrder.map((id) => scoreByExam.get(id) ?? null);
+    const grade = r.final_grade?.toUpperCase() ?? null;
+    const descriptor =
+      grade && descriptorMap[grade as keyof typeof descriptorMap]
+        ? descriptorMap[grade as keyof typeof descriptorMap]
+        : grade ?? "—";
+    const initials = breakdown
+      .map((b) => b.teacherInitial)
+      .filter((x): x is string => Boolean(x));
+    const teacherInitial = initials.length > 0 ? initials[initials.length - 1]! : null;
+
+    return {
+      code: r.subject_code,
+      name: r.subject_name,
+      examScores,
+      average: r.composite_score != null ? Number(r.composite_score) : null,
+      finalGrade: grade,
+      descriptor,
+      teacherInitial,
+    };
+  });
+
+  const averages = termSubjectRows
+    .map((r) => r.average)
+    .filter((a): a is number => a != null && !Number.isNaN(a));
+  const overallAverage =
+    averages.length > 0
+      ? Math.round((averages.reduce((s, v) => s + v, 0) / averages.length) * 100) / 100
+      : null;
+  const overallTotal =
+    averages.length > 0
+      ? Math.round(averages.reduce((s, v) => s + v, 0) * 100) / 100
+      : null;
 
   const { rows: comments } = await query<{
     class_teacher_comment: string | null;
@@ -109,7 +178,7 @@ export async function compileCbcReportPayload(
     `SELECT class_teacher_comment, headteacher_comment
      FROM assessment_comments
      WHERE student_id = $1 AND term_id = $2 AND academic_year_id = $3`,
-    [studentId, termId, academicYearId],
+    [studentId, termId, st.academic_year_id],
   );
 
   const { rows: legacy } = await query<{
@@ -131,42 +200,7 @@ export async function compileCbcReportPayload(
 
   const commentRow = comments[0];
   const legacyRow = legacy[0];
-
-  const { rows: summaries } = await query<{
-    subject_name: string;
-    subject_code: string;
-    ca_score: string | null;
-    eoc_score: string | null;
-    composite_score: string | null;
-    final_grade: string | null;
-    project_complete: boolean;
-    ca_source: string | null;
-    projects_completed: number | null;
-    projects_expected: number | null;
-  }>(
-    `SELECT sub.name AS subject_name, sub.code AS subject_code,
-            osr.ca_score::text, osr.eoc_score::text, osr.composite_score::text,
-            osr.final_grade, osr.project_complete, osr.ca_source,
-            osr.projects_completed, osr.projects_expected
-     FROM olevel_subject_results osr
-     JOIN subjects sub ON sub.id = osr.subject_id
-     WHERE osr.student_id = $1 AND osr.academic_year_id = $2
-     ORDER BY sub.code`,
-    [studentId, academicYearId],
-  );
-
-  const certification = await getOlevelCertification(studentId, academicYearId);
-
-  const subjectRows = await Promise.all(
-    scores.map(async (r) => ({
-      name: r.subject_name,
-      code: r.subject_code,
-      strand: r.strand,
-      competency: r.competency,
-      rating: r.rating,
-      descriptor: await getCbcDescriptor(r.rating),
-    })),
-  );
+  const gradingScaleLegend = await loadGradingLegend();
 
   return {
     version: REPORT_PAYLOAD_VERSION,
@@ -178,31 +212,12 @@ export async function compileCbcReportPayload(
     termLabel: `Term ${st.term_number}`,
     yearName: st.year_name,
     photoUrl: st.photo_url,
-    subjects: subjectRows,
-    subjectSummaries: summaries.map((r) => {
-      const src = r.ca_source as CaSource | null;
-      return {
-        code: r.subject_code,
-        name: r.subject_name,
-        finalGrade: r.final_grade,
-        caScore: r.ca_score != null ? Number(r.ca_score) : null,
-        eocScore: r.eoc_score != null ? Number(r.eoc_score) : null,
-        composite: r.composite_score != null ? Number(r.composite_score) : null,
-        projectStatus: r.project_complete ? "Complete" : "Incomplete",
-        caSource: src,
-        caSourceLabel: src ? CA_SOURCE_LABELS[src] : null,
-        projectsCompleted: r.projects_completed,
-        projectsExpected: r.projects_expected,
-      };
-    }),
-    certification: certification
-      ? {
-          resultCode: certification.resultCode,
-          label: certification.label,
-          reasonCodes: certification.reasonCodes,
-          reasonLabels: certification.reasonLabels,
-        }
-      : undefined,
+    subjects: [],
+    examColumns,
+    termSubjectRows,
+    overallTotal,
+    overallAverage,
+    gradingScaleLegend,
     daysAttended,
     totalDays,
     teacherComment:
@@ -221,6 +236,9 @@ export async function compileAlevelReportPayload(
   termId: string,
   academicYearId: string,
 ): Promise<AlevelReportPayload> {
+  const { computeAlevelAggregate } = await import("../../utils/alevelDivision.js");
+  const { resolveConfiguredGrade } = await import("../../utils/gradingScales.js");
+
   const st = await loadStudentContext(studentId, termId);
   const schoolName = await resolveSchoolName();
 
