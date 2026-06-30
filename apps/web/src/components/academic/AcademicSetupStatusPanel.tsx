@@ -23,7 +23,6 @@ type AcademicSummary = {
   subjects: number;
   classSubjects: number;
   combinations: number;
-  cbcStrands: number;
   gradingScales: number;
 };
 

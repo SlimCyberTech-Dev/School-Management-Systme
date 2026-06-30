@@ -154,9 +154,9 @@ export function ReportGeneratePanel({
 
   const trackLabel = useMemo(() => {
     if (readinessQ.data?.track === "alevel") return "A-Level (UNEB)";
-    if (readinessQ.data?.track === "cbc") return "O-Level (CBC)";
+    if (readinessQ.data?.track === "cbc") return "O-Level";
     if (selectedClass?.level === "A_LEVEL") return "A-Level (UNEB)";
-    return "O-Level (CBC)";
+    return "O-Level";
   }, [readinessQ.data?.track, selectedClass?.level]);
 
   const isAlevel = listQ.data?.track === "alevel" || readinessQ.data?.track === "alevel";
@@ -408,7 +408,7 @@ export function ReportGeneratePanel({
           ) : (
             <div className="flex items-end">
               <p className="text-sm text-muted-foreground">
-                Uses submitted CBC / A-Level term marks from the assessment module.
+                Uses submitted O-Level exam marks and A-Level term scores.
               </p>
             </div>
           )}
@@ -456,8 +456,8 @@ export function ReportGeneratePanel({
         {marksSource === "exam" && isCbc ? (
           <div className="mt-3">
             <Alert tone="info">
-              O-Level reports combine <strong>term CBC competencies</strong> (subjects not on the exam) with{" "}
-              <strong>formal exam marks</strong> for each exam paper. Subjects on{" "}
+              O-Level term reports use <strong>compulsory exam averages</strong> per subject, optionally blended with{" "}
+              <strong>project work</strong>. Subjects on{" "}
               <strong>{readinessQ.data?.defaultExamName ?? selectedExam?.name ?? "the selected exam"}</strong> do
               not need a separate term submission.
             </Alert>
@@ -489,7 +489,7 @@ export function ReportGeneratePanel({
               <strong>Assessment</strong> for S1 B / Term 1.
             </>
           ) : marksSource === "exam" && isCbc
-              ? "Only class subjects that are not on the formal exam need term CBC submission here."
+              ? "Subjects not on the linked formal exam still need exam marks entered on their term exams."
               : marksSource === "exam" && isAlevel
                 ? "Not used for scores when releasing from an exam (comments only)."
                 : "Track which teachers have submitted term marks before you release report cards."}
@@ -528,8 +528,8 @@ export function ReportGeneratePanel({
                   {readinessQ.data.examPaperSubjectCount === 1 ? "" : "s"} on the formal exam use exam marks
                   only
                   {readinessQ.data.totalSubjects > 0
-                    ? `; ${readinessQ.data.totalSubjects} still need term CBC below.`
-                    : " — no additional term CBC submission is required."}
+                    ? `; ${readinessQ.data.totalSubjects} still need submitted exam marks below.`
+                    : " — all required exam marks are submitted."}
                 </p>
               ) : null}
               {readinessQ.data.pendingCount > 0 ? (
@@ -540,7 +540,7 @@ export function ReportGeneratePanel({
               ) : readinessQ.data.totalSubjects === 0 &&
                 (readinessQ.data.examPaperSubjectCount ?? 0) > 0 ? (
                 <Alert tone="success">
-                  All class subjects are on the formal exam — term CBC submission is not required.
+                  All class subjects are covered on the formal exam — separate term exam entry is not required for those subjects.
                 </Alert>
               ) : (
                 <Alert tone="success">All required term assessment subjects are submitted.</Alert>
@@ -603,7 +603,7 @@ export function ReportGeneratePanel({
         {generateError ? <Alert tone="error">{generateError}</Alert> : null}
         {generateOk ? (
           <Alert tone="success">
-            Generated {generateOk.count} {generateOk.track === "alevel" ? "A-Level" : "CBC"} report
+            Generated {generateOk.count} {generateOk.track === "alevel" ? "A-Level" : "O-Level"} report
             {generateOk.count === 1 ? "" : "s"}
             {generateOk.usedTermAssessmentsFallback
               ? " using term assessment marks (selected exam was unavailable)."
@@ -631,7 +631,7 @@ export function ReportGeneratePanel({
                     : marksSource === "exam" && !selectedExamValid
                       ? "Select the official exam for this class and term."
                       : marksSource === "exam" && isCbc
-                        ? "Complete term CBC for subjects not on the exam, and ensure the formal exam is closed and submitted."
+                        ? "Enter exam marks for subjects not on the linked formal exam, and ensure term exams are closed and submitted."
                         : marksSource === "exam"
                           ? "Submit all subjects on the exam, close it, then try again."
                           : "Submit all subject assessments for this class and term, then try again."}

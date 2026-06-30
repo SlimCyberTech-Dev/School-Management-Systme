@@ -7,7 +7,6 @@ export default {
   setupFiles: ["<rootDir>/tests/setup.ts"],
   testPathIgnorePatterns: [
     "/node_modules/",
-    "cbcCompetencyAggregation.test.ts",
     "notifications/notificationService.test.ts",
   ],
   moduleNameMapper: {

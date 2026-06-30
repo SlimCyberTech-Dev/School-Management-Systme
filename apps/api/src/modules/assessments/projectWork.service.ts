@@ -1,7 +1,13 @@
 import { query } from "../../config/db";
 import { HttpError } from "../../utils/httpError";
 import { scheduleTermRecompute } from "../../utils/termRecomputeSchedule";
+import { validateActiveClassStudents } from "../../utils/rosterValidation";
 import { assertTeacherIsAssignedSubjectTeacher } from "../../utils/teacherTeachingAccess";
+import {
+  bulkDeleteProjectWorkScores,
+  bulkUpsertProjectWorkScores,
+  partitionProjectWorkScores,
+} from "./projectWorkBulk";
 
 export type ProjectWorkRow = {
   id: string;
@@ -118,53 +124,36 @@ export async function upsertProjectWorkBulk(
     }>;
   },
   teacherId: string,
-): Promise<ProjectWorkRow[]> {
-  await assertTeacherIsAssignedSubjectTeacher(
-    teacherId,
-    input.classId,
-    input.subjectId,
-    input.yearId,
-  );
-  const classSubjectId = await resolveClassSubjectId(input.classId, input.subjectId, input.yearId);
+): Promise<{ saved: number; deleted: number }> {
+  const { upserts, deletes } = partitionProjectWorkScores(input.scores);
 
-  for (const item of input.scores) {
-    if (item.score == null) {
-      await query(
-        `DELETE FROM project_work_scores
-         WHERE student_id = $1 AND class_subject_id = $2 AND term_id = $3 AND project_number = $4`,
-        [item.studentId, classSubjectId, input.termId, item.projectNumber],
+  for (const item of upserts) {
+    if (item.score > item.maxScore) {
+      throw new HttpError(
+        400,
+        `Project ${item.projectNumber} score cannot exceed the maximum (${item.maxScore}).`,
       );
-      continue;
     }
-    await query(
-      `INSERT INTO project_work_scores (
-         student_id, class_subject_id, term_id, project_number,
-         score, max_score, scored_by, scored_at, updated_at
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())
-       ON CONFLICT (tenant_id, student_id, class_subject_id, term_id, project_number)
-       DO UPDATE SET
-         score = EXCLUDED.score,
-         max_score = EXCLUDED.max_score,
-         scored_by = EXCLUDED.scored_by,
-         scored_at = NOW(),
-         updated_at = NOW()`,
-      [
-        item.studentId,
-        classSubjectId,
-        input.termId,
-        item.projectNumber,
-        item.score,
-        item.maxScore ?? 100,
-        teacherId,
-      ],
-    );
   }
 
+  const studentIds = [...new Set([...upserts.map((u) => u.studentId), ...deletes.map((d) => d.studentId)])];
+
+  const [classSubjectId] = await Promise.all([
+    resolveClassSubjectId(input.classId, input.subjectId, input.yearId),
+    assertTeacherIsAssignedSubjectTeacher(
+      teacherId,
+      input.classId,
+      input.subjectId,
+      input.yearId,
+    ),
+    validateActiveClassStudents(input.classId, studentIds),
+  ]);
+
+  const [saved, deleted] = await Promise.all([
+    bulkUpsertProjectWorkScores(classSubjectId, input.termId, teacherId, upserts),
+    bulkDeleteProjectWorkScores(classSubjectId, input.termId, deletes),
+  ]);
+
   scheduleTermRecompute(input.classId, input.termId);
-  return listProjectWork({
-    classId: input.classId,
-    subjectId: input.subjectId,
-    termId: input.termId,
-    yearId: input.yearId,
-  });
+  return { saved, deleted };
 }

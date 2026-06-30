@@ -33,7 +33,6 @@ describe("notification categories", () => {
   it("defines v1 hook categories", () => {
     assert.deepEqual(NOTIFICATION_CATEGORIES, [
       "assessment_submitted",
-      "competency_override",
       "exam_marks_submitted",
     ]);
   });

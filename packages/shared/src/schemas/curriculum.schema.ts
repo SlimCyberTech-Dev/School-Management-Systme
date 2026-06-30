@@ -5,14 +5,13 @@ export const curriculumTrackSchema = z.enum(["SCIENCES", "ARTS", "GENERAL"]);
 export const curriculumSetupSchema = z.object({
   academicYearId: z.string().uuid(),
   level: z.enum(["O_LEVEL", "A_LEVEL"]),
-  /** Seed default subject catalogue and CBC strands before provisioning class slots. Default true. */
+  /** Seed default subject catalogue before provisioning class slots. Default true. */
   installCatalog: z.boolean().optional().default(true),
   termId: z.string().uuid().optional().nullable(),
 });
 
 export const curriculumCatalogSeedSchema = z.object({
   level: z.enum(["O_LEVEL", "A_LEVEL", "ALL"]).optional().default("ALL"),
-  includeStrands: z.boolean().optional().default(true),
 });
 
 export const curriculumClassTrackUpdateSchema = z.object({
@@ -32,8 +31,6 @@ export type CurriculumTrack = z.infer<typeof curriculumTrackSchema>;
 export type CurriculumSetupResult = {
   installCatalog: boolean;
   subjectsCreated: number;
-  strandsCreated: number;
-  subStrandsCreated: number;
   classSubjectsCreated: number;
   classesProcessed: number;
   classesSkippedNoTrack: number;
@@ -44,7 +41,6 @@ export type CurriculumStatus = {
   catalog: {
     oLevelSubjects: number;
     aLevelSubjects: number;
-    cbcStrands: number;
     catalogAvailable: boolean;
   };
   oLevel: {
@@ -55,7 +51,7 @@ export type CurriculumStatus = {
   };
   aLevel: {
     classes: number;
-    byTrack: { SCIENCES: number; ARTS: number; GENERAL: number; unset: number };
+    byTrack: Record<CurriculumTrack | "unset", number>;
     classesFullyProvisioned: number;
     classesMissingTrack: number;
     totalClassSubjectRows: number;

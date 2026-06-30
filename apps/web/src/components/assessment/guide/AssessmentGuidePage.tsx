@@ -11,7 +11,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
-import { CompetencyLevelBadge } from "@/components/cbc/CompetencyLevelBadge";
+import { LetterGradeBadge } from "@/components/cbc/LetterGradeBadge";
 import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { FormSkeleton } from "@/components/feedback/FormSkeleton";
@@ -110,7 +110,7 @@ function TwoTrackOverview() {
           <ArrowRight className="hidden h-4 w-4 text-muted-foreground sm:block" aria-hidden />
           <div className="rounded-md border border-brand/40 bg-brand/10 px-3 py-2 text-center text-xs font-medium shadow-sm">
             Report card
-            <span className="mt-0.5 block text-muted-foreground">strand lines + subject grade</span>
+            <span className="mt-0.5 block text-muted-foreground">exam columns + subject grade</span>
           </div>
           <ArrowRight className="hidden h-4 w-4 rotate-180 text-muted-foreground sm:block sm:rotate-0" aria-hidden />
           <div className="rounded-md border border-border bg-card px-3 py-2 text-center text-xs font-medium shadow-sm">
@@ -143,7 +143,7 @@ function AchievementScaleReference() {
             key={letter}
             className="rounded-lg border border-border bg-card p-3 transition-ui hover:bg-accent/30"
           >
-            <CompetencyLevelBadge grade={letter} size="md" />
+            <LetterGradeBadge grade={letter} size="md" />
             <p className="mt-2 text-sm text-muted-foreground">
               {ACHIEVEMENT_PLAIN_MEANINGS[letter] ?? uiByGrade[letter].descriptor}
             </p>
@@ -290,7 +290,7 @@ function AssessmentGuideBody({
             ? "Subject teachers and class teachers use the same entry screens for their assigned subjects."
             : workflowRole === "admin"
               ? "Configure structure, policy, and monitoring before teachers enter marks."
-              : "Review aggregated competency data and certification before report cards are issued."}
+              : "Review term exam marks and project work before report cards are issued."}
         </p>
         <GuideWorkflowAccordion steps={steps} />
       </Card>
@@ -327,7 +327,7 @@ export function AssessmentGuidePage({ viewerRole }: { viewerRole: AssessmentGuid
   return (
     <PageWrapper
       title="How assessment works"
-      description="Interactive guide to competency assessment, CA & grading, and UCE certification in SchoolManage."
+      description="Interactive guide to term assessment, exam averages, project work, and O-Level grading in SchoolManage."
     >
       <LetterGradeDescriptorProvider>
         <AssessmentGuideBody viewerRole={viewerRole} teacherBase={teacherBase} />

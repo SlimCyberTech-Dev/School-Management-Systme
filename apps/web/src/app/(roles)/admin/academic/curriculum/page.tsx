@@ -12,7 +12,7 @@ export default function AdminCurriculumSetupPage() {
   return (
     <PageWrapper
       title="Curriculum setup"
-      description="Automate O-Level and A-Level subject catalogues, CBC strands, and class–subject slots"
+      description="Automate O-Level and A-Level subject catalogues and class–subject slots"
     >
       <div className="mb-3">
         <Link href="/admin/academic" className="text-sm font-medium text-brand hover:underline">

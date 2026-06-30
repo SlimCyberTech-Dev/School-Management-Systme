@@ -199,7 +199,7 @@ export async function alevelDivisions(classId: string, termId: string, tenantId:
 
 export async function assessmentReadiness(classId: string, termId: string, yearId: string, tenantId: string) {
   try {
-    const [cbc, alevel] = await Promise.all([
+    const [olevel, alevel] = await Promise.all([
       query<{ subject_id: string; subject_name: string; subject_code: string; teacher_name: string | null; status: string }>(
         `SELECT
           s.id AS subject_id,
@@ -207,22 +207,32 @@ export async function assessmentReadiness(classId: string, termId: string, yearI
           s.code AS subject_code,
           u.full_name AS teacher_name,
           CASE
-            WHEN COUNT(ac.id) = 0 THEN 'Draft'
-            WHEN BOOL_AND(ac.is_submitted) THEN 'Submitted'
+            WHEN (
+              SELECT COUNT(*)::int
+              FROM exams e
+              JOIN exam_subjects es ON es.exam_id = e.id AND es.subject_id = cs.subject_id
+              WHERE e.class_id = $1 AND e.term_id = $2 AND e.tenant_id = $4
+            ) = 0 THEN 'Draft'
+            WHEN (
+              SELECT COUNT(*)::int
+              FROM exams e
+              JOIN exam_subjects es ON es.exam_id = e.id AND es.subject_id = cs.subject_id
+              JOIN exam_subject_submissions ess
+                ON ess.exam_id = e.id AND ess.subject_id = cs.subject_id AND ess.is_submitted = true
+              WHERE e.class_id = $1 AND e.term_id = $2 AND e.tenant_id = $4
+            ) = (
+              SELECT COUNT(*)::int
+              FROM exams e
+              JOIN exam_subjects es ON es.exam_id = e.id AND es.subject_id = cs.subject_id
+              WHERE e.class_id = $1 AND e.term_id = $2 AND e.tenant_id = $4
+            ) THEN 'Submitted'
             ELSE 'Draft'
           END AS status
          FROM class_subjects cs
          JOIN subjects s ON s.id = cs.subject_id AND s.tenant_id = $4
          LEFT JOIN users u ON u.id = cs.teacher_id AND u.tenant_id = $4
-         LEFT JOIN students st ON st.class_id = cs.class_id AND st.tenant_id = $4
-         LEFT JOIN assessments_cbc ac
-           ON ac.student_id = st.id
-          AND ac.subject_id = cs.subject_id
-          AND ac.term_id = $2
-          AND ac.academic_year_id = $3
-          AND ac.tenant_id = $4
          WHERE cs.class_id = $1 AND cs.academic_year_id = $3 AND cs.tenant_id = $4
-         GROUP BY s.id, s.name, s.code, u.full_name
+         GROUP BY s.id, s.name, s.code, u.full_name, cs.subject_id
          ORDER BY s.code`,
         [classId, termId, yearId, tenantId],
       ),
@@ -253,7 +263,7 @@ export async function assessmentReadiness(classId: string, termId: string, yearI
         [classId, termId, yearId, tenantId],
       ),
     ]);
-    return { cbc: cbc.rows, alevel: alevel.rows };
+    return { cbc: olevel.rows, alevel: alevel.rows };
   } catch (e) {
     throw new Error(e instanceof Error ? e.message : "Could not load assessment readiness");
   }

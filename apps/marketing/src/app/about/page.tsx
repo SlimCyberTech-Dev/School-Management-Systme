@@ -18,8 +18,8 @@ const modules = [
     body: "Enrol learners, assign classes, upload photos, and keep attendance and history in one place.",
   },
   {
-    title: "O-Level CBC",
-    body: "Strand and competency ratings, project work, and end-of-cycle exams with grades calculated per NCDC rules.",
+    title: "O-Level assessment",
+    body: "Exam marks per subject, project work, and term composites with A–E grades calculated per NCDC-aligned rules.",
   },
   {
     title: "A-Level UNEB",

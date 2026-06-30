@@ -25,6 +25,7 @@ import type {
 } from "@uganda-cbc-sms/shared";
 import type { PoolClient } from "pg";
 import { query, withTransaction } from "../../config/db";
+import { BULK_CHUNK_SIZE } from "../../utils/bulkConstants";
 import { HttpError } from "../../utils/httpError";
 import {
   assertNoScheduleClashes,
@@ -576,13 +577,20 @@ export async function saveClassGrid(
          WHERE template_id = $1 AND class_id = $2`,
         [templateId, classId],
       );
-      for (const e of input.entries) {
-        const teacherId = teacherBySubject.get(e.classSubjectId)!;
+      for (let i = 0; i < input.entries.length; i += BULK_CHUNK_SIZE) {
+        const chunk = input.entries.slice(i, i + BULK_CHUNK_SIZE);
+        const days = chunk.map((e) => e.dayOfWeek);
+        const periodIds = chunk.map((e) => e.periodId);
+        const classSubjectIds = chunk.map((e) => e.classSubjectId);
+        const teacherIds = chunk.map((e) => teacherBySubject.get(e.classSubjectId)!);
         await client.query(
           `INSERT INTO timetable_entries
              (template_id, day_of_week, period_id, class_id, class_subject_id, teacher_id, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-          [templateId, e.dayOfWeek, e.periodId, classId, e.classSubjectId, teacherId],
+           SELECT $1, u.day_of_week, u.period_id, $3, u.class_subject_id, u.teacher_id, NOW()
+           FROM UNNEST($2::int[], $4::uuid[], $5::uuid[], $6::uuid[]) AS u(
+             day_of_week, period_id, class_subject_id, teacher_id
+           )`,
+          [templateId, days, classId, periodIds, classSubjectIds, teacherIds],
         );
       }
       await client.query(`UPDATE timetable_templates SET updated_at = NOW() WHERE id = $1`, [templateId]);

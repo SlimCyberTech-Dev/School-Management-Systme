@@ -8,19 +8,10 @@ import type {
 import {
   A_LEVEL_TRACK_SUBJECT_CODES,
   DEFAULT_A_LEVEL_SUBJECTS,
-  DEFAULT_CBC_STRANDS_BY_SUBJECT_CODE,
   DEFAULT_O_LEVEL_SUBJECTS,
 } from "@uganda-cbc-sms/shared";
 import { query, withTransaction } from "../../config/db";
 import { HttpError } from "../../utils/httpError";
-
-function slugSubStrandCode(name: string, index: number): string {
-  const base = name
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "")
-    .slice(0, 10);
-  return `${base || "SS"}${index + 1}`.slice(0, 20);
-}
 
 export async function seedDefaultSubjects(level: CurriculumCatalogSeedInput["level"] = "ALL") {
   let subjectsCreated = 0;
@@ -48,67 +39,8 @@ export async function seedDefaultSubjects(level: CurriculumCatalogSeedInput["lev
   return { subjectsCreated };
 }
 
-export async function seedDefaultCbcStrands() {
-  let strandsCreated = 0;
-  let subStrandsCreated = 0;
-
-  const { rows: subjectRows } = await query<{ id: string; code: string }>(
-    `SELECT id, code FROM subjects WHERE level = 'O_LEVEL'`,
-  );
-  const subjectByCode = new Map(subjectRows.map((row) => [row.code, row.id]));
-
-  for (const [subjectCode, strands] of Object.entries(DEFAULT_CBC_STRANDS_BY_SUBJECT_CODE)) {
-    const subjectId = subjectByCode.get(subjectCode);
-    if (!subjectId) continue;
-
-    for (const strand of strands) {
-      const { rows } = await query<{ id: string }>(
-        `INSERT INTO cbc_strands (
-           subject_id,
-           name,
-           strand_name,
-           code,
-           competencies,
-           updated_at
-         )
-         VALUES ($1::uuid, $2::varchar, $2::varchar, $3::varchar, '[]'::jsonb, NOW())
-         ON CONFLICT (code, subject_id) DO UPDATE SET
-           name = EXCLUDED.name,
-           strand_name = EXCLUDED.strand_name,
-           updated_at = NOW()
-         RETURNING id`,
-        [subjectId, strand.name, strand.code],
-      );
-      const strandId = rows[0]?.id;
-      if (!strandId) continue;
-      strandsCreated += 1;
-
-      for (let i = 0; i < strand.subStrands.length; i += 1) {
-        const subName = strand.subStrands[i]!;
-        const subCode = slugSubStrandCode(subName, i);
-        const subResult = await query(
-          `INSERT INTO cbc_sub_strands (strand_id, name, code, updated_at)
-           SELECT $1::uuid, $2::varchar, $3::varchar, NOW()
-           WHERE NOT EXISTS (
-             SELECT 1 FROM cbc_sub_strands WHERE strand_id = $1::uuid AND code = $3::varchar
-           )`,
-          [strandId, subName, subCode],
-        );
-        subStrandsCreated += subResult.rowCount ?? 0;
-      }
-    }
-  }
-
-  return { strandsCreated, subStrandsCreated };
-}
-
 export async function seedCurriculumCatalog(input: CurriculumCatalogSeedInput) {
-  const { subjectsCreated } = await seedDefaultSubjects(input.level);
-  if (!input.includeStrands) {
-    return { subjectsCreated, strandsCreated: 0, subStrandsCreated: 0 };
-  }
-  const strandResult = await seedDefaultCbcStrands();
-  return { subjectsCreated, ...strandResult };
+  return seedDefaultSubjects(input.level);
 }
 
 async function repairClassSubjectSubjectLevels() {
@@ -202,17 +134,12 @@ export async function provisionCurriculum(input: CurriculumSetupInput): Promise<
 
   return withTransaction(async () => {
     let subjectsCreated = 0;
-    let strandsCreated = 0;
-    let subStrandsCreated = 0;
 
     if (input.installCatalog) {
       const catalog = await seedCurriculumCatalog({
         level: input.level === "O_LEVEL" ? "O_LEVEL" : "A_LEVEL",
-        includeStrands: input.level === "O_LEVEL",
       });
       subjectsCreated = catalog.subjectsCreated;
-      strandsCreated = catalog.strandsCreated;
-      subStrandsCreated = catalog.subStrandsCreated;
     }
 
     await repairClassSubjectSubjectLevels();
@@ -225,8 +152,6 @@ export async function provisionCurriculum(input: CurriculumSetupInput): Promise<
     return {
       installCatalog: input.installCatalog,
       subjectsCreated,
-      strandsCreated,
-      subStrandsCreated,
       classSubjectsCreated: provision.classSubjectsCreated,
       classesProcessed: provision.classesProcessed,
       classesSkippedNoTrack: provision.classesSkippedNoTrack,
@@ -241,7 +166,6 @@ export async function getCurriculumStatus(academicYearId: string): Promise<Curri
   const { rows } = await query<{
     o_level_subjects: string;
     a_level_subjects: string;
-    cbc_strands: string;
     o_classes: string;
     o_class_subjects: string;
     o_fully: string;
@@ -258,9 +182,6 @@ export async function getCurriculumStatus(academicYearId: string): Promise<Curri
      ),
      a_counts AS (
        SELECT COUNT(*)::int AS n FROM subjects WHERE level = 'A_LEVEL'
-     ),
-     strand_counts AS (
-       SELECT COUNT(*)::int AS n FROM cbc_strands
      ),
      o_classes AS (
        SELECT id FROM classes WHERE academic_year_id = $1 AND level = 'O_LEVEL'
@@ -285,7 +206,6 @@ export async function getCurriculumStatus(academicYearId: string): Promise<Curri
      SELECT
        (SELECT n FROM o_counts)::text AS o_level_subjects,
        (SELECT n FROM a_counts)::text AS a_level_subjects,
-       (SELECT n FROM strand_counts)::text AS cbc_strands,
        (SELECT COUNT(*) FROM o_classes)::text AS o_classes,
        (SELECT COALESCE(SUM(slot_count), 0) FROM o_slots)::text AS o_class_subjects,
        (SELECT COUNT(*) FROM o_slots os CROSS JOIN o_counts oc
@@ -323,7 +243,6 @@ export async function getCurriculumStatus(academicYearId: string): Promise<Curri
     catalog: {
       oLevelSubjects,
       aLevelSubjects,
-      cbcStrands: Number(row?.cbc_strands ?? "0"),
       catalogAvailable: oLevelSubjects >= DEFAULT_O_LEVEL_SUBJECTS.length,
     },
     oLevel: {

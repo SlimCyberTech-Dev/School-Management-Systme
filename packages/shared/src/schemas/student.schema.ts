@@ -102,7 +102,9 @@ export const attendanceRegisterSaveSchema = z.object({
   rows: z.array(attendanceRegisterRowSchema).min(1),
 });
 
-export const attendanceRegisterSubmitSchema = attendanceRegisterQuerySchema;
+export const attendanceRegisterSubmitSchema = attendanceRegisterQuerySchema.extend({
+  rows: z.array(attendanceRegisterRowSchema).min(1).optional(),
+});
 
 export const attendanceLessonRegisterQuerySchema = z.object({
   timetableEntryId: z.string().uuid(),
@@ -115,7 +117,9 @@ export const attendanceLessonRegisterSaveSchema = z.object({
   rows: z.array(attendanceRegisterRowSchema).min(1),
 });
 
-export const attendanceLessonRegisterSubmitSchema = attendanceLessonRegisterQuerySchema;
+export const attendanceLessonRegisterSubmitSchema = attendanceLessonRegisterQuerySchema.extend({
+  rows: z.array(attendanceRegisterRowSchema).min(1).optional(),
+});
 
 export const attendanceRangeQuerySchema = z.object({
   classId: z.string().uuid(),

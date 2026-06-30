@@ -22,10 +22,6 @@ const {
   combinationSchema,
   updateCombinationSchema,
   combinationSubjectSchema,
-  cbcStrandSchema,
-  updateCbcStrandSchema,
-  cbcSubStrandSchema,
-  updateCbcSubStrandSchema,
   updateAcademicYearSchema,
   updateTermSchema,
   updateClassSchema,
@@ -42,10 +38,6 @@ const {
   combinationSchema: z.ZodTypeAny;
   updateCombinationSchema: z.ZodTypeAny;
   combinationSubjectSchema: z.ZodTypeAny;
-  cbcStrandSchema: z.ZodTypeAny;
-  updateCbcStrandSchema: z.ZodTypeAny;
-  cbcSubStrandSchema: z.ZodTypeAny;
-  updateCbcSubStrandSchema: z.ZodTypeAny;
   updateAcademicYearSchema: z.ZodTypeAny;
   updateTermSchema: z.ZodTypeAny;
   updateClassSchema: z.ZodTypeAny;
@@ -63,10 +55,6 @@ type ClassSubjectUpdateIn = z.infer<typeof updateClassSubjectSchema>;
 type ComboIn = z.infer<typeof combinationSchema>;
 type ComboUpdateIn = z.infer<typeof updateCombinationSchema>;
 type CombinationSubjectIn = z.infer<typeof combinationSubjectSchema>;
-type CbcStrandIn = z.infer<typeof cbcStrandSchema>;
-type CbcStrandUpdateIn = z.infer<typeof updateCbcStrandSchema>;
-type CbcSubStrandIn = z.infer<typeof cbcSubStrandSchema>;
-type CbcSubStrandUpdateIn = z.infer<typeof updateCbcSubStrandSchema>;
 type YearUpdateIn = z.infer<typeof updateAcademicYearSchema>;
 type TermUpdateIn = z.infer<typeof updateTermSchema>;
 type ClassUpdateIn = z.infer<typeof updateClassSchema>;
@@ -216,20 +204,18 @@ export type AcademicStructureSummary = {
   subjects: number;
   classSubjects: number;
   combinations: number;
-  cbcStrands: number;
   gradingScales: number;
 };
 
 export async function academicStructureSummary(): Promise<AcademicStructureSummary> {
   try {
-    const [y, t, c, s, cs, k, st, gs] = await Promise.all([
+    const [y, t, c, s, cs, k, gs] = await Promise.all([
       query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM academic_years`),
       query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM terms`),
       query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM classes`),
       query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM subjects`),
       query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM class_subjects`),
       query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM subject_combinations`),
-      query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM cbc_strands`),
       query<{ c: string }>(`SELECT COUNT(*)::text AS c FROM assessment_grading_scales`),
     ]);
     const num = (row: { c: string } | undefined) => Number(row?.c ?? "0");
@@ -240,7 +226,6 @@ export async function academicStructureSummary(): Promise<AcademicStructureSumma
       subjects: num(s.rows[0]),
       classSubjects: num(cs.rows[0]),
       combinations: num(k.rows[0]),
-      cbcStrands: num(st.rows[0]),
       gradingScales: num(gs.rows[0]),
     };
   } catch (e) {
@@ -1628,172 +1613,6 @@ export async function removeSubjectFromCombination(combinationId: string, subjec
     subjectId,
   ]);
   return getCombinationById(combinationId);
-}
-
-export async function createCbcStrand(input: CbcStrandIn) {
-  try {
-    const { rows } = await query(
-      `INSERT INTO cbc_strands (
-         subject_id,
-         name,
-         strand_name,
-         code,
-         description,
-         competencies,
-         updated_at
-       )
-       VALUES ($1, $2, $2, $3, $4, $5::jsonb, NOW()) RETURNING *`,
-      [
-        input.subjectId,
-        input.name,
-        input.code.toUpperCase(),
-        input.description ?? null,
-        JSON.stringify(input.competencies ?? []),
-      ],
-    );
-    return rows[0];
-  } catch (e) {
-    throw new Error(e instanceof Error ? e.message : "Could not create strand");
-  }
-}
-
-export async function getStrands(filters: { subjectId?: string }) {
-  const values: unknown[] = [];
-  const where = filters.subjectId ? `WHERE st.subject_id = $1` : "";
-  if (filters.subjectId) values.push(filters.subjectId);
-  const { rows } = await query(
-    `SELECT
-      st.id,
-      st.subject_id AS "subjectId",
-      COALESCE(st.name, st.strand_name) AS name,
-      st.code,
-      st.description,
-      COALESCE(
-        jsonb_agg(DISTINCT ss.name) FILTER (WHERE ss.id IS NOT NULL),
-        st.competencies,
-        '[]'::jsonb
-      ) AS competencies,
-      s.name AS "subjectName",
-      COUNT(ss.id)::int AS "subStrandsCount"
-     FROM cbc_strands st
-     LEFT JOIN subjects s ON s.id = st.subject_id
-     LEFT JOIN cbc_sub_strands ss ON ss.strand_id = st.id
-     ${where}
-     GROUP BY st.id, s.name
-     ORDER BY st.name`,
-    values,
-  );
-  return rows;
-}
-
-export async function listCbcStrands(subjectId?: string) {
-  return getStrands({ subjectId });
-}
-
-export async function getStrandById(id: string) {
-  const { rows } = await query(
-    `SELECT
-      st.id,
-      st.subject_id AS "subjectId",
-      COALESCE(st.name, st.strand_name) AS name,
-      st.code,
-      st.description,
-      s.name AS "subjectName",
-      COALESCE(
-        jsonb_agg(DISTINCT ss.name) FILTER (WHERE ss.id IS NOT NULL),
-        st.competencies,
-        '[]'::jsonb
-      ) AS competencies,
-      COALESCE(
-        jsonb_agg(
-          jsonb_build_object('id', ss.id, 'name', ss.name, 'code', ss.code, 'description', ss.description)
-          ORDER BY ss.name
-        ) FILTER (WHERE ss.id IS NOT NULL),
-        '[]'::jsonb
-      ) AS "subStrands"
-     FROM cbc_strands st
-     LEFT JOIN subjects s ON s.id = st.subject_id
-     LEFT JOIN cbc_sub_strands ss ON ss.strand_id = st.id
-     WHERE st.id = $1
-     GROUP BY st.id, s.name`,
-    [id],
-  );
-  if (!rows[0]) throw new HttpError(404, "CBC strand not found");
-  return rows[0];
-}
-
-export async function updateStrand(id: string, input: CbcStrandUpdateIn) {
-  const sets: string[] = [];
-  const values: unknown[] = [];
-  let i = 1;
-  if (input.subjectId !== undefined) {
-    sets.push(`subject_id = $${i++}`);
-    values.push(input.subjectId);
-  }
-  if (input.name !== undefined) {
-    sets.push(`name = $${i++}`);
-    values.push(input.name);
-    sets.push(`strand_name = $${i++}`);
-    values.push(input.name);
-  }
-  if (input.code !== undefined) {
-    sets.push(`code = $${i++}`);
-    values.push(input.code.toUpperCase());
-  }
-  if (input.description !== undefined) {
-    sets.push(`description = $${i++}`);
-    values.push(input.description);
-  }
-  sets.push(`updated_at = NOW()`);
-  values.push(id);
-  const { rowCount } = await query(`UPDATE cbc_strands SET ${sets.join(", ")} WHERE id = $${i}`, values);
-  if (!rowCount) throw new HttpError(404, "CBC strand not found");
-  return getStrandById(id);
-}
-
-export async function deleteStrand(id: string) {
-  const r = await query(`DELETE FROM cbc_strands WHERE id = $1`, [id]);
-  if (r.rowCount === 0) throw new HttpError(404, "CBC strand not found");
-}
-
-export async function createSubStrand(strandId: string, input: CbcSubStrandIn) {
-  const { rows } = await query(
-    `INSERT INTO cbc_sub_strands (strand_id, name, code, description, updated_at)
-     VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
-    [strandId, input.name, input.code.toUpperCase(), input.description ?? null],
-  );
-  return rows[0];
-}
-
-export async function updateSubStrand(id: string, input: CbcSubStrandUpdateIn) {
-  const sets: string[] = [];
-  const values: unknown[] = [];
-  let i = 1;
-  if (input.name !== undefined) {
-    sets.push(`name = $${i++}`);
-    values.push(input.name);
-  }
-  if (input.code !== undefined) {
-    sets.push(`code = $${i++}`);
-    values.push(input.code.toUpperCase());
-  }
-  if (input.description !== undefined) {
-    sets.push(`description = $${i++}`);
-    values.push(input.description);
-  }
-  sets.push(`updated_at = NOW()`);
-  values.push(id);
-  const { rows } = await query(
-    `UPDATE cbc_sub_strands SET ${sets.join(", ")} WHERE id = $${i} RETURNING *`,
-    values,
-  );
-  if (!rows[0]) throw new HttpError(404, "CBC sub-strand not found");
-  return rows[0];
-}
-
-export async function deleteSubStrand(id: string) {
-  const r = await query(`DELETE FROM cbc_sub_strands WHERE id = $1`, [id]);
-  if (r.rowCount === 0) throw new HttpError(404, "CBC sub-strand not found");
 }
 
 export async function listGradingScales(level?: "O_LEVEL" | "A_LEVEL") {

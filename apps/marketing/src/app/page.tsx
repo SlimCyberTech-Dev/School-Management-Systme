@@ -17,15 +17,15 @@ import { createPageMetadata } from "@/lib/seo";
 export const metadata = createPageMetadata({
   title: "SchoolManage",
   description:
-    "SchoolManage helps Ugandan secondary schools manage students, O-Level CBC assessments, A-Level UNEB grading, fees in UGX, and report cards on one platform.",
+    "SchoolManage helps Ugandan secondary schools manage students, O-Level exam-based assessments, A-Level UNEB grading, fees in UGX, and report cards on one platform.",
   path: "/",
 });
 
 const highlights = [
   {
-    title: "O-Level CBC assessment",
+    title: "O-Level assessment",
     description:
-      "Record strand and competency ratings (A to E), project work, and end-of-cycle exams. CA and composite grades follow NCDC policy.",
+      "Enter exam marks per subject, project work for continuous assessment, and term composites. A–E letter grades follow NCDC-aligned bands.",
     icon: IconCbc,
     accent: "brand" as const,
   },
@@ -67,13 +67,13 @@ const steps = [
     step: "2",
     title: "Enter scores",
     description:
-      "Teachers record CBC ratings and project work for O-Level, or exam marks for A-Level. Assessments can be submitted for review.",
+      "Teachers enter exam marks for O-Level, project work where required, or A-Level term scores. Assessments can be submitted for review.",
   },
   {
     step: "3",
     title: "Generate report cards",
     description:
-      "Produce CBC or A-Level report cards as PDFs. Headteachers review and approve before printing or sharing.",
+      "Produce O-Level or A-Level report cards as PDFs. Headteachers review and approve before printing or sharing.",
   },
 ] as const;
 

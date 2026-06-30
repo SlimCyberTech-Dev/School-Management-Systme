@@ -1,6 +1,11 @@
 import { query } from "../../config/db";
 import { HttpError } from "../../utils/httpError";
 import { resolveConfiguredGrade } from "../../utils/gradingScales";
+import {
+  bulkRecalcAlevelDivisions,
+  bulkUpsertAlevelScores,
+  resolveAlevelScores,
+} from "./alevelBulk";
 
 type AlevelUpsertItem = {
   studentId: string;
@@ -172,12 +177,11 @@ export async function upsertAlevel(item: AlevelUpsertItem, termId: string, yearI
 }
 
 export async function upsertAlevelBulk(items: AlevelUpsertItem[], termId: string, yearId: string, teacherId: string) {
-  const affected = new Set<string>();
-  for (const item of items) {
-    await upsertAlevel(item, termId, yearId, teacherId);
-    affected.add(item.studentId);
-  }
-  return { saved: items.length, studentsRecalculated: affected.size };
+  const resolved = await resolveAlevelScores(items);
+  const saved = await bulkUpsertAlevelScores(resolved, termId, yearId, teacherId);
+  const studentIds = [...new Set(resolved.map((r) => r.studentId))];
+  await bulkRecalcAlevelDivisions(studentIds, termId, yearId);
+  return { saved, studentsRecalculated: studentIds.length };
 }
 
 export async function submitAlevel(subjectId: string, classId: string, termId: string, yearId: string, actorId: string) {

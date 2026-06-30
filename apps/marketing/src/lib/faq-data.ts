@@ -4,7 +4,7 @@ export const faqItems: FaqItem[] = [
   {
     question: "How are O-Level and A-Level handled in the same system?",
     answer:
-      "O-Level (S1 to S4) and A-Level (S5 to S6) use separate assessment flows aligned to their curricula. O-Level follows CBC: competency ratings (A to E), project work for continuous assessment, end-of-cycle exams, and Result 1/2/3 certification. A-Level follows UNEB conventions: numerical scores convert to grades, points, and divisions. Both share the same student records, academic structure, and reporting tools.",
+      "O-Level (S1 to S4) and A-Level (S5 to S6) use separate assessment flows aligned to their curricula. O-Level uses exam marks per subject, project work for continuous assessment, and term A–E letter grades on report cards. A-Level follows UNEB conventions: numerical scores convert to grades, points, and divisions. Both share the same student records, academic structure, and reporting tools.",
   },
   {
     question: "Does SchoolManage work on slow connections or 3G?",

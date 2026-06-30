@@ -40,8 +40,8 @@ const QUICK_GROUPS = [
       },
       {
         href: "/subject-teacher/exams",
-        label: "Competency assessment",
-        description: "UNEB A–E ratings and activities",
+        label: "O-Level exams",
+        description: "UNEB A–E grades from exam marks",
         icon: BookOpen,
       },
     ],
@@ -71,7 +71,7 @@ const QUICK_GROUPS = [
   },
 ];
 
-function cbcProgressPercent(submitted: number, total: number): number {
+function examProgressPercent(submitted: number, total: number): number {
   if (total <= 0) return 0;
   return Math.min(100, Math.round((submitted / total) * 100));
 }
@@ -86,9 +86,9 @@ export function SubjectTeacherDashboardContent({
   termLabel,
   subjectSlotCount,
   uniqueClassCount,
-  cbcTotal,
-  cbcSubmitted,
-  cbcPending,
+  examSlotTotal,
+  examSlotSubmitted,
+  examSlotPending,
   students,
   studentsTotal,
   myClasses,
@@ -100,16 +100,16 @@ export function SubjectTeacherDashboardContent({
   termLabel: string;
   subjectSlotCount: number;
   uniqueClassCount: number;
-  cbcTotal: number;
-  cbcSubmitted: number;
-  cbcPending: number;
+  examSlotTotal: number;
+  examSlotSubmitted: number;
+  examSlotPending: number;
   students: StudentPreview[];
   studentsTotal?: number;
   myClasses: MyClassRow[];
   subjectSlots: MySubjectSlotRow[];
   homeroomClasses: MyClassRow[];
 }) {
-  const cbcPct = cbcProgressPercent(cbcSubmitted, cbcTotal);
+  const examPct = examProgressPercent(examSlotSubmitted, examSlotTotal);
   const hasAssignments = subjectSlotCount > 0;
 
   const metrics: DashboardMetric[] = [
@@ -126,10 +126,10 @@ export function SubjectTeacherDashboardContent({
       deltaTone: "neutral",
     },
     {
-      label: "Legacy sheet rows",
-      value: hasAssignments ? String(cbcTotal) : "—",
-      delta: `${cbcSubmitted} submitted · ${cbcPending} pending`,
-      deltaTone: cbcPending > 0 ? "negative" : "positive",
+      label: "Exam mark rows",
+      value: hasAssignments ? String(examSlotTotal) : "—",
+      delta: `${examSlotSubmitted} submitted · ${examSlotPending} pending`,
+      deltaTone: examSlotPending > 0 ? "negative" : "positive",
     },
     {
       label: "Active term",
@@ -191,15 +191,15 @@ export function SubjectTeacherDashboardContent({
             {previewSlot ? previewClassLabel(previewSlot) : "No subject slot"}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">{termLabel}</p>
-          {hasAssignments && cbcTotal > 0 ? (
+          {hasAssignments && examSlotTotal > 0 ? (
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between gap-2 text-xs">
-                <span className="text-muted-foreground">Legacy sheet submitted</span>
+                <span className="text-muted-foreground">Exam marks submitted</span>
                 <span className="font-medium tabular-nums text-foreground">
-                  {cbcSubmitted}/{cbcTotal}
-                  {cbcPending > 0 ? (
+                  {examSlotSubmitted}/{examSlotTotal}
+                  {examSlotPending > 0 ? (
                     <span className="ml-2 inline-flex align-middle">
-                      <Badge tone="warning">{cbcPending} pending</Badge>
+                      <Badge tone="warning">{examSlotPending} pending</Badge>
                     </span>
                   ) : (
                     <span className="ml-2 inline-flex align-middle">
@@ -211,23 +211,23 @@ export function SubjectTeacherDashboardContent({
               <div
                 className="h-2 overflow-hidden rounded-full bg-muted"
                 role="progressbar"
-                aria-valuenow={cbcPct}
+                aria-valuenow={examPct}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-label="Legacy CBC sheet submission progress"
+                aria-label="O-Level exam mark submission progress"
               >
                 <div
                   className="h-full rounded-full bg-brand transition-[width]"
-                  style={{ width: `${cbcPct}%` }}
+                  style={{ width: `${examPct}%` }}
                 />
               </div>
             </div>
-          ) : hasAssignments && cbcPending > 0 ? (
+          ) : hasAssignments && examSlotPending > 0 ? (
             <Link
               href="/subject-teacher/exams"
               className="mt-auto inline-block pt-4 text-sm font-medium text-brand hover:underline"
             >
-              Continue competency entry →
+              Continue exam mark entry →
             </Link>
           ) : null}
         </div>

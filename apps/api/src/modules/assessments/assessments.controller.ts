@@ -218,10 +218,10 @@ export async function getProjectWork(req: Request, res: Response) {
 
 export async function postProjectWorkBulk(req: Request, res: Response) {
   const body = projectWorkBulkSchema.parse(req.body);
-  const rows = await projectWorkSvc.upsertProjectWorkBulk(body, req.user!.id);
+  const result = await projectWorkSvc.upsertProjectWorkBulk(body, req.user!.id);
   res.json({
     success: true,
-    data: rows,
-    message: "Project work saved. Term grades will update automatically.",
+    data: result,
+    message: `Project work saved (${result.saved} updated${result.deleted ? `, ${result.deleted} cleared` : ""}). Term grades will update automatically.`,
   });
 }

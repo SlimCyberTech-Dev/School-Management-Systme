@@ -167,10 +167,10 @@ export function TeacherExamMarksPanel({
               ) : (
                 <>
                   Enter numeric <strong className="text-foreground">exam scores</strong> (0–max). Grades use
-                  the <strong className="text-foreground">O-Level</strong> composite grading scale — not NCDC
-                  competency descriptors. Term competencies are entered separately under{" "}
+                  the <strong className="text-foreground">O-Level</strong> A–E grading scale. Open exams and
+                  project work are entered under{" "}
                   <Link href={termAssessmentHref} className="font-medium text-brand hover:underline">
-                    Competency assessment
+                    O-Level exams
                   </Link>
                   .
                 </>

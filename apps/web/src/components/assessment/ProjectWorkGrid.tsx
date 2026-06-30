@@ -41,6 +41,7 @@ export function ProjectWorkGrid({
     DEFAULT_ASSESSMENT_CONFIG.projectWork.expectedPerTerm,
   );
   const [rows, setRows] = useState<ProjectRow[]>([]);
+  const [persistedKeys, setPersistedKeys] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -70,6 +71,11 @@ export function ProjectWorkGrid({
           maxScore: String(r.maxScore),
         };
       }
+      const keys = new Set<string>();
+      for (const r of apiRows) {
+        keys.add(`${r.studentId}:${r.projectNumber}`);
+      }
+      setPersistedKeys(keys);
       setRows([...byStudent.values()]);
     },
     [students, projectNumbers],
@@ -117,29 +123,53 @@ export function ProjectWorkGrid({
     setSaving(true);
     try {
       const scores = rows.flatMap((r) =>
-        projectNumbers.map((n) => {
+        projectNumbers.flatMap((n) => {
           const cell = r.scores[n];
           const raw = cell?.score?.trim();
-          return {
-            studentId: r.studentId,
-            projectNumber: n,
-            score: raw === "" || raw == null ? null : Number(raw),
-            maxScore: Number(cell?.maxScore || 100),
-          };
+          const key = `${r.studentId}:${n}`;
+          const hasScore = raw !== "" && raw != null;
+          if (!hasScore) {
+            return persistedKeys.has(key)
+              ? [{ studentId: r.studentId, projectNumber: n, score: null as number | null }]
+              : [];
+          }
+          return [
+            {
+              studentId: r.studentId,
+              projectNumber: n,
+              score: Number(raw),
+              maxScore: Number(cell?.maxScore || 100),
+            },
+          ];
         }),
       );
-      await apiPost("/assessments/project-work/bulk", {
-        classId,
-        subjectId,
-        termId,
-        yearId,
-        scores,
-      });
+      if (scores.length === 0) {
+        toast.error("Enter at least one project score before saving.");
+        return;
+      }
+      const result = await apiPost<{ saved: number; deleted: number }>(
+        "/assessments/project-work/bulk",
+        {
+          classId,
+          subjectId,
+          termId,
+          yearId,
+          scores,
+        },
+      );
+      const nextPersisted = new Set(persistedKeys);
+      for (const item of scores) {
+        const key = `${item.studentId}:${item.projectNumber}`;
+        if (item.score == null) nextPersisted.delete(key);
+        else nextPersisted.add(key);
+      }
+      setPersistedKeys(nextPersisted);
       toast.success(
-        "Project work saved. Ask admin to run O-Level grade recalculation before publishing report cards.",
+        `Saved ${result.saved} project score${result.saved === 1 ? "" : "s"}${
+          result.deleted ? ` and cleared ${result.deleted}` : ""
+        }. Term grades will update automatically.`,
         "Saved",
       );
-      await load();
     } catch (e) {
       toast.error(getApiErrorMessage(e), "Could not save project work");
     } finally {
@@ -182,8 +212,8 @@ export function ProjectWorkGrid({
   return (
     <div className="space-y-3">
       <Alert tone="info">
-        Project work is the <strong>official CA source</strong> (NCDC marking scheme). Strand ratings are
-        provisional fallback only. Composites update after admin runs O-Level grade recalculation.
+        Project work feeds continuous assessment for O-Level term grades. Composites update automatically
+        after you save.
       </Alert>
       <Table columns={columns as Column<TableRow>[]} rows={rows as TableRow[]} pageSize={50} />
       <Button onClick={() => void save()} disabled={saving}>

@@ -18,6 +18,7 @@ import { Select } from "@/components/ui/Select";
 import {
   useLessonAttendanceMutations,
   useLessonAttendanceRegister,
+  mergeLessonRegister,
   type LessonRegisterResponse,
 } from "@/hooks/useAttendanceLesson";
 import { useMyTeachingScope } from "@/hooks/useMyTeachingScope";
@@ -49,6 +50,27 @@ type HomeroomRegisterResponse = {
     unmarked: number;
   };
 };
+
+type HomeroomRegisterMutation = {
+  saved: number;
+  registerId: string | null;
+  registerStatus: "draft" | "submitted" | "locked";
+  submittedAt: string | null;
+  summary: HomeroomRegisterResponse["summary"];
+};
+
+function mergeHomeroomRegister(
+  prev: HomeroomRegisterResponse,
+  patch: HomeroomRegisterMutation,
+): HomeroomRegisterResponse {
+  return {
+    ...prev,
+    registerId: patch.registerId ?? prev.registerId,
+    registerStatus: patch.registerStatus,
+    submittedAt: patch.submittedAt,
+    summary: patch.summary,
+  };
+}
 
 export default function ClassTeacherAttendancePage() {
   const searchParams = useSearchParams();
@@ -209,12 +231,14 @@ function LessonAttendancePanel({
     setErr(null);
     setOk(null);
     try {
-      const data = await mutations.save.mutateAsync({
+      const patch = await mutations.save.mutateAsync({
         timetableEntryId: entryId,
         date,
         rows: buildRows(),
       });
-      applyRegister(data);
+      if (registerQ.data) {
+        applyRegister(mergeLessonRegister(registerQ.data, patch));
+      }
       setOk("Lesson attendance draft saved.");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to save");
@@ -226,13 +250,8 @@ function LessonAttendancePanel({
     setErr(null);
     setOk(null);
     try {
-      await mutations.save.mutateAsync({
-        timetableEntryId: entryId,
-        date,
-        rows: buildRows(),
-      });
-      const data = await mutations.submit.mutateAsync();
-      applyRegister(data);
+      const patch = await mutations.submit.mutateAsync(buildRows());
+      applyRegister(mergeLessonRegister(registerQ.data, patch));
       setOk("Lesson attendance submitted.");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to submit");
@@ -405,12 +424,12 @@ function HomeroomAttendancePanel({
     setSaving(true);
     setErr(null);
     try {
-      const data = await apiPut<HomeroomRegisterResponse>("/attendance/register", {
+      const patch = await apiPut<HomeroomRegisterMutation>("/attendance/register", {
         classId,
         date,
         rows: buildRows(),
       });
-      applyRegister(data);
+      setRegister((prev) => (prev ? mergeHomeroomRegister(prev, patch) : prev));
       setOk("Homeroom register saved.");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to save");
@@ -424,9 +443,12 @@ function HomeroomAttendancePanel({
     setSubmitting(true);
     setErr(null);
     try {
-      await apiPut("/attendance/register", { classId, date, rows: buildRows() });
-      const data = await apiPost<HomeroomRegisterResponse>("/attendance/register/submit", { classId, date });
-      applyRegister(data);
+      const patch = await apiPost<HomeroomRegisterMutation>("/attendance/register/submit", {
+        classId,
+        date,
+        rows: buildRows(),
+      });
+      setRegister((prev) => (prev ? mergeHomeroomRegister(prev, patch) : prev));
       setOk("Homeroom register submitted.");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to submit");

@@ -6,12 +6,11 @@ import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { SubjectTeacherDashboardContent } from "@/components/subject-teacher/SubjectTeacherDashboardContent";
 import { DashboardSkeleton } from "@/components/layout/shells/DashboardScaffold";
+import { useExamMarkingSlots } from "@/hooks/useExams";
 import { useMyTeachingScope } from "@/hooks/useMyTeachingScope";
 import { apiGet } from "@/lib/api";
 import { manualStatus } from "@/lib/queryStatus";
 import type { PaginatedStudents } from "@uganda-cbc-sms/shared";
-
-type CbcRow = { submitted?: boolean; id: string };
 
 export default function SubjectTeacherDashboardPage() {
   const scope = useMyTeachingScope();
@@ -27,22 +26,11 @@ export default function SubjectTeacherDashboardPage() {
     enabled: Boolean(previewClassId),
   });
 
-  const cbcQ = useQuery({
-    queryKey: ["cbc-dashboard", scope.yearId, scope.termId],
-    queryFn: async () => {
-      if (!scope.yearId || !scope.termId) {
-        return [] as CbcRow[];
-      }
-      return apiGet<CbcRow[]>(
-        `/assessments/cbc?termId=${encodeURIComponent(scope.termId)}&yearId=${encodeURIComponent(scope.yearId)}`,
-      );
-    },
-    enabled: Boolean(scope.yearId && scope.termId && scope.subjectSlots.length > 0),
-  });
-
-  const cbcRows = cbcQ.data ?? [];
-  const cbcSubmitted = cbcRows.filter((r) => r.submitted).length;
-  const cbcPending = cbcRows.length - cbcSubmitted;
+  const examSlotsQ = useExamMarkingSlots();
+  const examSlots = examSlotsQ.data ?? [];
+  const examSlotTotal = examSlots.length;
+  const examSlotSubmitted = examSlots.filter((s) => s.isSubmitted).length;
+  const examSlotPending = examSlotTotal - examSlotSubmitted;
 
   const uniqueClassCount = useMemo(() => {
     const ids = new Set(scope.subjectSlots.map((s) => s.classId));
@@ -53,23 +41,25 @@ export default function SubjectTeacherDashboardPage() {
   const termLabel = scope.termId ? `Term ${scope.activeTerm?.termNumber ?? ""}` : "Not set";
 
   const loadStudents = Boolean(previewClassId);
-  const loadCbc = Boolean(scope.yearId && scope.termId && scope.subjectSlots.length > 0);
+  const loadExamSlots = Boolean(scope.subjectSlots.length > 0);
 
   const status = manualStatus({
     loading:
-      scope.isLoading || (loadStudents && studentsQ.isPending) || (loadCbc && cbcQ.isPending),
-    error: scope.error ?? studentsQ.error ?? cbcQ.error,
+      scope.isLoading ||
+      (loadStudents && studentsQ.isPending) ||
+      (loadExamSlots && examSlotsQ.isPending),
+    error: scope.error ?? studentsQ.error ?? examSlotsQ.error,
     data: scope.hasAssignments ? scope.subjectSlots : scope.myClasses,
   });
 
   const isFetching =
     scope.isLoading ||
     (loadStudents && studentsQ.isFetching) ||
-    (loadCbc && cbcQ.isFetching);
+    (loadExamSlots && examSlotsQ.isFetching);
 
   const errorMessage =
-    (scope.error ?? studentsQ.error ?? cbcQ.error) instanceof Error
-      ? (scope.error ?? studentsQ.error ?? cbcQ.error)!.message
+    (scope.error ?? studentsQ.error ?? examSlotsQ.error) instanceof Error
+      ? (scope.error ?? studentsQ.error ?? examSlotsQ.error)!.message
       : "Failed to load";
 
   const studentPreviews = useMemo(
@@ -95,9 +85,9 @@ export default function SubjectTeacherDashboardPage() {
         termLabel={termLabel}
         subjectSlotCount={scope.subjectSlots.length}
         uniqueClassCount={uniqueClassCount}
-        cbcTotal={cbcRows.length}
-        cbcSubmitted={cbcSubmitted}
-        cbcPending={cbcPending}
+        examSlotTotal={examSlotTotal}
+        examSlotSubmitted={examSlotSubmitted}
+        examSlotPending={examSlotPending}
         students={studentPreviews}
         studentsTotal={studentsQ.data?.total}
         myClasses={scope.myClasses}

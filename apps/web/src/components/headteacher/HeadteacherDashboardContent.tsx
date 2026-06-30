@@ -52,7 +52,7 @@ const QUICK_GROUPS: { title: string; links: QuickLink[] }[] = [
       {
         href: "/headteacher/assessment",
         label: "Assessments",
-        description: "CBC and A-Level entry status",
+        description: "O-Level and A-Level entry status",
         icon: ClipboardCheck,
       },
       {
@@ -167,7 +167,7 @@ export function HeadteacherDashboardContent({
       deltaTone: "positive",
     },
     {
-      label: "Avg CBC rating",
+      label: "Avg O-Level grade",
       value: formatScore(kpis.averageCbcNumeric),
       helper: "School-wide (A=4 scale)",
       delta: "O-Level",

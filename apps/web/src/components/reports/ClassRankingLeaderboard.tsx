@@ -17,8 +17,6 @@ const METHOD_DESCRIPTION: Record<RankingMethod, string> = {
     "Mean composite score across subjects (CA 20% + EOC 80%; higher average = better position).",
   exam_average_percent:
     "Mean exam score as a percentage across papers (higher average = better position).",
-  cbc_competency_average:
-    "Mean CBC competency score (A=5 … E=1; higher average = better position).",
 };
 
 export function ClassRankingLeaderboard({

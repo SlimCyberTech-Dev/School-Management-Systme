@@ -147,13 +147,13 @@ export default function AdminReportsPage() {
         deltaTone: "neutral" as const,
       },
       {
-        label: "CBC reports approved",
+        label: "O-Level reports approved",
         value: `${pipeline.cbc.approved}/${pipeline.cbc.generated || pipeline.activeStudents}`,
         delta: `${pipeline.cbc.pendingApproval} awaiting approval`,
         deltaTone: pipeline.cbc.pendingApproval > 0 ? ("negative" as const) : ("positive" as const),
       },
       {
-        label: "School CBC average",
+        label: "School O-Level average",
         value: cbcAvg > 0 ? cbcAvg.toFixed(2) : "—",
         delta: "Numeric scale (A=4…D=1)",
         deltaTone: "neutral" as const,
@@ -161,7 +161,7 @@ export default function AdminReportsPage() {
       {
         label: "School A-Level average",
         value: alAvg > 0 ? alAvg.toFixed(1) : "—",
-        delta: cbcTotal ? `${subPct}% CBC subjects submitted` : "Select class",
+        delta: cbcTotal ? `${subPct}% O-Level subjects submitted` : "Select class",
         deltaTone: subPct >= 80 ? ("positive" as const) : ("neutral" as const),
       },
     ];

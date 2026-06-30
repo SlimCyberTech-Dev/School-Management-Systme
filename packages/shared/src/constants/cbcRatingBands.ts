@@ -1,4 +1,4 @@
-/** Official O-Level CBC competency rating bands (UNEB/NCDC — no fail grade). */
+/** Official O-Level A–E letter grade bands (UNEB/NCDC — no fail grade). */
 export const CBC_RATINGS = ["A", "B", "C", "D", "E"] as const;
 
 export type CbcRating = (typeof CBC_RATINGS)[number];

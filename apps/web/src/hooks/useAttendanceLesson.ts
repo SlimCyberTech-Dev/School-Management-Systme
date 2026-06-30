@@ -39,6 +39,29 @@ export type LessonRegisterResponse = {
   };
 };
 
+export type LessonRegisterMutation = {
+  registerType: "lesson";
+  timetableEntryId: string;
+  saved: number;
+  registerId: string | null;
+  registerStatus: "draft" | "submitted" | "locked";
+  submittedAt: string | null;
+  summary: LessonRegisterResponse["summary"];
+};
+
+export function mergeLessonRegister(
+  prev: LessonRegisterResponse,
+  patch: LessonRegisterMutation,
+): LessonRegisterResponse {
+  return {
+    ...prev,
+    registerId: patch.registerId ?? prev.registerId,
+    registerStatus: patch.registerStatus,
+    submittedAt: patch.submittedAt,
+    summary: patch.summary,
+  };
+}
+
 export function useLessonAttendanceRegister(timetableEntryId: string, date: string) {
   const enabled = Boolean(timetableEntryId && date);
   return useQuery({
@@ -54,26 +77,28 @@ export function useLessonAttendanceRegister(timetableEntryId: string, date: stri
 
 export function useLessonAttendanceMutations(timetableEntryId: string, date: string) {
   const qc = useQueryClient();
+  const queryKey = ["attendance-lesson-register", timetableEntryId, date] as const;
 
-  const invalidate = async () => {
-    await qc.invalidateQueries({ queryKey: ["attendance-lesson-register", timetableEntryId, date] });
-    await qc.invalidateQueries({ queryKey: ["timetable-today"] });
-    await qc.invalidateQueries({ queryKey: ["timetable-my-week"] });
+  const patchCache = (patch: LessonRegisterMutation) => {
+    qc.setQueryData<LessonRegisterResponse>(queryKey, (prev) =>
+      prev ? mergeLessonRegister(prev, patch) : prev,
+    );
   };
 
   const save = useMutation({
     mutationFn: (payload: AttendanceLessonRegisterSaveInput) =>
-      apiPut<LessonRegisterResponse>("/attendance/lesson-register", payload),
-    onSuccess: () => void invalidate(),
+      apiPut<LessonRegisterMutation>("/attendance/lesson-register", payload),
+    onSuccess: (patch) => patchCache(patch),
   });
 
   const submit = useMutation({
-    mutationFn: () =>
-      apiPost<LessonRegisterResponse>("/attendance/lesson-register/submit", {
+    mutationFn: (rows?: AttendanceLessonRegisterSaveInput["rows"]) =>
+      apiPost<LessonRegisterMutation>("/attendance/lesson-register/submit", {
         timetableEntryId,
         date,
+        rows,
       }),
-    onSuccess: () => void invalidate(),
+    onSuccess: (patch) => patchCache(patch),
   });
 
   return { save, submit };

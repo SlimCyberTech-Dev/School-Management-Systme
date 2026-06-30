@@ -73,8 +73,18 @@ export async function resolveConfiguredGrade(
   score: number,
   level: GradingScaleLevel,
 ): Promise<{ grade: string; points: number | null }> {
-  const scheme = await getGradingScheme(level);
-  const bands = await loadActiveGradingBands(level);
+  const resolver = await createGradingResolver(level);
+  return resolver(score);
+}
+
+export type GradingResolver = (score: number) => { grade: string; points: number | null };
+
+function resolveGradeFromLoadedContext(
+  score: number,
+  level: GradingScaleLevel,
+  scheme: string,
+  bands: GradingScaleBand[],
+): { grade: string; points: number | null } {
   const fromConfig = resolveGradeFromBands(score, bands);
   if (fromConfig) {
     if (level === "O_LEVEL" && scheme === "cbc_2024_v1") {
@@ -112,6 +122,13 @@ export async function resolveConfiguredGrade(
   }
   if (level === "O_LEVEL") return { grade: "E", points: null };
   return { grade: "F", points: 9 };
+}
+
+/** Load tenant grading bands once, then resolve many scores without extra DB round-trips. */
+export async function createGradingResolver(level: GradingScaleLevel): Promise<GradingResolver> {
+  const scheme = await getGradingScheme(level);
+  const bands = await loadActiveGradingBands(level);
+  return (score: number) => resolveGradeFromLoadedContext(score, level, scheme, bands);
 }
 
 export function defaultScaleRows(level: GradingScaleLevel) {

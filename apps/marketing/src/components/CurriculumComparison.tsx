@@ -5,14 +5,14 @@ import { useState } from "react";
 const tracks = [
   {
     id: "olevel",
-    label: "O-Level (CBC)",
+    label: "O-Level",
     forms: "S1 – S4",
     accent: "brand" as const,
     items: [
-      { label: "Ratings", value: "A – E competency bands" },
-      { label: "Assessment", value: "Project work + end-of-cycle exams" },
-      { label: "Composite", value: "CA + EOC (e.g. 20/80)" },
-      { label: "Outcome", value: "Result 1 / 2 / 3 certification" },
+      { label: "Grades", value: "A – E letter bands" },
+      { label: "Assessment", value: "Exam marks + project work" },
+      { label: "Composite", value: "Project + exam average (e.g. 20/80)" },
+      { label: "Reports", value: "Term subject grid with C1…Cn exams" },
     ],
   },
   {

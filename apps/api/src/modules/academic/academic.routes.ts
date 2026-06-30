@@ -63,14 +63,6 @@ academicRouter.put("/combinations/:id", academicLeads, asyncHandler(c.putCombina
 academicRouter.delete("/combinations/:id", academicLeads, asyncHandler(c.deleteCombination));
 academicRouter.post("/combinations/:id/subjects", academicLeads, asyncHandler(c.postCombinationSubject));
 academicRouter.delete("/combinations/:id/subjects/:subjectId", academicLeads, asyncHandler(c.deleteCombinationSubject));
-academicRouter.post("/cbc-strands", academicLeads, asyncHandler(c.postCbcStrand));
-academicRouter.get("/cbc-strands", teachingReaders, asyncHandler(c.getCbcStrands));
-academicRouter.get("/cbc-strands/:id", teachingReaders, asyncHandler(c.getCbcStrandById));
-academicRouter.put("/cbc-strands/:id", academicLeads, asyncHandler(c.putCbcStrand));
-academicRouter.delete("/cbc-strands/:id", academicLeads, asyncHandler(c.deleteCbcStrand));
-academicRouter.post("/cbc-strands/:id/sub-strands", academicLeads, asyncHandler(c.postCbcSubStrand));
-academicRouter.put("/cbc-strands/sub-strands/:subStrandId", academicLeads, asyncHandler(c.putCbcSubStrand));
-academicRouter.delete("/cbc-strands/sub-strands/:subStrandId", academicLeads, asyncHandler(c.deleteCbcSubStrand));
 academicRouter.get("/grading-scales", academicReaders, asyncHandler(c.getGradingScales));
 academicRouter.put("/grading-scales", requireRoles("admin"), asyncHandler(c.putGradingScales));
 academicRouter.post("/grading-scales/apply-cbc-defaults", requireRoles("admin"), asyncHandler(c.postApplyOlevelCbcDefaults));

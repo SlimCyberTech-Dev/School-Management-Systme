@@ -65,7 +65,13 @@ export async function postAttendanceRegisterSubmit(req: Request, res: Response):
     return;
   }
   const body = attendanceRegisterSubmitSchema.parse(req.body);
-  const data = await svc.submitAttendanceRegister(body.classId, body.date, req.user.id, req.user.role);
+  const data = await svc.submitAttendanceRegister(
+    body.classId,
+    body.date,
+    req.user.id,
+    req.user.role,
+    body.rows,
+  );
   res.json({ success: true, data, message: "Attendance register submitted." });
 }
 
@@ -115,6 +121,7 @@ export async function postAttendanceLessonRegisterSubmit(req: Request, res: Resp
     body.date,
     req.user.id,
     req.user.role,
+    body.rows,
   );
   res.json({ success: true, data, message: "Lesson attendance register submitted." });
 }

@@ -8,18 +8,32 @@ import { query, tenantContext } from "../../config/db";
 import { writeAuditLog } from "../audit/audit.service";
 import { HttpError } from "../../utils/httpError";
 import { normalizeClassLevel } from "../../utils/classLevel";
-import { resolveConfiguredGrade } from "../../utils/gradingScales";
+import { createGradingResolver } from "../../utils/gradingScales";
 import {
   assertTeacherIsAssignedSubjectTeacher,
   teacherIsAssignedSubjectTeacher,
 } from "../../utils/teacherTeachingAccess";
 import {
-  assertStudentsEnteredForMarks,
   countEntrantsForSubject,
   normalizeExamPapers,
   replaceExamPapers,
   seedCompulsoryEntries,
 } from "./examEntries";
+import {
+  bulkUpsertExamMarks,
+  finalizeExamMarksSubmission,
+  loadExamMarksSubmitReadiness,
+  resolveMarkGrades,
+  validateEligibleMarkStudents,
+} from "./examMarksBulk";
+import {
+  bulkInsertExamEntries,
+  bulkRemoveExamEntries,
+  partitionExamEntries,
+  validateExamEntryBatch,
+} from "./examEntriesBulk";
+import { BULK_CHUNK_SIZE } from "../../utils/bulkConstants";
+import { validateActiveClassStudents } from "../../utils/rosterValidation";
 import { fireExamMarksSubmittedNotification } from "../../services/notifications/notificationHooks";
 import { scheduleTermRecompute } from "../../utils/termRecomputeSchedule";
 
@@ -432,21 +446,42 @@ export async function closeExam(id: string, options?: { force?: boolean }) {
 export async function recalculateExamMarkGrades(examId: string) {
   const exam = await getExamRow(examId);
   const level = await gradingLevelForClass(exam.class_id);
+  const resolveGrade = await createGradingResolver(level);
   const { rows } = await query<{ id: string; score: string }>(
     `SELECT id, score::text AS score FROM exam_marks WHERE exam_id = $1`,
     [examId],
   );
-  for (const row of rows) {
-    const score = Number(row.score);
-    if (Number.isNaN(score)) continue;
-    const { grade, points } = await resolveConfiguredGrade(score, level);
-    await query(`UPDATE exam_marks SET grade = $2, points = $3, updated_at = NOW() WHERE id = $1`, [
-      row.id,
-      grade,
-      points,
-    ]);
+
+  let updated = 0;
+
+  for (let i = 0; i < rows.length; i += BULK_CHUNK_SIZE) {
+    const chunk = rows.slice(i, i + BULK_CHUNK_SIZE);
+    const ids: string[] = [];
+    const grades: string[] = [];
+    const points: Array<number | null> = [];
+
+    for (const row of chunk) {
+      const score = Number(row.score);
+      if (Number.isNaN(score)) continue;
+      const resolved = resolveGrade(score);
+      ids.push(row.id);
+      grades.push(resolved.grade);
+      points.push(resolved.points);
+    }
+
+    if (ids.length === 0) continue;
+
+    const result = await query(
+      `UPDATE exam_marks em
+       SET grade = u.grade, points = u.points, updated_at = NOW()
+       FROM UNNEST($1::uuid[], $2::text[], $3::int[]) AS u(id, grade, points)
+       WHERE em.id = u.id`,
+      [ids, grades, points],
+    );
+    updated += result.rowCount ?? ids.length;
   }
-  return { updated: rows.length, level };
+
+  return { updated, level };
 }
 
 export async function reopenExam(id: string) {
@@ -858,45 +893,23 @@ export async function upsertExamMarks(
   }
 
   await assertSubjectSubmitted(examId, input.subjectId);
-  await assertStudentsEnteredForMarks(
-    examId,
-    input.subjectId,
-    input.marks.map((m) => m.studentId),
-  );
 
   const maxScore = Number(exam.max_score);
-  const level = await gradingLevelForClass(exam.class_id);
-  let saved = 0;
-
   for (const item of input.marks) {
     if (item.score > maxScore) {
       throw new HttpError(400, `Scores cannot be higher than ${maxScore} for this exam.`);
     }
-
-    const st = await query(`SELECT id FROM students WHERE id = $1 AND class_id = $2 AND status = 'active'`, [
-      item.studentId,
-      exam.class_id,
-    ]);
-    if (st.rows.length === 0) {
-      throw new HttpError(400, "One of the students is not in this exam's class or is no longer active.");
-    }
-
-    const { grade, points } = await resolveConfiguredGrade(item.score, level);
-
-    await query(
-      `INSERT INTO exam_marks (exam_id, student_id, subject_id, score, grade, points, teacher_id, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-       ON CONFLICT (exam_id, student_id, subject_id) DO UPDATE SET
-         score = EXCLUDED.score,
-         grade = EXCLUDED.grade,
-         points = EXCLUDED.points,
-         teacher_id = EXCLUDED.teacher_id,
-         updated_at = NOW()
-       WHERE exam_marks.is_locked = false`,
-      [examId, item.studentId, input.subjectId, item.score, grade, points, teacherId],
-    );
-    saved += 1;
   }
+
+  const studentIds = input.marks.map((m) => m.studentId);
+  const level = await gradingLevelForClass(exam.class_id);
+  const [resolveGrade] = await Promise.all([
+    createGradingResolver(level),
+    validateEligibleMarkStudents(examId, input.subjectId, exam.class_id, studentIds),
+  ]);
+
+  const resolved = resolveMarkGrades(input.marks, resolveGrade);
+  const saved = await bulkUpsertExamMarks(examId, input.subjectId, teacherId, resolved);
 
   scheduleTermRecompute(exam.class_id, exam.term_id);
   return { saved, maxScore };
@@ -922,46 +935,30 @@ export async function submitExamMarks(
     );
   }
 
-  await assertSubjectSubmitted(examId, subjectId);
-
-  const entrants = await countEntrantsForSubject(examId, subjectId);
-  if (entrants === 0) {
+  const readiness = await loadExamMarksSubmitReadiness(examId, subjectId);
+  if (!readiness.subjectOnExam) {
+    throw new HttpError(400, "That subject is not part of this exam. Choose a subject from the exam list.");
+  }
+  if (readiness.isSubmitted) {
+    throw new HttpError(
+      400,
+      "Marks for this subject have been submitted and locked. Ask the headteacher or admin to reopen if corrections are needed.",
+    );
+  }
+  if (readiness.entrants === 0) {
     throw new HttpError(
       400,
       "No students are registered for this paper. Configure entries or skip submission if the paper is not used.",
     );
   }
-
-  const { rows: missing } = await query<{ c: number }>(
-    `SELECT COUNT(*)::int AS c
-     FROM exam_student_entries ese
-     LEFT JOIN exam_marks em
-       ON em.exam_id = ese.exam_id
-      AND em.student_id = ese.student_id
-      AND em.subject_id = ese.subject_id
-     WHERE ese.exam_id = $1 AND ese.subject_id = $2 AND em.id IS NULL`,
-    [examId, subjectId],
-  );
-  if ((missing[0]?.c ?? 0) > 0) {
+  if (readiness.missing > 0) {
     throw new HttpError(
       400,
-      `${missing[0]!.c} registered student(s) still need marks before this paper can be submitted.`,
+      `${readiness.missing} registered student(s) still need marks before this paper can be submitted.`,
     );
   }
 
-  await query(
-    `INSERT INTO exam_subject_submissions (exam_id, subject_id, is_submitted, submitted_at, submitted_by)
-     VALUES ($1, $2, true, NOW(), $3)
-     ON CONFLICT (exam_id, subject_id) DO UPDATE SET
-       is_submitted = true, submitted_at = NOW(), submitted_by = EXCLUDED.submitted_by`,
-    [examId, subjectId, teacherId],
-  );
-
-  await query(
-    `UPDATE exam_marks SET is_locked = true, updated_at = NOW()
-     WHERE exam_id = $1 AND subject_id = $2`,
-    [examId, subjectId],
-  );
+  await finalizeExamMarksSubmission(examId, subjectId, teacherId);
 
   const tenantId = tenantContext.getStore();
   if (tenantId) {
@@ -1067,70 +1064,24 @@ export async function saveExamEntries(examId: string, input: SaveExamEntriesInpu
     throw new HttpError(400, "Student entries can only be changed while the exam is a draft.");
   }
 
-  const subjectIds = new Set(
-    (
-      await query<{ subject_id: string; is_compulsory: boolean }>(
-        `SELECT subject_id, is_compulsory FROM exam_subjects WHERE exam_id = $1`,
-        [examId],
-      )
-    ).rows.map((r) => r.subject_id),
+  const { rows: subjectRows } = await query<{ subject_id: string; is_compulsory: boolean }>(
+    `SELECT subject_id, is_compulsory FROM exam_subjects WHERE exam_id = $1`,
+    [examId],
   );
+  const subjectIds = new Set(subjectRows.map((r) => r.subject_id));
   const compulsoryIds = new Set(
-    (
-      await query<{ subject_id: string }>(
-        `SELECT subject_id FROM exam_subjects WHERE exam_id = $1 AND is_compulsory = true`,
-        [examId],
-      )
-    ).rows.map((r) => r.subject_id),
+    subjectRows.filter((r) => r.is_compulsory).map((r) => r.subject_id),
   );
 
-  const activeStudents = new Set(
-    (
-      await query<{ id: string }>(
-        `SELECT id FROM students WHERE class_id = $1 AND status = 'active'`,
-        [exam.class_id],
-      )
-    ).rows.map((r) => r.id),
-  );
+  const uniqueStudentIds = [...new Set(input.entries.map((e) => e.studentId))];
+  await validateActiveClassStudents(exam.class_id, uniqueStudentIds);
+  validateExamEntryBatch(input.entries, subjectIds, compulsoryIds);
 
-  let changed = 0;
-  for (const item of input.entries) {
-    if (!subjectIds.has(item.subjectId)) {
-      throw new HttpError(400, "One of the subjects is not part of this exam.");
-    }
-    if (!activeStudents.has(item.studentId)) {
-      throw new HttpError(400, "One of the students is not in this exam's class.");
-    }
-    if (!item.isEntered && compulsoryIds.has(item.subjectId)) {
-      throw new HttpError(
-        400,
-        "Compulsory papers must include every student in the class. Mark the paper as optional in exam settings instead.",
-      );
-    }
+  const { inserts, removes } = partitionExamEntries(input.entries);
+  const inserted = await bulkInsertExamEntries(examId, inserts);
+  const removed = await bulkRemoveExamEntries(examId, removes);
 
-    if (item.isEntered) {
-      await query(
-        `INSERT INTO exam_student_entries (exam_id, student_id, subject_id)
-         VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-        [examId, item.studentId, item.subjectId],
-      );
-      changed += 1;
-    } else {
-      await query(
-        `DELETE FROM exam_marks
-         WHERE exam_id = $1 AND student_id = $2 AND subject_id = $3`,
-        [examId, item.studentId, item.subjectId],
-      );
-      await query(
-        `DELETE FROM exam_student_entries
-         WHERE exam_id = $1 AND student_id = $2 AND subject_id = $3`,
-        [examId, item.studentId, item.subjectId],
-      );
-      changed += 1;
-    }
-  }
-
-  return { changed };
+  return { changed: inserted + removed };
 }
 
 export async function applyExamEntriesPreset(

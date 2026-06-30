@@ -34,7 +34,7 @@ export const ACHIEVEMENT_PLAIN_MEANINGS: Record<string, string> = {
   B: "Consistently performs above the expected standard.",
   C: "Meets the expected standard.",
   D: "Approaches the standard; may need additional support.",
-  E: "Beginning to develop the competency; foundational skills emerging.",
+  E: "Beginning to develop the expected skills; foundational work in progress.",
 };
 
 const { caWeight, eocWeight } = DEFAULT_ASSESSMENT_CONFIG;

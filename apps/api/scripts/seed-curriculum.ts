@@ -31,7 +31,7 @@ async function main(): Promise<void> {
   for (const tenantId of tenantIds) {
     await tenantContext.run(tenantId, async () => {
       if (catalogOnly) {
-        const catalog = await seedCurriculumCatalog({ level: "ALL", includeStrands: true });
+        const catalog = await seedCurriculumCatalog({ level: "ALL" });
         console.log(`[tenant ${tenantId}] catalogue:`, catalog);
         return;
       }

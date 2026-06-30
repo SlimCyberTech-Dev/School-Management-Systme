@@ -1,7 +1,5 @@
 import {
   assignCompetitionRanks,
-  cbcCompetencyAverage,
-  computeExamAveragePercent,
   type RankableStudent,
   type RankingMethod,
   type ReportRankingSnapshot,
@@ -52,49 +50,7 @@ export function rankableFromCbcPayload(
     };
   }
 
-  const summaries = payload.subjectSummaries ?? [];
-  const composites = summaries
-    .map((s) => s.composite)
-    .filter((c): c is number => c != null && !Number.isNaN(c));
-  if (composites.length >= 1) {
-    const avg = Math.round((composites.reduce((s, c) => s + c, 0) / composites.length) * 10) / 10;
-    return {
-      studentId,
-      sortKey: avg,
-      aggregateValue: avg,
-      aggregateLabel: `Composite average ${avg}% (${composites.length} subjects)`,
-      method: "olevel_composite_average",
-      subjectsCounted: composites.length,
-    };
-  }
-
-  const examSubjects = payload.formalExam?.subjects ?? [];
-  if (examSubjects.length >= 1) {
-    const avg = computeExamAveragePercent(
-      examSubjects.map((s) => ({ score: s.score, maxScore: s.maxScore })),
-    );
-    if (avg == null) return null;
-    return {
-      studentId,
-      sortKey: avg,
-      aggregateValue: avg,
-      aggregateLabel: `Exam average ${avg}%`,
-      method: "exam_average_percent",
-      subjectsCounted: examSubjects.length,
-    };
-  }
-
-  const ratings = payload.subjects.map((s) => s.rating).filter(Boolean);
-  const avg = cbcCompetencyAverage(ratings);
-  if (avg == null) return null;
-  return {
-    studentId,
-    sortKey: avg,
-    aggregateValue: Math.round(avg * 100) / 100,
-    aggregateLabel: `CBC average ${avg.toFixed(2)} / 5`,
-    method: "cbc_competency_average",
-    subjectsCounted: ratings.length,
-  };
+  return null;
 }
 
 export type CompiledReportEntry =

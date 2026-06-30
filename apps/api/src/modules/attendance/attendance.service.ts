@@ -12,10 +12,28 @@ import { loadPublishedLessonForTeacher } from "../../utils/attendanceLessonAcces
 import { teacherCanAccessClassForAttendance } from "../../utils/teacherTeachingAccess";
 import { rethrowAttendanceSaveError } from "./attendanceErrors";
 import {
+  dedupeAttendanceRows,
+  summarizeAttendanceRows,
+} from "./attendanceRegisterBulk";
+import {
   ensureHomeroomRegisterDraft,
   ensureLessonRegisterDraft,
   replaceRegisterMarks,
 } from "./attendanceRegisterPersistence";
+import { validateActiveClassStudents } from "../../utils/rosterValidation";
+
+export type AttendanceRegisterMutationResult = {
+  saved: number;
+  registerId: string | null;
+  registerStatus: "draft" | "submitted" | "locked";
+  submittedAt: string | null;
+  summary: AttendanceRegisterView["summary"];
+};
+
+export type AttendanceLessonRegisterMutationResult = AttendanceRegisterMutationResult & {
+  registerType: "lesson";
+  timetableEntryId: string;
+};
 
 type RegisterMeta = {
   registerId: string | null;
@@ -142,50 +160,97 @@ export async function getAttendanceRegister(
   };
 }
 
-export async function saveAttendanceRegister(
+async function persistHomeroomRegisterDraft(
   input: AttendanceRegisterSaveInput,
   recordedBy: string,
-  role: Role,
-) {
-  const allowed = await teacherCanAccessClassForAttendance(recordedBy, input.classId, role);
-  if (!allowed) throw new HttpError(403, "You are not allowed to record attendance for this class");
-  if (input.rows.length > 1000) {
-    throw new HttpError(400, "Register is too large. Split the class and try again.");
-  }
+): Promise<{ registerId: string; saved: number; summary: AttendanceRegisterView["summary"] }> {
+  const rows = dedupeAttendanceRows(input.rows);
+  await validateActiveClassStudents(input.classId, rows.map((r) => r.studentId));
 
-  const rosterIds = await loadActiveClassStudentIds(input.classId);
-  const rosterSet = new Set(rosterIds);
-  const invalidRows = input.rows.filter((r) => !rosterSet.has(r.studentId));
-  if (invalidRows.length > 0) {
-    throw new HttpError(
-      400,
-      `${invalidRows.length} learner(s) are not on this class roll. Refresh the register and try again.`,
-    );
-  }
-
+  let registerId = "";
   try {
     await withTransaction(async (client) => {
-      const registerId = await ensureHomeroomRegisterDraft(
-        client,
-        input.classId,
-        input.date,
-        recordedBy,
-      );
+      registerId = await ensureHomeroomRegisterDraft(client, input.classId, input.date, recordedBy);
       await replaceRegisterMarks(
         client,
         registerId,
         input.classId,
         input.date,
         recordedBy,
-        input.rows.map((r) => r.studentId),
-        input.rows.map((r) => r.status),
+        rows.map((r) => r.studentId),
+        rows.map((r) => r.status),
       );
     });
   } catch (err) {
     rethrowAttendanceSaveError(err, "homeroom");
   }
 
-  return getAttendanceRegister(input.classId, input.date, role, recordedBy);
+  return {
+    registerId,
+    saved: rows.length,
+    summary: summarizeAttendanceRows(rows),
+  };
+}
+
+async function persistLessonRegisterDraft(
+  input: AttendanceLessonRegisterSaveInput,
+  slot: Awaited<ReturnType<typeof loadPublishedLessonForTeacher>>,
+  recordedBy: string,
+): Promise<{ registerId: string; saved: number; summary: AttendanceRegisterView["summary"] }> {
+  const rows = dedupeAttendanceRows(input.rows);
+  await validateActiveClassStudents(slot.classId, rows.map((r) => r.studentId));
+
+  let registerId = "";
+  try {
+    await withTransaction(async (client) => {
+      registerId = await ensureLessonRegisterDraft(client, {
+        classId: slot.classId,
+        date: input.date,
+        timetableEntryId: input.timetableEntryId,
+        periodId: slot.periodId,
+        classSubjectId: slot.classSubjectId,
+        recordedBy,
+      });
+      await replaceRegisterMarks(
+        client,
+        registerId,
+        slot.classId,
+        input.date,
+        recordedBy,
+        rows.map((r) => r.studentId),
+        rows.map((r) => r.status),
+      );
+    });
+  } catch (err) {
+    rethrowAttendanceSaveError(err, "lesson");
+  }
+
+  return {
+    registerId,
+    saved: rows.length,
+    summary: summarizeAttendanceRows(rows),
+  };
+}
+
+export async function saveAttendanceRegister(
+  input: AttendanceRegisterSaveInput,
+  recordedBy: string,
+  role: Role,
+): Promise<AttendanceRegisterMutationResult> {
+  const allowed = await teacherCanAccessClassForAttendance(recordedBy, input.classId, role);
+  if (!allowed) throw new HttpError(403, "You are not allowed to record attendance for this class");
+  if (input.rows.length > 1000) {
+    throw new HttpError(400, "Register is too large. Split the class and try again.");
+  }
+
+  const persisted = await persistHomeroomRegisterDraft(input, recordedBy);
+  return {
+    saved: persisted.saved,
+    registerId: persisted.registerId,
+    registerStatus: "draft",
+    submittedAt: null,
+    summary: persisted.summary,
+  };
 }
 
 export async function submitAttendanceRegister(
@@ -193,10 +258,32 @@ export async function submitAttendanceRegister(
   date: string,
   userId: string,
   role: Role,
-) {
+  rows?: AttendanceRegisterSaveInput["rows"],
+): Promise<AttendanceRegisterMutationResult> {
   const allowed = await teacherCanAccessClassForAttendance(userId, classId, role);
   if (!allowed) throw new HttpError(403, "You are not allowed to submit attendance for this class");
 
+  let saved = 0;
+  let summary: AttendanceRegisterView["summary"] = {
+    total: 0,
+    present: 0,
+    absent: 0,
+    late: 0,
+    unmarked: 0,
+  };
+  let registerId: string | null = null;
+
+  if (rows?.length) {
+    if (rows.length > 1000) {
+      throw new HttpError(400, "Register is too large. Split the class and try again.");
+    }
+    const persisted = await persistHomeroomRegisterDraft({ classId, date, rows }, userId);
+    registerId = persisted.registerId;
+    saved = persisted.saved;
+    summary = persisted.summary;
+  }
+
+  let submittedAt: string | null = null;
   await withTransaction(async (client) => {
     const existing = await client.query<{ id: string; status: "draft" | "submitted" | "locked" }>(
       `SELECT id, status
@@ -208,17 +295,20 @@ export async function submitAttendanceRegister(
       [classId, date],
     );
     if (!existing.rows[0]) {
-      await client.query(
+      const inserted = await client.query<{ id: string; submitted_at: string }>(
         `INSERT INTO attendance_registers (class_id, date, register_type, status, recorded_by, submitted_at, updated_at)
-         VALUES ($1, $2, 'homeroom', 'submitted', $3, NOW(), NOW())`,
+         VALUES ($1, $2, 'homeroom', 'submitted', $3, NOW(), NOW())
+         RETURNING id, submitted_at`,
         [classId, date, userId],
       );
+      registerId = inserted.rows[0]!.id;
+      submittedAt = new Date(inserted.rows[0]!.submitted_at).toISOString();
       return;
     }
     if (existing.rows[0].status === "locked") {
       throw new HttpError(400, "This register is locked.");
     }
-    await client.query(
+    const updated = await client.query<{ submitted_at: string }>(
       `UPDATE attendance_registers
        SET status = 'submitted',
            recorded_by = $3,
@@ -226,12 +316,23 @@ export async function submitAttendanceRegister(
            updated_at = NOW()
        WHERE class_id = $1
          AND date = $2
-         AND register_type = 'homeroom'`,
+         AND register_type = 'homeroom'
+       RETURNING submitted_at`,
       [classId, date, userId],
     );
+    registerId = existing.rows[0].id;
+    submittedAt = updated.rows[0]
+      ? new Date(updated.rows[0].submitted_at).toISOString()
+      : null;
   });
 
-  return getAttendanceRegister(classId, date, role, userId);
+  return {
+    saved,
+    registerId,
+    registerStatus: "submitted",
+    submittedAt,
+    summary,
+  };
 }
 
 export async function getAttendanceRange(
@@ -315,16 +416,6 @@ export async function listAttendance(classId: string, date: string, role: Role, 
     student_name: s.studentName,
     student_number: s.studentNumber,
   }));
-}
-
-async function loadActiveClassStudentIds(classId: string): Promise<string[]> {
-  const { rows } = await query<{ id: string }>(
-    `SELECT id
-     FROM students
-     WHERE class_id = $1 AND status = 'active'`,
-    [classId],
-  );
-  return rows.map((r) => r.id);
 }
 
 async function getRegisterMeta(classId: string, date: string): Promise<RegisterMeta> {
@@ -748,7 +839,7 @@ export async function saveAttendanceLessonRegister(
   input: AttendanceLessonRegisterSaveInput,
   recordedBy: string,
   role: Role,
-) {
+): Promise<AttendanceLessonRegisterMutationResult> {
   const slot = await loadPublishedLessonForTeacher(input.timetableEntryId, recordedBy, input.date);
   if (role !== "admin" && role !== "headteacher" && slot.teacherId !== recordedBy) {
     throw new HttpError(403, "You can only mark attendance for lessons assigned to you on the published timetable.");
@@ -757,41 +848,16 @@ export async function saveAttendanceLessonRegister(
     throw new HttpError(400, "Register is too large. Split the class and try again.");
   }
 
-  const rosterIds = await loadActiveClassStudentIds(slot.classId);
-  const rosterSet = new Set(rosterIds);
-  const invalidRows = input.rows.filter((r) => !rosterSet.has(r.studentId));
-  if (invalidRows.length > 0) {
-    throw new HttpError(
-      400,
-      `${invalidRows.length} learner(s) are not on this class roll. Refresh the register and try again.`,
-    );
-  }
-
-  try {
-    await withTransaction(async (client) => {
-      const registerId = await ensureLessonRegisterDraft(client, {
-        classId: slot.classId,
-        date: input.date,
-        timetableEntryId: input.timetableEntryId,
-        periodId: slot.periodId,
-        classSubjectId: slot.classSubjectId,
-        recordedBy,
-      });
-      await replaceRegisterMarks(
-        client,
-        registerId,
-        slot.classId,
-        input.date,
-        recordedBy,
-        input.rows.map((r) => r.studentId),
-        input.rows.map((r) => r.status),
-      );
-    });
-  } catch (err) {
-    rethrowAttendanceSaveError(err, "lesson");
-  }
-
-  return getAttendanceLessonRegister(input.timetableEntryId, input.date, role, recordedBy);
+  const persisted = await persistLessonRegisterDraft(input, slot, recordedBy);
+  return {
+    registerType: "lesson",
+    timetableEntryId: input.timetableEntryId,
+    saved: persisted.saved,
+    registerId: persisted.registerId,
+    registerStatus: "draft",
+    submittedAt: null,
+    summary: persisted.summary,
+  };
 }
 
 export async function submitAttendanceLessonRegister(
@@ -799,12 +865,38 @@ export async function submitAttendanceLessonRegister(
   date: string,
   userId: string,
   role: Role,
-) {
+  rows?: AttendanceLessonRegisterSaveInput["rows"],
+): Promise<AttendanceLessonRegisterMutationResult> {
   const slot = await loadPublishedLessonForTeacher(timetableEntryId, userId, date);
   if (role !== "admin" && role !== "headteacher" && slot.teacherId !== userId) {
     throw new HttpError(403, "You can only mark attendance for lessons assigned to you on the published timetable.");
   }
 
+  let saved = 0;
+  let summary: AttendanceRegisterView["summary"] = {
+    total: 0,
+    present: 0,
+    absent: 0,
+    late: 0,
+    unmarked: 0,
+  };
+  let registerId: string | null = null;
+
+  if (rows?.length) {
+    if (rows.length > 1000) {
+      throw new HttpError(400, "Register is too large. Split the class and try again.");
+    }
+    const persisted = await persistLessonRegisterDraft(
+      { timetableEntryId, date, rows },
+      slot,
+      userId,
+    );
+    registerId = persisted.registerId;
+    saved = persisted.saved;
+    summary = persisted.summary;
+  }
+
+  let submittedAt: string | null = null;
   await withTransaction(async (client) => {
     const existing = await client.query<{ id: string; status: "draft" | "submitted" | "locked" }>(
       `SELECT id, status
@@ -816,12 +908,13 @@ export async function submitAttendanceLessonRegister(
       [timetableEntryId, date],
     );
     if (!existing.rows[0]) {
-      await client.query(
+      const inserted = await client.query<{ id: string; submitted_at: string }>(
         `INSERT INTO attendance_registers (
            class_id, date, register_type, timetable_entry_id, period_id, class_subject_id,
            status, recorded_by, submitted_at, updated_at
          )
-         VALUES ($1, $2, 'lesson', $3, $4, $5, 'submitted', $6, NOW(), NOW())`,
+         VALUES ($1, $2, 'lesson', $3, $4, $5, 'submitted', $6, NOW(), NOW())
+         RETURNING id, submitted_at`,
         [
           slot.classId,
           date,
@@ -831,12 +924,14 @@ export async function submitAttendanceLessonRegister(
           userId,
         ],
       );
+      registerId = inserted.rows[0]!.id;
+      submittedAt = new Date(inserted.rows[0]!.submitted_at).toISOString();
       return;
     }
     if (existing.rows[0].status === "locked") {
       throw new HttpError(400, "This register is locked.");
     }
-    await client.query(
+    const updated = await client.query<{ submitted_at: string }>(
       `UPDATE attendance_registers
        SET status = 'submitted',
            recorded_by = $3,
@@ -844,10 +939,23 @@ export async function submitAttendanceLessonRegister(
            updated_at = NOW()
        WHERE timetable_entry_id = $1
          AND date = $2
-         AND register_type = 'lesson'`,
+         AND register_type = 'lesson'
+       RETURNING submitted_at`,
       [timetableEntryId, date, userId],
     );
+    registerId = existing.rows[0].id;
+    submittedAt = updated.rows[0]
+      ? new Date(updated.rows[0].submitted_at).toISOString()
+      : null;
   });
 
-  return getAttendanceLessonRegister(timetableEntryId, date, role, userId);
+  return {
+    registerType: "lesson",
+    timetableEntryId,
+    saved,
+    registerId,
+    registerStatus: "submitted",
+    submittedAt,
+    summary,
+  };
 }

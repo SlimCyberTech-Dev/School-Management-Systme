@@ -98,17 +98,18 @@ Sidebar navigation in the app is **role-aware** (Zustand `authStore`).
 
 - **Auth:** `POST /auth/login`, `POST /auth/logout`, `PATCH /auth/change-password`
 - **Users:** `POST|GET /users`, `PATCH /users/:id/deactivate`, `PATCH /users/:id/reset-password`, `GET /users/me`, `PATCH /users/me`, `POST /users/me/photo`
-- **Academic:** `/academic/years|terms|classes|subjects|combinations`, `/academic/cbc-strands`, `/academic/class-subjects`, `/academic/grading-scales`
+- **Academic:** `/academic/years|terms|classes|subjects|combinations`, `/academic/class-subjects`, `/academic/grading-scales`
 - **Students:** `POST|GET /students`, `GET /students/:id`, `POST /students/:id/photo`, `POST /students/promote`, `PATCH /students/:id/withdraw`, `GET /students/search`
 - **Attendance:** `POST|GET /attendance`
-- **CBC:** `POST|GET /assessments/cbc`, `PATCH /assessments/cbc/:id/submit`, `PATCH /assessments/cbc/:id/unlock` (headteacher)
+- **O-Level term results:** `GET|POST /assessments/term-results`, `POST /assessments/term-results/recalculate`
 - **A-Level:** `POST|GET /assessments/alevel`
+- **Exams:** `/exams` (create, mark entry, close/reopen)
 - **Fees:** `/fees/structure`, `/fees/invoices`, `/fees/payments`, `/fees/balance/:studentId`, `/fees/reports`
 - **Reports:** `POST /reports/cbc/generate`, `POST /reports/alevel/generate`, `PATCH /reports/:id/approve`, `GET /reports/:id/pdf`
 
-### O-Level CBC assessment
+### O-Level assessment
 
-O-Level uses **A–E competency ratings**, a **20/80 CA+EOC composite**, separate **project work**, and **Result 1/2/3** certification (no divisions). Configure CA rules under **Settings → Assessment rules**; grade bands under **Grading scales (O-Level)**. Full policy notes: [`docs/uganda-cbc-assessment.md`](docs/uganda-cbc-assessment.md).
+O-Level uses **exam marks per subject**, a **20/80 project-work + exam composite**, and **A–E letter grades** on term report cards. Configure CA rules under **Settings → Assessment rules**; grade bands under **Grading scales (O-Level)**. Full policy notes: [`docs/uganda-cbc-assessment.md`](docs/uganda-cbc-assessment.md).
 
 - **Settings:** `GET|PUT /settings/assessment-config`
 - **Grading:** `POST /academic/grading-scales/apply-cbc-defaults` (O-Level CBC A–E bands)

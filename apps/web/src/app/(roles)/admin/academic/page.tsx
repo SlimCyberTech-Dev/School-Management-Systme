@@ -16,7 +16,6 @@ type AcademicSummary = {
   subjects: number;
   classSubjects: number;
   combinations: number;
-  cbcStrands: number;
   gradingScales: number;
 };
 
@@ -38,7 +37,7 @@ export default function AdminAcademicHubPage() {
       description="Use the Academic menu in the sidebar for structure, curriculum, assignments, and timetable tools."
     >
       <p className="mb-4 text-sm text-muted-foreground">
-        Track year-by-year readiness for competency assessment on{" "}
+        Track year-by-year readiness for exam marks and term grades on{" "}
         <Link href="/admin/academic/setup" className="font-medium text-brand hover:underline">
           Setup status
         </Link>
@@ -49,7 +48,7 @@ export default function AdminAcademicHubPage() {
       {counts ? (
         <p className="mb-6 mt-3 text-sm text-muted-foreground">
           {counts.years} years · {counts.terms} terms · {counts.classes} classes · {counts.subjects} subjects ·{" "}
-          {counts.classSubjects} class–subject slots · {counts.combinations} combinations · {counts.cbcStrands} strands ·{" "}
+          {counts.classSubjects} class–subject slots · {counts.combinations} combinations ·{" "}
           {counts.gradingScales} grade bands
         </p>
       ) : null}
@@ -57,7 +56,7 @@ export default function AdminAcademicHubPage() {
       <section className="mb-8">
         <h2 className="mb-3 text-lg font-semibold text-foreground">Teaching assignments</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          Assign class teachers, subject teachers, and weekly timetables in a clear 4-step flow. O-Level (CBC) and A-Level (UNEB) are
+          Assign class teachers, subject teachers, and weekly timetables in a clear 4-step flow. O-Level and A-Level (UNEB) are
           configured separately — switch level on the assignments page.
         </p>
         <div className="grid gap-4 md:grid-cols-2">
@@ -67,7 +66,7 @@ export default function AdminAcademicHubPage() {
           >
             <div className="font-semibold text-brand">O-Level teaching assignments</div>
             <p className="text-sm text-muted-foreground">
-              Homeroom, timetable subjects, and subject teachers for CBC classes.
+              Homeroom, timetable subjects, and subject teachers for O-Level classes.
             </p>
           </Link>
           <Link

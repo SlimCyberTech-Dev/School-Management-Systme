@@ -35,8 +35,8 @@ export function OLevelAchievementDescriptorsSection({
     <Card title="Achievement level descriptors (A–E)">
       <div className="mb-4">
         <Alert tone="info">
-          These labels appear on formative competency ratings, term summaries, and report card strand
-          lines. Letter grades and rank order (A highest → E lowest) are fixed for UNEB compliance;
+          These labels appear on formative ratings, term summaries, and term report cards.
+          Letter grades and rank order (A highest → E lowest) are fixed for UNEB compliance;
           only the descriptor wording is configurable per school.
         </Alert>
       </div>

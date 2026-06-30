@@ -12,7 +12,7 @@ export default function AdminAcademicSetupPage() {
   return (
     <PageWrapper
       title="Setup status"
-      description="Track academic-year readiness for competency assessment and CA grading — guidance only, nothing is locked."
+      description="Track academic-year readiness for exam marks and term grades — guidance only, nothing is locked."
     >
       <Link href="/admin/academic" className="mb-4 inline-block text-sm font-medium text-brand hover:underline">
         ← Academic overview

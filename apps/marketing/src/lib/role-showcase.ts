@@ -17,7 +17,7 @@ export const roleShowcaseItems: RoleShowcaseItem[] = [
     imageAlt: "Headteachers reviewing the school dashboard on desktop",
     points: [
       "Dashboard with enrolment, attendance, and fee KPIs",
-      "Approve CBC and A-Level report cards",
+      "Approve O-Level and A-Level report cards",
       "Unlock submitted assessments when corrections are needed",
     ],
   },
@@ -38,11 +38,11 @@ export const roleShowcaseItems: RoleShowcaseItem[] = [
     id: "subject-teacher",
     title: "Subject teacher",
     description:
-      "Enter O-Level CBC ratings and project work, or A-Level exam marks, from a focused assessment screen built for the subjects you teach.",
+      "Enter O-Level exam marks and project work, or A-Level term scores, from a focused screen built for the subjects you teach.",
     image: "/images/SubjectTeacher.webp",
     imageAlt: "Subject teacher entering assessment scores on a computer",
     points: [
-      "CBC strand and competency entry (O-Level)",
+      "O-Level exam mark entry and project work (S1–S4)",
       "A-Level numerical score entry with UNEB conversion",
       "Submit assessments for headteacher review",
     ],
@@ -69,7 +69,7 @@ export const roleShowcaseItems: RoleShowcaseItem[] = [
     imageAlt: "School admin setting up school structure and staff accounts",
     points: [
       "Guided setup for years, terms, and classes",
-      "CBC strands and UNEB grading scale defaults",
+      "O-Level and A-Level grading scale defaults",
       "Role-based accounts for school admin, teachers, and bursar",
     ],
   },

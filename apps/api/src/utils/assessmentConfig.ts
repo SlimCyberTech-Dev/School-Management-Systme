@@ -23,20 +23,7 @@ export async function saveAssessmentConfig(
     projectWork: partial.projectWork
       ? { ...current.projectWork, ...partial.projectWork }
       : current.projectWork,
-    caRules: partial.caRules
-      ? {
-          ...current.caRules,
-          ...partial.caRules,
-          fallbackRatingScoreMap: partial.caRules.fallbackRatingScoreMap
-            ? { ...current.caRules.fallbackRatingScoreMap, ...partial.caRules.fallbackRatingScoreMap }
-            : (partial.caRules as { ratingScoreMap?: Record<string, number> }).ratingScoreMap
-              ? {
-                  ...current.caRules.fallbackRatingScoreMap,
-                  ...(partial.caRules as { ratingScoreMap?: Record<string, number> }).ratingScoreMap,
-                }
-              : current.caRules.fallbackRatingScoreMap,
-        }
-      : current.caRules,
+    caRules: partial.caRules ? { ...current.caRules, ...partial.caRules } : current.caRules,
   });
   await query(
     `UPDATE tenant_settings SET assessment_config = $2::jsonb, updated_at = NOW() WHERE tenant_id = $1`,

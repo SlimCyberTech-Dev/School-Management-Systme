@@ -511,7 +511,7 @@ export async function generateReportsForClass(
     throw new HttpError(
       400,
       exam && ctx.track === "cbc"
-        ? "No report cards were created. For O-Level: students need formal exam marks on the closed exam, and term CBC competency ratings (A–D) for subjects not on that exam — enter those under Assessment → CBC."
+        ? "No report cards were created. For O-Level: ensure compulsory exam marks are entered and submitted, and term grades are computed from exams and optional project work."
         : exam
           ? "No report cards were created. Ensure every student has marks on the selected closed exam."
           : "No report cards were created. Ensure students have submitted assessment marks for this term.",
@@ -587,7 +587,7 @@ export async function generateAlevelReports(classId: string, termId: string) {
   if (ctx.track !== "alevel") {
     throw new HttpError(
       400,
-      "This class is O-Level (CBC). Use Generate report cards for the CBC template.",
+      "This class is O-Level. Use Generate report cards for the term report template.",
     );
   }
   return generateReportsForClass(classId, termId);

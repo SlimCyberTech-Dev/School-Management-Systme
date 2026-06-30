@@ -27,6 +27,9 @@ import { queryKeys, STRUCTURAL_STALE_MS } from "@/lib/queryKeys";
 import { getApiTenantSlug } from "@/lib/tenantHost";
 import { toast } from "@/lib/toast";
 
+const EMPTY_YEARS: AcademicYear[] = [];
+const EMPTY_CLASSES: SchoolClass[] = [];
+
 const TRACK_OPTIONS: Array<{ value: CurriculumTrack; label: string }> = [
   { value: "SCIENCES", label: "Sciences" },
   { value: "ARTS", label: "Arts" },
@@ -58,8 +61,8 @@ export function CurriculumSetupPanel({ compact = false, initialYearId = "" }: Pr
     staleTime: STRUCTURAL_STALE_MS,
   });
 
-  const years = yearsQ.data ?? [];
-  const classes = classesQ.data ?? [];
+  const years = yearsQ.data ?? EMPTY_YEARS;
+  const classes = classesQ.data ?? EMPTY_CLASSES;
 
   useEffect(() => {
     if (initialYearId) {
@@ -87,13 +90,29 @@ export function CurriculumSetupPanel({ compact = false, initialYearId = "" }: Pr
     [classes, academicYearId],
   );
 
+  const aLevelClassTrackKey = useMemo(
+    () =>
+      aLevelClasses.map((cls) => `${cls.id}:${cls.curriculumTrack ?? ""}`).join("|"),
+    [aLevelClasses],
+  );
+
   useEffect(() => {
-    const next: Record<string, CurriculumTrack | ""> = {};
-    for (const cls of aLevelClasses) {
-      next[cls.id] = cls.curriculumTrack ?? "";
-    }
-    setTrackDraft(next);
-  }, [aLevelClasses]);
+    setTrackDraft((prev) => {
+      const next: Record<string, CurriculumTrack | ""> = {};
+      for (const cls of aLevelClasses) {
+        next[cls.id] = cls.curriculumTrack ?? "";
+      }
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      if (
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every((id) => prev[id] === next[id])
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, [aLevelClassTrackKey, aLevelClasses]);
 
   const trackDirty = useMemo(() => {
     return aLevelClasses.some((cls) => (trackDraft[cls.id] ?? "") !== (cls.curriculumTrack ?? ""));
@@ -110,7 +129,6 @@ export function CurriculumSetupPanel({ compact = false, initialYearId = "" }: Pr
       toast.success(
         `Added ${data.classSubjectsCreated} class–subject slots` +
           (data.subjectsCreated ? `; ${data.subjectsCreated} subjects in catalogue` : "") +
-          (data.strandsCreated ? `; ${data.strandsCreated} CBC strands` : "") +
           (data.classesSkippedNoTrack
             ? `. ${data.classesSkippedNoTrack} A-Level class(es) skipped (no track).`
             : "."),
@@ -171,7 +189,7 @@ export function CurriculumSetupPanel({ compact = false, initialYearId = "" }: Pr
       {!compact ? (
         <Card title="Curriculum automation">
           <p className="text-sm text-muted-foreground">
-            Install the default subject catalogue, CBC strands (O-Level), and class–subject slots in one server-side
+            Install the default subject catalogue and class–subject slots in one server-side
             operation. No bulk API calls from the browser — everything runs in a single request per action.
           </p>
         </Card>
@@ -209,7 +227,7 @@ export function CurriculumSetupPanel({ compact = false, initialYearId = "" }: Pr
               <dt className="text-muted-foreground">Subject catalogue</dt>
               <dd className="font-medium">
                 {level === "O_LEVEL"
-                  ? `${status.catalog.oLevelSubjects} O-Level subjects · ${status.catalog.cbcStrands} CBC strands`
+                  ? `${status.catalog.oLevelSubjects} O-Level subjects`
                   : `${status.catalog.aLevelSubjects} A-Level subjects`}
               </dd>
             </div>
@@ -237,8 +255,8 @@ export function CurriculumSetupPanel({ compact = false, initialYearId = "" }: Pr
 
           {level === "O_LEVEL" ? (
             <p className="mt-3 text-sm text-muted-foreground">
-              Each O-Level class receives all {DEFAULT_O_LEVEL_SUBJECTS.length} default subjects plus shared CBC strands
-              for assessment entry.
+              Each O-Level class receives all {DEFAULT_O_LEVEL_SUBJECTS.length} default subjects for exam marks
+              and term grade entry.
             </p>
           ) : (
             <p className="mt-3 text-sm text-muted-foreground">
@@ -320,7 +338,7 @@ export function CurriculumSetupPanel({ compact = false, initialYearId = "" }: Pr
         title={`Provision ${levelShortLabel(level)} curriculum?`}
         description={
           level === "O_LEVEL"
-            ? "This will upsert default O-Level subjects, CBC strands, and assign all O-Level subjects to every class in the selected year."
+            ? "This will upsert default O-Level subjects and assign all O-Level subjects to every class in the selected year."
             : "This will upsert default A-Level subjects and assign track-based subjects to classes that have a track set."
         }
         confirmLabel="Provision"

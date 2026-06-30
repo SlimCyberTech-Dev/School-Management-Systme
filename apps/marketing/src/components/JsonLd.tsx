@@ -71,7 +71,7 @@ export function SoftwareApplicationJsonLd() {
           url: siteUrl,
         },
         featureList: [
-          "O-Level CBC competency assessment",
+          "O-Level exam-based assessment",
           "A-Level UNEB grade and division calculation",
           "Student enrolment and class management",
           "Fees and mobile money recording",

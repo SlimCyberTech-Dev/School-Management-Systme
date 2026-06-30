@@ -4,31 +4,8 @@ import { curriculumTrackSchema } from "./curriculum.schema";
 /** UNEB O-Level achievement letter (A–E). Same vocabulary as assessments_cbc.rating / CBC_RATING_BANDS. */
 export const letterGradeSchema = z.enum(["A", "B", "C", "D", "E"]);
 
-/** @deprecated Prefer letterGradeSchema — alias kept for existing CA / strand rating fields. */
+/** @deprecated Prefer letterGradeSchema — alias for O-Level A–E letter grades. */
 export const cbcRatingSchema = letterGradeSchema;
-
-export const assessmentActivityTypeSchema = z.enum([
-  "assignment",
-  "project",
-  "group_work",
-  "practical",
-  "participation",
-  "presentation",
-  "test",
-]);
-
-export const cbcScoreUpsertSchema = z.object({
-  studentId: z.string().uuid(),
-  subjectId: z.string().uuid(),
-  strandId: z.string().uuid(),
-  termId: z.string().uuid(),
-  competency: z.string().min(1),
-  rating: cbcRatingSchema,
-});
-
-export const cbcScoresBulkSchema = z.object({
-  items: z.array(cbcScoreUpsertSchema).min(1),
-});
 
 export const alevelScoreUpsertSchema = z.object({
   studentId: z.string().uuid(),
@@ -134,15 +111,6 @@ export const combinationSchema = z.object({
   subjects: z.array(z.string().uuid()).optional().default([]),
 });
 
-/** CBC strand definition (admin creates strands for subjects) */
-export const cbcStrandSchema = z.object({
-  subjectId: z.string().uuid(),
-  name: z.string().min(1).max(100),
-  code: z.string().min(1).max(20),
-  description: z.string().max(2000).optional().nullable(),
-  competencies: z.array(z.string().min(1)).optional().default([]),
-});
-
 export const updateClassSubjectSchema = z
   .object({
     teacherId: z.string().uuid().nullable().optional(),
@@ -223,29 +191,6 @@ export const updateCombinationSchema = z
 
 export const combinationSubjectSchema = z.object({ subjectId: z.string().uuid() });
 
-export const updateCbcStrandSchema = z
-  .object({
-    subjectId: z.string().uuid().optional(),
-    name: z.string().min(1).max(100).optional(),
-    code: z.string().min(1).max(20).optional(),
-    description: z.string().max(2000).optional().nullable(),
-  })
-  .refine((v) => Object.keys(v).length > 0, { message: "At least one field is required" });
-
-export const cbcSubStrandSchema = z.object({
-  name: z.string().min(1).max(100),
-  code: z.string().min(1).max(20),
-  description: z.string().max(2000).optional().nullable(),
-});
-
-export const updateCbcSubStrandSchema = z
-  .object({
-    name: z.string().min(1).max(100).optional(),
-    code: z.string().min(1).max(20).optional(),
-    description: z.string().max(2000).optional().nullable(),
-  })
-  .refine((v) => Object.keys(v).length > 0, { message: "At least one field is required" });
-
 export const gradingScaleLevelSchema = z
   .enum(["o_level", "a_level", "O_LEVEL", "A_LEVEL"])
   .transform((v) => (v === "o_level" ? "O_LEVEL" : v === "a_level" ? "A_LEVEL" : v));
@@ -267,7 +212,6 @@ export const upsertGradingScaleSchema = z.object({
   rows: z.array(gradingScaleRowSchema).min(1),
 });
 
-export type CbcScoreUpsertInput = z.infer<typeof cbcScoreUpsertSchema>;
 export type AlevelScoreUpsertInput = z.infer<typeof alevelScoreUpsertSchema>;
 export type UpdateAcademicYearInput = z.infer<typeof updateAcademicYearSchema>;
 export type UpdateTermInput = z.infer<typeof updateTermSchema>;
@@ -277,7 +221,6 @@ export type UpdateSubjectInput = z.infer<typeof updateSubjectSchema>;
 export const assessmentFilterSchema = z.object({
   classId: z.string().uuid().optional(),
   subjectId: z.string().uuid().optional(),
-  strandId: z.string().uuid().optional(),
   termId: z.string().uuid().optional(),
   yearId: z.string().uuid().optional(),
   combinationId: z.string().uuid().optional(),
@@ -291,46 +234,6 @@ export const submitAssessmentSchema = z
     yearId: z.string().uuid(),
   })
   .strict();
-
-export const cbcAssessmentUpsertSchema = z
-  .object({
-    studentId: z.string().uuid(),
-    subjectId: z.string().uuid(),
-    strand: z.string().min(1).max(255),
-    competency: z.string().min(1).max(255),
-    rating: cbcRatingSchema,
-    termId: z.string().uuid(),
-    yearId: z.string().uuid(),
-  })
-  .strict();
-
-export const cbcAssessmentBulkSchema = z
-  .object({
-    assessments: z
-      .array(
-        z.object({
-          studentId: z.string().uuid(),
-          subjectId: z.string().uuid(),
-          strand: z.string().min(1).max(255),
-          competency: z.string().min(1).max(255),
-          rating: cbcRatingSchema,
-        }),
-      )
-      .min(1),
-    termId: z.string().uuid(),
-    yearId: z.string().uuid(),
-  })
-  .strict();
-
-export const cbcProjectAssessmentSchema = z.object({
-  studentId: z.string().uuid(),
-  subjectId: z.string().uuid(),
-  assessmentTitle: z.string().min(1).max(255),
-  score: z.number().min(0).max(999.99).nullable().optional(),
-  maxScore: z.number().min(1).max(999.99).nullable().optional(),
-  termId: z.string().uuid(),
-  yearId: z.string().uuid(),
-});
 
 export const cbcCommentUpdateSchema = z.object({
   termId: z.string().uuid(),
@@ -372,14 +275,6 @@ export const alevelCommentUpdateSchema = z.object({
   headteacherRemark: z.string().max(5000).optional(),
 });
 
-const caRatingScoreMapSchema = z.object({
-  A: z.coerce.number().min(0).max(100),
-  B: z.coerce.number().min(0).max(100),
-  C: z.coerce.number().min(0).max(100),
-  D: z.coerce.number().min(0).max(100),
-  E: z.coerce.number().min(0).max(100),
-});
-
 const curriculumFormSchema = z.enum(["S1", "S2", "S3", "S4"]);
 
 export const assessmentConfigSchema = z.object({
@@ -387,8 +282,6 @@ export const assessmentConfigSchema = z.object({
   eocWeight: z.coerce.number().min(0).max(1).optional(),
   includeProjectWorkInTermGrade: z.boolean().optional(),
   examsIncluded: z.enum(["compulsory_only", "all_with_marks"]).optional(),
-  caYearWindow: z.enum(["S1_S4", "S3_S4", "custom"]).optional(),
-  caCustomForms: z.array(curriculumFormSchema).optional(),
   allowIncompleteCaOverride: z.boolean().optional(),
   policyVerifiedAt: z.string().datetime().nullable().optional(),
   projectWork: z
@@ -399,16 +292,9 @@ export const assessmentConfigSchema = z.object({
     .optional(),
   caRules: z
     .object({
-      method: z.enum(["school_defined", "rating_score_map", "weighted_strand_average"]).optional(),
-      ratingScoreMap: caRatingScoreMapSchema.partial().optional(),
-      fallbackRatingScoreMap: caRatingScoreMapSchema.partial().optional(),
-      strandWeights: z.record(z.string(), z.record(z.string(), z.coerce.number().min(0))).optional(),
       aggregation: z.enum(["mean_of_projects", "mean_of_term_means"]).optional(),
     })
     .optional(),
-  minimumSubjects: z.coerce.number().int().min(1).max(20).optional(),
-  qualifyingGradeMin: cbcRatingSchema.optional(),
-  compulsorySubjectCodes: z.array(z.string().min(1).max(20)).nullable().optional(),
 });
 
 export const projectWorkScoreSchema = z.object({
@@ -440,53 +326,6 @@ export const projectWorkBulkSchema = z.object({
 export const gradingConfigSchema = z.object({
   oLevel: z.object({ scheme: z.string().min(1) }).optional(),
   aLevel: z.object({ scheme: z.string().min(1) }).optional(),
-});
-
-export const cbcActivityCreateSchema = z.object({
-  subjectId: z.string().uuid(),
-  classId: z.string().uuid(),
-  termId: z.string().uuid(),
-  academicYearId: z.string().uuid(),
-  activityType: assessmentActivityTypeSchema,
-  title: z.string().min(1).max(255),
-  activityDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-});
-
-export const cbcCompetencyRatingItemSchema = z.object({
-  studentId: z.string().uuid(),
-  competencyId: z.string().uuid(),
-  strandId: z.string().uuid(),
-  letterGrade: letterGradeSchema,
-});
-
-export const cbcCompetencyRatingsBulkSchema = z.object({
-  assessmentActivityId: z.string().uuid(),
-  ratings: z.array(cbcCompetencyRatingItemSchema).min(1),
-});
-
-export const cbcTermSummaryQuerySchema = z.object({
-  studentId: z.string().uuid(),
-  subjectId: z.string().uuid(),
-  termId: z.string().uuid(),
-});
-
-export const cbcTermSummaryOverrideSchema = z.object({
-  overriddenGrade: letterGradeSchema,
-  overrideJustification: z.string().min(1).max(2000),
-});
-
-export const cbcLearningOutcomeCreateSchema = z.object({
-  subjectId: z.string().uuid(),
-  strandId: z.string().uuid(),
-  termId: z.string().uuid(),
-  description: z.string().min(1).max(5000),
-});
-
-export const cbcLearningOutcomeRecordCreateSchema = z.object({
-  studentId: z.string().uuid(),
-  learningOutcomeId: z.string().uuid(),
-  achievementGrade: letterGradeSchema,
-  remark: z.string().max(2000).optional(),
 });
 
 export type AssessmentConfigInput = z.infer<typeof assessmentConfigSchema>;

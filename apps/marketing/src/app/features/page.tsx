@@ -16,7 +16,7 @@ import {
 export const metadata: Metadata = createPageMetadata({
   title: "Features",
   description:
-    "Explore SchoolManage features: academic structure, student management, O-Level CBC assessment, A-Level UNEB grading, fees in Ugandan shillings, and PDF report cards.",
+    "Explore SchoolManage features: academic structure, student management, O-Level exam assessment, A-Level UNEB grading, fees in Ugandan shillings, and PDF report cards.",
   path: "/features",
 });
 
@@ -25,12 +25,11 @@ const sections = [
     id: "academic-structure",
     title: "Academic Structure",
     description:
-      "Set up your school year once and reuse it across the system. Define academic years and terms, create classes, assign subjects and A-Level combinations, and configure CBC strands and grading scales — so every assessment and report pulls from the same structure.",
+      "Set up your school year once and reuse it across the system. Define academic years and terms, create classes, assign subjects and A-Level combinations, and configure grading scales — so every assessment and report pulls from the same structure.",
     bullets: [
       "Manage academic years, terms, classes, and subjects",
       "Configure A-Level subject combinations per class",
-      "Maintain CBC strands linked to subjects",
-      "Apply O-Level CBC and A-Level UNEB grading scale defaults",
+      "Apply O-Level and A-Level UNEB grading scale defaults",
     ],
     icon: IconAcademic,
     variant: "neutral" as const,
@@ -50,15 +49,15 @@ const sections = [
     variant: "neutral" as const,
   },
   {
-    id: "cbc-assessment",
-    title: "Competency & grading (O-Level)",
+    id: "olevel-assessment",
+    title: "O-Level assessment",
     description:
-      "Support NCDC-aligned O-Level assessment: teachers record competency levels on the four-point descriptor scale (Exceeds, Meets, Approaching, and Below Expectations), enter scored project work for continuous assessment, and add end-of-cycle exam marks. The system computes CA, EOC, and composite A–E final grades, and tracks Result 1 / 2 / 3 certification status.",
+      "Support NCDC-aligned O-Level assessment: teachers enter exam marks per subject, scored project work for continuous assessment, and term composites. The system computes CA, exam average, and composite A–E final grades on report cards.",
     bullets: [
-      "Record NCDC competency levels per assessment activity and strand",
-      "Enter project work scores that feed official continuous assessment",
-      "Compute 20/80 CA + EOC composites with configurable weights",
-      "Headteachers review term summaries; legacy sheet unlock available for pre-migration data",
+      "Enter exam marks with UNEB-style A–E letter grades",
+      "Record project work scores that feed continuous assessment",
+      "Compute 20/80 project + exam composites with configurable weights",
+      "Headteachers review term results before report release",
     ],
     icon: IconCbc,
     variant: "brand" as const,
@@ -95,9 +94,9 @@ const sections = [
     id: "reporting-analytics",
     title: "Reporting & Analytics",
     description:
-      "Turn entered data into report cards and school-wide insights. Generate CBC or A-Level report cards as PDFs, route them through headteacher approval, and monitor class performance and report pipeline status from analytics dashboards.",
+      "Turn entered data into report cards and school-wide insights. Generate O-Level or A-Level report cards as PDFs, route them through headteacher approval, and monitor class performance and report pipeline status from analytics dashboards.",
     bullets: [
-      "Generate O-Level CBC and A-Level UNEB report card PDFs",
+      "Generate O-Level and A-Level UNEB report card PDFs",
       "Headteacher approval workflow before reports are finalised",
       "Dashboard KPIs for enrolment, fees, and assessment progress",
       "Class performance and report-pipeline overviews for leadership",

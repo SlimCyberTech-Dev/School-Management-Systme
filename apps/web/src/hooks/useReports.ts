@@ -60,7 +60,7 @@ export type ReportReadiness = {
   submittedCount: number;
   pendingCount: number;
   totalSubjects: number;
-  /** Exam papers on the linked formal exam (CBC); term CBC not required for these. */
+  /** Exam papers on the linked formal exam; term exam entry not required for those subjects. */
   examPaperSubjectCount?: number;
   ready: boolean;
   pendingSubjectCodes: string[];

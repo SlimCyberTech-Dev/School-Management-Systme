@@ -132,7 +132,7 @@ export function SchoolExamsPage({ examsBasePath, hubHref }: Props) {
   return (
     <PageWrapper
       title="Exams"
-      description="Manage formal exam events (draft → open → closed). Teachers enter marks on their exam pages; term CBC and A-Level scores live under Assessment."
+      description="Manage formal exam events (draft → open → closed). Teachers enter marks on their exam pages; term O-Level and A-Level scores live under Assessment."
     >
       {hubHref ? (
         <p className="-mt-2 mb-4 text-sm text-muted-foreground">

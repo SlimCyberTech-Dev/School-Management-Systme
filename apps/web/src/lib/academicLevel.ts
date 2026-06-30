@@ -6,7 +6,7 @@ export type AcademicLevel = "O_LEVEL" | "A_LEVEL";
 export const ACADEMIC_LEVELS: AcademicLevel[] = ["O_LEVEL", "A_LEVEL"];
 
 export function levelLabel(level: AcademicLevel | string): string {
-  return level === "A_LEVEL" ? "A-Level (UNEB)" : "O-Level (CBC)";
+  return level === "A_LEVEL" ? "A-Level (UNEB)" : "O-Level";
 }
 
 export function levelShortLabel(level: AcademicLevel | string): string {

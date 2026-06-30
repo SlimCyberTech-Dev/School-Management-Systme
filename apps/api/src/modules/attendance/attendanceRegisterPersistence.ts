@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { BULK_CHUNK_SIZE } from "../../utils/bulkConstants";
 import { HttpError } from "../../utils/httpError";
 
 type RegisterStatus = "draft" | "submitted" | "locked";
@@ -120,10 +121,14 @@ export async function replaceRegisterMarks(
   await client.query(`DELETE FROM attendance WHERE register_id = $1`, [registerId]);
   if (studentIds.length === 0) return;
 
-  await client.query(
-    `INSERT INTO attendance (student_id, class_id, date, status, recorded_by, register_id, updated_at)
-     SELECT x.student_id, $1, $2, x.status, $3, $4, NOW()
-     FROM unnest($5::uuid[], $6::text[]) AS x(student_id, status)`,
-    [classId, date, recordedBy, registerId, studentIds, statuses],
-  );
+  for (let i = 0; i < studentIds.length; i += BULK_CHUNK_SIZE) {
+    const chunkIds = studentIds.slice(i, i + BULK_CHUNK_SIZE);
+    const chunkStatuses = statuses.slice(i, i + BULK_CHUNK_SIZE);
+    await client.query(
+      `INSERT INTO attendance (student_id, class_id, date, status, recorded_by, register_id, updated_at)
+       SELECT x.student_id, $1, $2, x.status, $3, $4, NOW()
+       FROM unnest($5::uuid[], $6::text[]) AS x(student_id, status)`,
+      [classId, date, recordedBy, registerId, chunkIds, chunkStatuses],
+    );
+  }
 }
