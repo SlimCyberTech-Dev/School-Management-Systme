@@ -102,6 +102,12 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
         children: [
           { href: "/admin/assessment", label: "Overview", icon: "clipboardCheck", exactMatch: true },
           {
+            href: "/admin/assessment/guide",
+            label: "How assessment works",
+            icon: "bookOpen",
+            activePrefix: "/admin/assessment/guide",
+          },
+          {
             href: "/admin/assessment/cbc",
             label: "Competency oversight",
             icon: "clipboardCheck",
@@ -245,6 +251,12 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
         children: [
           { href: "/headteacher/assessment", label: "Overview", icon: "clipboardCheck", exactMatch: true },
           {
+            href: "/headteacher/assessment/guide",
+            label: "How assessment works",
+            icon: "bookOpen",
+            activePrefix: "/headteacher/assessment/guide",
+          },
+          {
             href: "/headteacher/assessment/cbc",
             label: "Competency assessment",
             icon: "clipboardCheck",
@@ -350,6 +362,12 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
         activePrefix: "/class-teacher/assessment",
         children: [
           {
+            href: "/class-teacher/assessment/guide",
+            label: "How assessment works",
+            icon: "bookOpen",
+            activePrefix: "/class-teacher/assessment/guide",
+          },
+          {
             href: "/class-teacher/assessment/cbc",
             label: "Competency assessment",
             icon: "clipboardCheck",
@@ -404,6 +422,12 @@ export const SHELL_NAV_CONFIG: Record<RoleKey, RoleShellConfig> = {
         icon: "clipboardCheck",
         activePrefix: "/subject-teacher/assessment",
         children: [
+          {
+            href: "/subject-teacher/assessment/guide",
+            label: "How assessment works",
+            icon: "bookOpen",
+            activePrefix: "/subject-teacher/assessment/guide",
+          },
           {
             href: "/subject-teacher/assessment/cbc",
             label: "Competency assessment",

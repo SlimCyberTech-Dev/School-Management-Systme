@@ -1,31 +1,20 @@
-import type { CompetencyLevel } from "@/lib/cbcCompetency";
-import { COMPETENCY_LEVEL_UI } from "@/lib/cbcCompetency";
+import type { CbcRating } from "@uganda-cbc-sms/shared";
+import { LetterGradeBadge } from "@/components/cbc/LetterGradeBadge";
 
+/** UNEB A–E achievement badge with tenant-configured descriptor text. */
 export function CompetencyLevelBadge({
+  grade,
   level,
-  size = "md",
-  overridden,
+  ...props
 }: {
-  level: CompetencyLevel;
+  /** Preferred — UNEB letter A–E */
+  grade?: CbcRating;
+  /** @deprecated Use `grade` */
+  level?: CbcRating;
   size?: "sm" | "md";
-  /** Headteacher override styling */
   overridden?: boolean;
 }) {
-  const ui = COMPETENCY_LEVEL_UI[level];
-  const sizeClass = size === "sm" ? "px-2 py-0.5 text-xs" : "px-2.5 py-1 text-sm";
-
-  return (
-    <span
-      className={`inline-flex max-w-full items-center gap-1 rounded-full font-medium ${sizeClass} ${ui.badge} ${
-        overridden ? "ring-2 ring-violet-400/60 ring-offset-1 ring-offset-background" : ""
-      }`}
-    >
-      {overridden ? (
-        <span className="text-[10px] font-bold uppercase tracking-wide text-violet-700 dark:text-violet-300" title="Overridden by headteacher">
-          ✦
-        </span>
-      ) : null}
-      <span className="truncate">{ui.label}</span>
-    </span>
-  );
+  const letter = grade ?? level;
+  if (!letter) return null;
+  return <LetterGradeBadge grade={letter} {...props} />;
 }

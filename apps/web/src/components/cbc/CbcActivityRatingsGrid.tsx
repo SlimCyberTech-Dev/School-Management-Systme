@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { isAxiosError } from "axios";
-import type { CompetencyLevel } from "@/lib/cbcCompetency";
+import type { CbcRating } from "@uganda-cbc-sms/shared";
 import { CompetencyLevelSelector } from "@/components/cbc/CompetencyLevelSelector";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -27,7 +27,7 @@ export function CbcActivityRatingsGrid({
   onLocked?: () => void;
 }) {
   const { saveRatings, lockActivity } = useCbcCompetencyMutations();
-  const [levels, setLevels] = useState<Record<string, CompetencyLevel | "">>({});
+  const [levels, setLevels] = useState<Record<string, CbcRating | "">>({});
   const [feedback, setFeedback] = useState<{ ok?: string; err?: string }>({});
   const [confirmLock, setConfirmLock] = useState(false);
 
@@ -51,12 +51,12 @@ export function CbcActivityRatingsGrid({
           studentId: student.id,
           competencyId: comp.id,
           strandId: comp.strandId,
-          competencyLevel: level,
+          letterGrade: level,
         });
       }
     }
     if (ratings.length === 0) {
-      setFeedback({ err: "Select at least one competency level before saving." });
+      setFeedback({ err: "Select at least one A–E achievement grade before saving." });
       return;
     }
     try {
@@ -124,6 +124,7 @@ export function CbcActivityRatingsGrid({
                   return (
                     <td key={k} className="px-2 py-2 align-top">
                       <CompetencyLevelSelector
+                        compact
                         value={levels[k] ?? ""}
                         disabled={readOnly || activity.is_locked}
                         onChange={(level) =>

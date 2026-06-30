@@ -1,29 +1,32 @@
 "use client";
 
-import type { CompetencyLevel } from "@/lib/cbcCompetency";
-import { COMPETENCY_LEVEL_SELECT_OPTIONS, COMPETENCY_LEVEL_UI } from "@/lib/cbcCompetency";
-import { Select } from "@/components/ui/Select";
+import type { CbcRating } from "@uganda-cbc-sms/shared";
+import { LetterGradeSelector } from "@/components/cbc/LetterGradeBadge";
 
+/**
+ * Five-option UNEB A–E selector (dropdown). Labels use tenant descriptors from grading scales.
+ * Dropdown is used in dense grids (e.g. CbcActivityRatingsGrid) where a 5-segment toggle would not fit.
+ */
 export function CompetencyLevelSelector({
   value,
   onChange,
   disabled,
   className = "",
+  compact = false,
 }: {
-  value: CompetencyLevel | "";
-  onChange: (level: CompetencyLevel | "") => void;
+  value: CbcRating | "";
+  onChange: (grade: CbcRating | "") => void;
   disabled?: boolean;
   className?: string;
+  compact?: boolean;
 }) {
-  const tint = value ? COMPETENCY_LEVEL_UI[value].select : "";
-
   return (
-    <Select
-      options={COMPETENCY_LEVEL_SELECT_OPTIONS}
+    <LetterGradeSelector
       value={value}
+      onChange={onChange}
       disabled={disabled}
-      className={`min-w-[10.5rem] text-xs ${tint} ${className}`}
-      onChange={(e) => onChange((e.target.value || "") as CompetencyLevel | "")}
+      className={className}
+      compact={compact}
     />
   );
 }

@@ -1,6 +1,6 @@
 import PDFDocument from "pdfkit";
 import { PassThrough, type Readable } from "stream";
-import { getCbcDescriptor } from "./grading";
+import { getCbcDescriptorStatic } from "./grading";
 import {
   drawCommentBlocks,
   drawDataTable,
@@ -36,7 +36,7 @@ export function streamCbcReportCard(data: {
   term: string;
   year: string;
   photoPath?: string | null;
-  subjects: { name: string; strand: string; competency: string; rating: string }[];
+  subjects: { name: string; strand: string; competency: string; rating: string; descriptor?: string }[];
   formalExam?: {
     examName: string;
     maxScore: number;
@@ -120,7 +120,7 @@ export function streamCbcReportCard(data: {
       s.strand,
       s.competency,
       s.rating,
-      getCbcDescriptor(s.rating) || "—",
+      s.descriptor || getCbcDescriptorStatic(s.rating) || "—",
     ]);
     y = drawDataTable(doc, y, cols, rows, {
       rowHeight: 16,

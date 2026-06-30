@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, User } from "lucide-react";
-import type { CompetencyLevel, Student } from "@uganda-cbc-sms/shared";
-import { CbcCompetencyLegend, CbcCompetencyLegendNote } from "@/components/cbc/CbcCompetencyLegend";
+import type { CbcRating } from "@uganda-cbc-sms/shared";
+import { CbcCompetencyLegend, CbcCompetencyLegendNote, pickLetterGrade } from "@/components/cbc/CbcCompetencyLegend";
 import { CompetencyLevelBadge } from "@/components/cbc/CompetencyLevelBadge";
 import { CompetencyLevelSelector } from "@/components/cbc/CompetencyLevelSelector";
+import { LetterGradeDescriptorProvider } from "@/contexts/LetterGradeDescriptorContext";
 import { AsyncContent } from "@/components/feedback/AsyncContent";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -16,8 +17,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Select } from "@/components/ui/Select";
-import { pickCompetencyLevel } from "@/lib/cbcCompetency";
 import { getApiErrorMessage } from "@/lib/api";
+import type { TermCompetencySummaryRow } from "@/lib/cbcCompetency";
 import { useCbcAssessments } from "@/hooks/useCBCAssessment";
 import { useCbcCompetencyMutations, useCbcTermSummary } from "@/hooks/useCbcCompetencyApi";
 import {
@@ -27,7 +28,7 @@ import {
 } from "@/lib/academicLevel";
 import { apiGet } from "@/lib/api";
 import { manualStatus } from "@/lib/queryStatus";
-import type { SchoolClass } from "@uganda-cbc-sms/shared";
+import type { SchoolClass, Student } from "@uganda-cbc-sms/shared";
 
 type SubjectAssignment = { subjectId: string; subjectName: string; subjectCode: string };
 
@@ -51,13 +52,13 @@ const COPY: Record<
     summaryTitle: "Term competency summary",
     emptyTitle: "No competency summary for this learner yet",
     emptyDescription:
-      "Teachers record ratings per assessment activity (assignment, test, practical, etc.). Once ratings exist for this learner, subject, and term, the system aggregates them here using the most frequent level.",
+      "Teachers record A–E grades per assessment activity (assignment, test, practical, etc.). Once ratings exist for this learner, subject, and term, the system aggregates them here using the most frequent grade.",
     showLegacyDetail: false,
   },
   headteacher: {
     scopeTitle: "Review scope",
     scopeHint:
-      "Select a learner and subject to review aggregated term levels. You can override a competency when the aggregated level does not reflect professional judgement — a written justification is required.",
+      "Select a learner and subject to review aggregated term grades. You can override a competency when the aggregated grade does not reflect professional judgement — a written justification is required.",
     summaryTitle: "Term competency summary",
     emptyTitle: "No term summary yet",
     emptyDescription:
@@ -76,7 +77,7 @@ export function CbcTermSummaryPanel({ variant = "headteacher" }: { variant?: Cbc
   const [subjectId, setSubjectId] = useState("");
   const [studentId, setStudentId] = useState("");
   const [overrideId, setOverrideId] = useState<string | null>(null);
-  const [overrideLevel, setOverrideLevel] = useState<CompetencyLevel | "">("");
+  const [overrideGrade, setOverrideGrade] = useState<CbcRating | "">("");
   const [justification, setJustification] = useState("");
   const [feedback, setFeedback] = useState<{ ok?: string; err?: string }>({});
 
@@ -202,20 +203,20 @@ export function CbcTermSummaryPanel({ variant = "headteacher" }: { variant?: Cbc
     isEmpty: (d) => Array.isArray(d) && d.length === 0,
   });
 
-  const openOverride = (id: string, current: CompetencyLevel) => {
+  const openOverride = (id: string, row: TermCompetencySummaryRow) => {
     setOverrideId(id);
-    setOverrideLevel(current);
+    setOverrideGrade(pickLetterGrade(row) ?? "");
     setJustification("");
     setFeedback({});
   };
 
   const submitOverride = async () => {
-    if (!overrideId || !overrideLevel || !justification.trim()) return;
+    if (!overrideId || !overrideGrade || !justification.trim()) return;
     setFeedback({});
     try {
       await overrideSummary.mutateAsync({
         id: overrideId,
-        payload: { overriddenLevel: overrideLevel, overrideJustification: justification.trim() },
+        payload: { overriddenGrade: overrideGrade, overrideJustification: justification.trim() },
       });
       setOverrideId(null);
       setFeedback({ ok: "Term summary updated with headteacher override." });
@@ -231,6 +232,7 @@ export function CbcTermSummaryPanel({ variant = "headteacher" }: { variant?: Cbc
     : "—";
 
   return (
+    <LetterGradeDescriptorProvider>
     <div className="space-y-5">
       <Card title={copy.scopeTitle}>
         <p className="mb-4 text-sm text-muted-foreground">{copy.scopeHint}</p>
@@ -378,7 +380,7 @@ export function CbcTermSummaryPanel({ variant = "headteacher" }: { variant?: Cbc
                 {variant === "admin" ? (
                   <p className="mt-3 max-w-md text-left text-xs text-muted-foreground">
                     <strong className="text-foreground">What teachers do:</strong> Assessment → CBC → open
-                    the class/subject → create an activity → enter levels per competency → lock the activity.
+                    the class/subject → create an activity → enter A–E grades per competency → lock the activity.
                     Project work and formal exams are separate steps.
                   </p>
                 ) : null}
@@ -398,7 +400,7 @@ export function CbcTermSummaryPanel({ variant = "headteacher" }: { variant?: Cbc
                       {overrideCount === 1 ? "override" : "overrides"}
                     </span>
                   ) : null}
-                  <span>Aggregation: most frequent level (higher rank wins ties)</span>
+                  <span>Aggregation: most frequent grade (A highest wins ties)</span>
                 </div>
 
                 <div className="overflow-x-auto rounded-lg border border-border">
@@ -407,8 +409,8 @@ export function CbcTermSummaryPanel({ variant = "headteacher" }: { variant?: Cbc
                       <tr className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
                         <th className="px-3 py-2.5 font-medium">Competency</th>
                         <th className="px-3 py-2.5 font-medium">
-                          <span title="The level used on reports — honours headteacher override when set">
-                            Report level
+                          <span title="The A–E grade used on reports — honours headteacher override when set">
+                            Report grade
                           </span>
                         </th>
                         {!allowOverride ? (
@@ -421,30 +423,44 @@ export function CbcTermSummaryPanel({ variant = "headteacher" }: { variant?: Cbc
                       </tr>
                     </thead>
                     <tbody>
-                      {summaryRows.map((row) => (
+                      {summaryRows.map((row) => {
+                        const effectiveGrade = row.effective_grade ?? pickLetterGrade(row);
+                        const aggregatedGrade = row.aggregated_grade ?? pickLetterGrade({ aggregated_grade: row.aggregated_grade });
+                        const overriddenGrade = row.overridden_grade ?? pickLetterGrade({
+                          overridden_grade: row.overridden_grade,
+                        });
+                        return (
                         <tr key={row.id} className="border-t border-border align-top">
                           <td className="px-3 py-3 font-medium text-foreground">
                             {row.competency_name ?? row.competency_id}
                           </td>
                           <td className="px-3 py-3">
-                            <CompetencyLevelBadge
-                              level={row.effective_level}
-                              overridden={row.is_teacher_override}
-                            />
+                            {effectiveGrade ? (
+                              <CompetencyLevelBadge
+                                grade={effectiveGrade}
+                                overridden={row.is_teacher_override}
+                              />
+                            ) : (
+                              "—"
+                            )}
                           </td>
                           {!allowOverride ? (
                             <td className="px-3 py-3">
-                              <CompetencyLevelBadge level={row.aggregated_level} size="sm" />
+                              {aggregatedGrade ? (
+                                <CompetencyLevelBadge grade={aggregatedGrade} size="sm" />
+                              ) : (
+                                "—"
+                              )}
                             </td>
                           ) : null}
                           <td className="px-3 py-3 text-xs text-muted-foreground">
                             {row.is_teacher_override ? (
                               <div className="space-y-1">
                                 <p className="font-medium text-foreground">Headteacher override</p>
-                                {row.overridden_level ? (
+                                {overriddenGrade ? (
                                   <p>
                                     Set to{" "}
-                                    <CompetencyLevelBadge level={row.overridden_level} size="sm" overridden />
+                                    <CompetencyLevelBadge grade={overriddenGrade} size="sm" overridden />
                                   </p>
                                 ) : null}
                                 {row.override_justification ? (
@@ -463,14 +479,15 @@ export function CbcTermSummaryPanel({ variant = "headteacher" }: { variant?: Cbc
                               <Button
                                 type="button"
                                 variant="secondary"
-                                onClick={() => openOverride(row.id, row.effective_level)}
+                                onClick={() => openOverride(row.id, row)}
                               >
                                 Override
                               </Button>
                             </td>
                           ) : null}
                         </tr>
-                      ))}
+                      );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -492,19 +509,19 @@ export function CbcTermSummaryPanel({ variant = "headteacher" }: { variant?: Cbc
                 <tr className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-3 py-2">Strand</th>
                   <th className="px-3 py-2">Competency</th>
-                  <th className="px-3 py-2">Level</th>
+                  <th className="px-3 py-2">Grade</th>
                 </tr>
               </thead>
               <tbody>
                 {legacyForStudent.map((row, i) => {
-                  const level = pickCompetencyLevel(row);
+                  const level = pickLetterGrade(row);
                   return (
                     <tr key={i} className="border-t border-border">
                       <td className="px-3 py-2">{String(row.strand ?? "—")}</td>
                       <td className="px-3 py-2">{String(row.competency ?? "—")}</td>
                       <td className="px-3 py-2">
                         {level ? (
-                          <CompetencyLevelBadge level={level} size="sm" />
+                          <CompetencyLevelBadge grade={level} size="sm" />
                         ) : (
                           <span className="text-muted-foreground">{String(row.rating ?? "—")}</span>
                         )}
@@ -524,20 +541,20 @@ export function CbcTermSummaryPanel({ variant = "headteacher" }: { variant?: Cbc
         onClose={() => setOverrideId(null)}
       >
         <p className="mb-3 text-sm text-muted-foreground">
-          Choose the level that should appear on reports for this competency. You must provide a written
+          Choose the A–E grade that should appear on reports for this competency. You must provide a written
           justification — the button stays disabled until it is filled in.
         </p>
         <div className="space-y-3">
           <div>
-            <p className="mb-1 text-sm font-medium">Report level</p>
-            <CompetencyLevelSelector value={overrideLevel} onChange={setOverrideLevel} />
+            <p className="mb-1 text-sm font-medium">Report grade</p>
+            <CompetencyLevelSelector value={overrideGrade} onChange={setOverrideGrade} />
           </div>
           <label className="block text-sm">
             <span className="mb-1 block font-medium">Justification</span>
             <textarea
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
               rows={4}
-              placeholder="Explain why the aggregated level does not reflect the learner's achievement…"
+              placeholder="Explain why the aggregated grade does not reflect the learner's achievement…"
               value={justification}
               onChange={(e) => setJustification(e.target.value)}
             />
@@ -548,7 +565,7 @@ export function CbcTermSummaryPanel({ variant = "headteacher" }: { variant?: Cbc
             </Button>
             <Button
               type="button"
-              disabled={!justification.trim() || !overrideLevel}
+              disabled={!justification.trim() || !overrideGrade}
               loading={overrideSummary.isPending}
               onClick={() => void submitOverride()}
             >
@@ -558,6 +575,7 @@ export function CbcTermSummaryPanel({ variant = "headteacher" }: { variant?: Cbc
         </div>
       </Modal>
     </div>
+    </LetterGradeDescriptorProvider>
   );
 }
 

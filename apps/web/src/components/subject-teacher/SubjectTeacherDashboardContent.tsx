@@ -41,7 +41,7 @@ const QUICK_GROUPS = [
       {
         href: "/subject-teacher/assessment/cbc",
         label: "Competency assessment",
-        description: "NCDC competency ratings and activities",
+        description: "UNEB A–E ratings and activities",
         icon: BookOpen,
       },
     ],

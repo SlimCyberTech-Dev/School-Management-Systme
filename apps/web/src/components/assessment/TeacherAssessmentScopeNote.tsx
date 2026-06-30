@@ -32,8 +32,8 @@ export function TeacherAssessmentScopeNote({
     <Card>
       <div className="space-y-2 text-sm text-muted-foreground">
         <p>
-          This page is for <strong className="text-foreground">term CBC competency ratings</strong> (NCDC 4-level
-          descriptors per strand). Only subjects explicitly assigned to you on Subject teachers appear below, and only
+          This page is for <strong className="text-foreground">term CBC competency ratings</strong> (UNEB A–E
+          achievement grades per strand, with your school&apos;s configured descriptors). Only subjects explicitly assigned to you on Subject teachers appear below, and only
           when CBC strands are configured. Open an assignment to enter ratings; the same screen also has{" "}
           <strong className="text-foreground">project work (official CA)</strong> for composite A–E grades.
         </p>

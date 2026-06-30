@@ -1,5 +1,4 @@
 import type { CbcRating } from "@uganda-cbc-sms/shared";
-import { legacyRatingToCompetencyLevel } from "@uganda-cbc-sms/shared";
 import { query, tenantContext } from "../../config/db";
 import { syncAssessmentsCbcToLegacy } from "../../utils/cbcRatingWrite";
 import { HttpError } from "../../utils/httpError";
@@ -132,15 +131,13 @@ export async function upsertCbc(item: CbcUpsertItem, termId: string, yearId: str
   if (rows[0]?.is_locked) {
     throw new HttpError(400, "Assessment is locked. Headteacher must unlock.");
   }
-  const competencyLevel = legacyRatingToCompetencyLevel(item.rating);
   await query(
     `INSERT INTO assessments_cbc (
-      student_id, subject_id, strand, competency, rating, competency_level,
+      student_id, subject_id, strand, competency, rating,
       term_id, academic_year_id, teacher_id, is_locked, updated_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,false,NOW())
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,false,NOW())
     ON CONFLICT (student_id, subject_id, strand, competency, term_id, academic_year_id) DO UPDATE SET
       rating = EXCLUDED.rating,
-      competency_level = EXCLUDED.competency_level,
       teacher_id = EXCLUDED.teacher_id,
       updated_at = NOW()
     `,
@@ -150,7 +147,6 @@ export async function upsertCbc(item: CbcUpsertItem, termId: string, yearId: str
       item.strand,
       item.competency,
       item.rating,
-      competencyLevel,
       termId,
       yearId,
       teacherId,

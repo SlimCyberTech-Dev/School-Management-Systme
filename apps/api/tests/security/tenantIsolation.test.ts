@@ -41,6 +41,17 @@ describe("tenant isolation", () => {
       await platformPool.end().catch(() => undefined);
       return;
     }
+    for (const tid of [tenantA, tenantB]) {
+      await withTenant(tid, async (client) => {
+        await client.query(`DELETE FROM notifications WHERE tenant_id = $1`, [tid]);
+        await client.query(`DELETE FROM password_reset_codes WHERE tenant_id = $1`, [tid]);
+        await client.query(`DELETE FROM users WHERE tenant_id = $1`, [tid]);
+      });
+    }
+    await platformPool.query(`DELETE FROM tenant_settings WHERE tenant_id IN ($1, $2)`, [
+      tenantA,
+      tenantB,
+    ]);
     await platformPool.query(`DELETE FROM tenants WHERE id IN ($1, $2)`, [tenantA, tenantB]);
     await pool.end();
     await platformPool.end();

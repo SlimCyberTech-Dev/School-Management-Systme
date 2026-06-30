@@ -1,7 +1,11 @@
 import {
   DEFAULT_ASSESSMENT_GRADING_SCALES,
+  buildLetterGradeDescriptorMap,
   resolveGradeFromScaleRows,
+  resolveLetterGradeDescriptor,
   validateGradingScaleRows,
+  CBC_RATINGS,
+  type CbcRating,
   type GradingScaleLevel,
 } from "@uganda-cbc-sms/shared";
 import { query } from "../config/db";
@@ -12,6 +16,7 @@ export type GradingScaleBand = {
   minScore: number;
   maxScore: number;
   points: number | null;
+  descriptor: string | null;
   sortOrder: number;
   isActive: boolean;
 };
@@ -31,10 +36,11 @@ export async function loadActiveGradingBands(level: GradingScaleLevel): Promise<
     min_score: string;
     max_score: string;
     points: number | null;
+    descriptor: string | null;
     sort_order: number;
     is_active: boolean;
   }>(
-    `SELECT grade, min_score, max_score, points, sort_order, is_active
+    `SELECT grade, min_score, max_score, points, descriptor, sort_order, is_active
      FROM assessment_grading_scales
      WHERE level = $1
      ORDER BY sort_order ASC, min_score DESC`,
@@ -46,9 +52,21 @@ export async function loadActiveGradingBands(level: GradingScaleLevel): Promise<
     minScore: Number(r.min_score),
     maxScore: Number(r.max_score),
     points: r.points != null ? Number(r.points) : null,
+    descriptor: r.descriptor,
     sortOrder: Number(r.sort_order),
     isActive: Boolean(r.is_active),
   }));
+}
+
+/** Tenant-configured UNEB achievement descriptors (O_LEVEL active A–E bands). */
+export async function loadActiveLetterGradeDescriptorMap(): Promise<Record<CbcRating, string>> {
+  const bands = await loadActiveGradingBands("O_LEVEL");
+  return buildLetterGradeDescriptorMap(bands);
+}
+
+export async function getActiveLetterGradeDescriptor(grade: string): Promise<string> {
+  const map = await loadActiveLetterGradeDescriptorMap();
+  return resolveLetterGradeDescriptor(grade, map);
 }
 
 export async function resolveConfiguredGrade(
@@ -83,6 +101,7 @@ export async function resolveConfiguredGrade(
       minScore: r.minScore,
       maxScore: r.maxScore,
       points: r.points ?? null,
+      descriptor: r.descriptor ?? null,
       sortOrder: r.sortOrder,
       isActive: true,
     })),

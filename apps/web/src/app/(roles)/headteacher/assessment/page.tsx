@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AssessmentGuidePromo } from "@/components/assessment/guide/AssessmentGuidePage";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { Card } from "@/components/ui/Card";
 
@@ -10,6 +11,7 @@ export default function HeadteacherAssessmentHubPage() {
       title="Assessment oversight"
       description="Use the Assessment menu in the sidebar for competency assessment, A-Level, and formal exam workflows."
     >
+      <AssessmentGuidePromo viewerRole="headteacher" className="mb-6" />
       <p className="-mt-2 mb-6 text-sm text-muted-foreground">
         Teachers enter marks on their portals. Use this hub for oversight, report-card approval, and school-wide
         analytics.

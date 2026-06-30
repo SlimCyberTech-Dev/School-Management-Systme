@@ -13,8 +13,6 @@ import { queryStatus } from "@/lib/queryStatus";
 const METHOD_DESCRIPTION: Record<RankingMethod, string> = {
   alevel_best3_points:
     "UNEB-style ranking: sum of points from the best 3 subjects (lower aggregate = better position).",
-  olevel_best8_points:
-    "Legacy UCE points ranking (deprecated for CBC track).",
   olevel_composite_average:
     "Mean composite score across subjects (CA 20% + EOC 80%; higher average = better position).",
   exam_average_percent:

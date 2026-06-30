@@ -1,4 +1,5 @@
-import { getCbcRatingDescriptor } from "@uganda-cbc-sms/shared";
+import { getCbcRatingDescriptor, resolveLetterGradeDescriptor } from "@uganda-cbc-sms/shared";
+import { loadActiveLetterGradeDescriptorMap } from "./gradingScales";
 
 /** UNEB A-Level grade from score (exact SRS table) */
 export function computeUNEBGrade(score: number): { grade: string; points: number } {
@@ -24,7 +25,13 @@ export function computeDivision(totalPoints: number): string {
 export const getUnebGrade = computeUNEBGrade;
 export const getDivision = computeDivision;
 
-/** CBC rating descriptor (official A–E bands). */
-export function getCbcDescriptor(rating: string): string {
+/** CBC rating descriptor — tenant-configured from assessment_grading_scales when available. */
+export async function getCbcDescriptor(rating: string): Promise<string> {
+  const map = await loadActiveLetterGradeDescriptorMap();
+  return resolveLetterGradeDescriptor(rating, map);
+}
+
+/** Synchronous fallback using static CBC_RATING_BANDS only (no tenant context). */
+export function getCbcDescriptorStatic(rating: string): string {
   return getCbcRatingDescriptor(rating);
 }

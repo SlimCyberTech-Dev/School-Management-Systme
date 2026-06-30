@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { CompetencyLevel } from "@/lib/cbcCompetency";
+import type { CbcRating } from "@uganda-cbc-sms/shared";
 import { CompetencyLevelSelector } from "@/components/cbc/CompetencyLevelSelector";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -36,7 +36,7 @@ export function CbcLearningOutcomesPanel({
   const [description, setDescription] = useState("");
   const [selectedOutcomeId, setSelectedOutcomeId] = useState("");
   const [studentId, setStudentId] = useState(students[0]?.id ?? "");
-  const [achievementLevel, setAchievementLevel] = useState<CompetencyLevel | "">("");
+  const [achievementGrade, setAchievementGrade] = useState<CbcRating | "">("");
   const [remark, setRemark] = useState("");
   const [feedback, setFeedback] = useState<{ ok?: string; err?: string }>({});
 
@@ -70,18 +70,18 @@ export function CbcLearningOutcomesPanel({
 
   const addRecord = async () => {
     setFeedback({});
-    if (!selectedOutcomeId || !studentId || !achievementLevel) {
-      setFeedback({ err: "Select an outcome, student, and achievement level." });
+    if (!selectedOutcomeId || !studentId || !achievementGrade) {
+      setFeedback({ err: "Select an outcome, student, and achievement grade." });
       return;
     }
     try {
       await createLearningOutcomeRecord.mutateAsync({
         studentId,
         learningOutcomeId: selectedOutcomeId,
-        achievementLevel,
+        achievementGrade,
         remark: remark.trim() || undefined,
       });
-      setAchievementLevel("");
+      setAchievementGrade("");
       setRemark("");
       setFeedback({ ok: "Student achievement recorded." });
     } catch (e) {
@@ -131,8 +131,8 @@ export function CbcLearningOutcomesPanel({
             onChange={(e) => setStudentId(e.target.value)}
           />
           <div>
-            <p className="mb-1 text-sm font-medium">Achievement level</p>
-            <CompetencyLevelSelector value={achievementLevel} onChange={setAchievementLevel} />
+            <p className="mb-1 text-sm font-medium">Achievement grade (A–E)</p>
+            <CompetencyLevelSelector value={achievementGrade} onChange={setAchievementGrade} />
           </div>
           <Input label="Remark (optional)" value={remark} onChange={(e) => setRemark(e.target.value)} />
           <Button type="button" loading={createLearningOutcomeRecord.isPending} onClick={() => void addRecord()}>

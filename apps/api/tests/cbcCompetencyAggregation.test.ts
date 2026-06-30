@@ -1,46 +1,43 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { aggregateTermCompetencyLevel } from "../src/services/cbcCompetencyAggregation.js";
+import { aggregateTermLetterGrade } from "@uganda-cbc-sms/shared";
 
-describe("aggregateTermCompetencyLevel", () => {
-  it("returns the clear majority level", () => {
-    const result = aggregateTermCompetencyLevel([
-      "exceeds_expectations",
-      "exceeds_expectations",
-      "meets_expectations",
-    ]);
-    assert.deepEqual(result, { level: "exceeds_expectations", method: "most_frequent" });
+describe("aggregateTermLetterGrade", () => {
+  it("returns the clear majority grade", () => {
+    const result = aggregateTermLetterGrade(["A", "A", "B"]);
+    assert.deepEqual(result, { grade: "A", method: "most_frequent" });
   });
 
-  it("breaks a two-way tie by preferring the higher-ranked level", () => {
-    const result = aggregateTermCompetencyLevel([
-      "exceeds_expectations",
-      "meets_expectations",
-      "exceeds_expectations",
-      "meets_expectations",
-    ]);
-    assert.equal(result.level, "exceeds_expectations");
+  it("breaks a two-way tie by preferring the higher-ranked letter", () => {
+    const result = aggregateTermLetterGrade(["A", "B", "A", "B"]);
+    assert.equal(result.grade, "A");
     assert.equal(result.method, "most_frequent");
   });
 
   it("breaks a three-way tie by preferring the highest rank", () => {
-    const result = aggregateTermCompetencyLevel([
-      "approaching_expectations",
-      "meets_expectations",
-      "exceeds_expectations",
-    ]);
-    assert.equal(result.level, "exceeds_expectations");
+    const result = aggregateTermLetterGrade(["C", "B", "A"]);
+    assert.equal(result.grade, "A");
+  });
+
+  it("breaks a five-way tie by preferring A (rank 5)", () => {
+    const result = aggregateTermLetterGrade(["E", "D", "C", "B", "A"]);
+    assert.equal(result.grade, "A");
+  });
+
+  it("prefers B over C and D when counts are equal among three mid grades", () => {
+    const result = aggregateTermLetterGrade(["B", "C", "D", "B", "C", "D"]);
+    assert.equal(result.grade, "B");
   });
 
   it("returns a single rating unchanged", () => {
-    const result = aggregateTermCompetencyLevel(["meets_expectations"]);
-    assert.deepEqual(result, { level: "meets_expectations", method: "most_frequent" });
+    const result = aggregateTermLetterGrade(["C"]);
+    assert.deepEqual(result, { grade: "C", method: "most_frequent" });
   });
 
   it("throws on an empty array", () => {
     assert.throws(
-      () => aggregateTermCompetencyLevel([]),
-      /Cannot aggregate an empty rating set/,
+      () => aggregateTermLetterGrade([]),
+      /Cannot aggregate an empty grade set/,
     );
   });
 });

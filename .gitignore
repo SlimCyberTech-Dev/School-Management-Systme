@@ -1,6 +1,8 @@
 node_modules/
 .env
 .env.local
+apps/api/.env.test
+.pg-test-data/
 apps/api/.keys/
 cache/
 dist/

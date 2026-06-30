@@ -157,6 +157,17 @@ export async function compileCbcReportPayload(
 
   const certification = await getOlevelCertification(studentId, academicYearId);
 
+  const subjectRows = await Promise.all(
+    scores.map(async (r) => ({
+      name: r.subject_name,
+      code: r.subject_code,
+      strand: r.strand,
+      competency: r.competency,
+      rating: r.rating,
+      descriptor: await getCbcDescriptor(r.rating),
+    })),
+  );
+
   return {
     version: REPORT_PAYLOAD_VERSION,
     schoolName,
@@ -167,14 +178,7 @@ export async function compileCbcReportPayload(
     termLabel: `Term ${st.term_number}`,
     yearName: st.year_name,
     photoUrl: st.photo_url,
-    subjects: scores.map((r) => ({
-      name: r.subject_name,
-      code: r.subject_code,
-      strand: r.strand,
-      competency: r.competency,
-      rating: r.rating,
-      descriptor: getCbcDescriptor(r.rating),
-    })),
+    subjects: subjectRows,
     subjectSummaries: summaries.map((r) => {
       const src = r.ca_source as CaSource | null;
       return {

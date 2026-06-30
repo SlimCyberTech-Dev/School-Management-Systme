@@ -7,7 +7,7 @@ export default function SubjectTeacherCbcEntryPage() {
   return (
     <PageWrapper
       title="Competency entry"
-      description="Create assessment activities, enter NCDC competency levels, and record learning outcomes."
+      description="Create assessment activities, enter UNEB A–E achievement grades, and record learning outcomes."
     >
       <TeacherCbcEntryPanel />
     </PageWrapper>

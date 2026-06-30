@@ -1,14 +1,11 @@
 import { z } from "zod";
 import { curriculumTrackSchema } from "./curriculum.schema";
 
-export const cbcRatingSchema = z.enum(["A", "B", "C", "D", "E"]);
+/** UNEB O-Level achievement letter (A–E). Same vocabulary as assessments_cbc.rating / CBC_RATING_BANDS. */
+export const letterGradeSchema = z.enum(["A", "B", "C", "D", "E"]);
 
-export const competencyLevelSchema = z.enum([
-  "exceeds_expectations",
-  "meets_expectations",
-  "approaching_expectations",
-  "below_expectations",
-]);
+/** @deprecated Prefer letterGradeSchema — alias kept for existing CA / strand rating fields. */
+export const cbcRatingSchema = letterGradeSchema;
 
 export const assessmentActivityTypeSchema = z.enum([
   "assignment",
@@ -457,7 +454,7 @@ export const cbcCompetencyRatingItemSchema = z.object({
   studentId: z.string().uuid(),
   competencyId: z.string().uuid(),
   strandId: z.string().uuid(),
-  competencyLevel: competencyLevelSchema,
+  letterGrade: letterGradeSchema,
 });
 
 export const cbcCompetencyRatingsBulkSchema = z.object({
@@ -472,7 +469,7 @@ export const cbcTermSummaryQuerySchema = z.object({
 });
 
 export const cbcTermSummaryOverrideSchema = z.object({
-  overriddenLevel: competencyLevelSchema,
+  overriddenGrade: letterGradeSchema,
   overrideJustification: z.string().min(1).max(2000),
 });
 
@@ -486,7 +483,7 @@ export const cbcLearningOutcomeCreateSchema = z.object({
 export const cbcLearningOutcomeRecordCreateSchema = z.object({
   studentId: z.string().uuid(),
   learningOutcomeId: z.string().uuid(),
-  achievementLevel: competencyLevelSchema,
+  achievementGrade: letterGradeSchema,
   remark: z.string().max(2000).optional(),
 });
 

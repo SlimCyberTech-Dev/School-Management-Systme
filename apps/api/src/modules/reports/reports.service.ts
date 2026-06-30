@@ -658,6 +658,7 @@ async function payloadToCbcPdf(payload: CbcReportPayload, tenantId: string): Pro
       strand: s.strand,
       competency: s.competency,
       rating: s.rating,
+      descriptor: s.descriptor,
     })),
     formalExam: payload.formalExam,
     subjectSummaries: payload.subjectSummaries,

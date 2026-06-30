@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AssessmentGuidePromo } from "@/components/assessment/guide/AssessmentGuidePage";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { Card } from "@/components/ui/Card";
 
@@ -10,9 +11,10 @@ export default function AdminAssessmentHubPage() {
       title="Assessment"
       description="Policy setup and execution for O-Level CBC and A-Level UNEB workflows."
     >
+      <AssessmentGuidePromo viewerRole="admin" className="mb-6" />
       <p className="-mt-2 mb-6 text-sm text-muted-foreground">
         O-Level follows the UNEB/NCDC CBC flow:{" "}
-        <strong className="font-medium text-foreground">NCDC 4-level competency ratings</strong> +{" "}
+        <strong className="font-medium text-foreground">UNEB A–E competency ratings</strong> +{" "}
         <strong className="font-medium text-foreground">formal exam EOC</strong> +{" "}
         <strong className="font-medium text-foreground">project completion</strong> to produce composite grades and Result
         1/2/3 certification.

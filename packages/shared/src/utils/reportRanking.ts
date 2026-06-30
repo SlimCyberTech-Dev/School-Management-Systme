@@ -7,7 +7,6 @@
 
 export type RankingMethod =
   | "alevel_best3_points"
-  | "olevel_best8_points"
   | "olevel_composite_average"
   | "exam_average_percent"
   | "cbc_competency_average";

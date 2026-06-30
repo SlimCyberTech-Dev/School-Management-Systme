@@ -3,11 +3,14 @@
 import {
   DEFAULT_ASSESSMENT_GRADING_SCALES,
   validateGradingScaleRows,
+  CBC_RATINGS,
+  type CbcRating,
   type GradingScaleLevel,
 } from "@uganda-cbc-sms/shared";
 import { useEffect, useMemo, useState } from "react";
 import { PageWrapper } from "@/components/layout/PageWrapper";
 import { OlevelCaPolicyPanel } from "@/components/academic/OlevelCaPolicyPanel";
+import { OLevelAchievementDescriptorsSection } from "@/components/academic/OLevelAchievementDescriptorsSection";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -111,6 +114,29 @@ export default function AdminGradingScalesPage() {
       ),
     [rows],
   );
+
+  const updateDescriptor = (grade: CbcRating, descriptor: string) => {
+    setRows((prev) => {
+      const idx = prev.findIndex((r) => r.grade.toUpperCase() === grade);
+      if (idx >= 0) {
+        return prev.map((r, i) => (i === idx ? { ...r, descriptor } : r));
+      }
+      const def = DEFAULT_ASSESSMENT_GRADING_SCALES.O_LEVEL.find((r) => r.grade === grade);
+      return [
+        ...prev,
+        {
+          level: "O_LEVEL" as const,
+          grade,
+          minScore: def?.minScore ?? 0,
+          maxScore: def?.maxScore ?? 100,
+          points: null,
+          descriptor,
+          sortOrder: def?.sortOrder ?? CBC_RATINGS.indexOf(grade) + 1,
+          isActive: true,
+        },
+      ];
+    });
+  };
 
   const updateRow = (idx: number, patch: Partial<ScaleRow>) => {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
@@ -283,7 +309,11 @@ export default function AdminGradingScalesPage() {
           <OlevelCaPolicyPanel />
         </div>
       ) : (
-      <Card title={level === "O_LEVEL" ? "A–E grade bands" : "Scale settings"}>
+      <>
+      {level === "O_LEVEL" ? (
+        <OLevelAchievementDescriptorsSection rows={rows} onDescriptorChange={updateDescriptor} />
+      ) : null}
+      <Card title={level === "O_LEVEL" ? "A–E composite grade bands" : "Scale settings"}>
         {level === "O_LEVEL" ? (
           <div className="mb-3">
             <Alert tone="info">
@@ -414,6 +444,7 @@ export default function AdminGradingScalesPage() {
           <code className="rounded bg-muted px-1">npm run recalculate:alevel-grades</code> after bulk scale changes.
         </p>
       </Card>
+      </>
       )}
 
       <ConfirmDialog

@@ -22,7 +22,7 @@ export default function HeadteacherCbcAssessmentPage() {
   return (
     <PageWrapper
       title="Competency assessment"
-      description="Review NCDC term competency summaries and apply headteacher overrides when needed."
+      description="Review term A–E competency summaries and apply headteacher overrides when needed."
     >
       <p className="-mt-2 mb-4 text-sm text-muted-foreground">
         <Link href="/headteacher/assessment" className="font-medium text-brand hover:underline">

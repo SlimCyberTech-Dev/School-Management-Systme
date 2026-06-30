@@ -86,7 +86,7 @@ export async function notifyCompetencyOverride(
     student_id: string;
     term_id: string;
     competency_name: string;
-    overridden_level: string | null;
+    overridden_grade: string | null;
     teacher_id: string | null;
     subject_name: string;
     student_name: string;
@@ -100,7 +100,7 @@ export async function notifyCompetencyOverride(
        tcs.student_id,
        tcs.term_id,
        cc.name AS competency_name,
-       tcs.overridden_level::text AS overridden_level,
+       tcs.overridden_grade::text AS overridden_grade,
        cs.teacher_id,
        subj.name AS subject_name,
        st.full_name AS student_name,
@@ -125,7 +125,7 @@ export async function notifyCompetencyOverride(
   if (!ctx?.teacher_id) return;
 
   const classLabel = formatClassLabel(ctx.class_name, ctx.class_stream);
-  const level = ctx.overridden_level ?? "updated";
+  const level = ctx.overridden_grade ?? "updated";
   const title = `Competency rating adjusted for ${ctx.student_name}`;
   const body = `The headteacher set ${ctx.competency_name} (${ctx.subject_name}, ${classLabel}, Term ${ctx.term_number}) to ${level} for ${ctx.student_name}.`;
 
@@ -141,7 +141,7 @@ export async function notifyCompetencyOverride(
       studentId: ctx.student_id,
       subjectId: ctx.subject_id,
       termId: ctx.term_id,
-      overriddenLevel: ctx.overridden_level,
+      overriddenGrade: ctx.overridden_grade,
     },
   });
 }

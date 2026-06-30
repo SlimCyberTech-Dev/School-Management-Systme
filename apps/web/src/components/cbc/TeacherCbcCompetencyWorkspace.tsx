@@ -21,6 +21,7 @@ import {
   type AssessmentActivity,
 } from "@/lib/cbcCompetency";
 import { useCbcCompetencyCatalog } from "@/hooks/useCbcCompetencyCatalog";
+import { LetterGradeDescriptorProvider } from "@/contexts/LetterGradeDescriptorContext";
 import { apiGet } from "@/lib/api";
 import { manualStatus } from "@/lib/queryStatus";
 
@@ -32,7 +33,7 @@ const MAIN_TABS = [
   {
     id: "activities",
     label: "Activities & ratings",
-    subtitle: "Record NCDC competency levels per activity",
+    subtitle: "Record UNEB A–E achievement grades per activity",
   },
   {
     id: "outcomes",
@@ -58,6 +59,7 @@ export function TeacherCbcCompetencyWorkspace() {
   const termId = searchParams.get("termId") ?? "";
   const yearId = searchParams.get("yearId") ?? "";
   const initialActivityId = searchParams.get("activityId") ?? "";
+  const tabParam = searchParams.get("tab");
 
   const [mainTab, setMainTab] = useState<MainTabId>("activities");
   const [activities, setActivities] = useState<AssessmentActivity[]>([]);
@@ -77,6 +79,12 @@ export function TeacherCbcCompetencyWorkspace() {
       setSelectedActivityId(stored[0].id);
     }
   }, [contextKey, contextReady, initialActivityId]);
+
+  useEffect(() => {
+    if (tabParam === "activities" || tabParam === "outcomes" || tabParam === "projects") {
+      setMainTab(tabParam);
+    }
+  }, [tabParam]);
 
   const studentsQ = useQuery({
     queryKey: ["students", classId],
@@ -131,12 +139,13 @@ export function TeacherCbcCompetencyWorkspace() {
         <Link href={listHref} className="font-medium text-brand underline">
           your assignments
         </Link>{" "}
-        to enter NCDC competency ratings.
+        to enter UNEB A–E competency ratings.
       </Alert>
     );
   }
 
   return (
+    <LetterGradeDescriptorProvider>
     <div className="space-y-4">
       <Link href={listHref} className="inline-block text-sm font-medium text-brand hover:underline">
         ← My assignments
@@ -310,5 +319,6 @@ export function TeacherCbcCompetencyWorkspace() {
         </div>
       ) : null}
     </div>
+    </LetterGradeDescriptorProvider>
   );
 }

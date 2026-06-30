@@ -10,7 +10,7 @@ export default function AdminCbcAssessmentPage() {
   return (
     <PageWrapper
       title="Competency oversight"
-      description="Read-only view of NCDC term summaries after teachers record assessment activity ratings"
+      description="Read-only view of term A–E summaries after teachers record assessment activity ratings"
     >
       <Link href="/admin/assessment" className="mb-4 inline-block text-sm font-medium text-brand hover:underline">
         ← Assessment hub
@@ -24,7 +24,7 @@ export default function AdminCbcAssessmentPage() {
           <div className="text-sm text-muted-foreground">
             <p className="font-medium text-foreground">What this page shows</p>
             <p className="mt-1">
-              Aggregated competency levels per learner, subject, and term — computed from ratings teachers
+              Aggregated A–E achievement grades per learner, subject, and term — computed from ratings teachers
               enter on assessment activities. You cannot edit data here; use it to verify progress before
               report cards.
             </p>

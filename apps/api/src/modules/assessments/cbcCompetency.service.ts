@@ -1,4 +1,9 @@
-import type { CompetencyLevel } from "@uganda-cbc-sms/shared";
+import type { CbcRating } from "@uganda-cbc-sms/shared";
+import {
+  aggregateTermLetterGrade,
+  parseCbcRating,
+  type CbcRating as CbcRatingType,
+} from "@uganda-cbc-sms/shared";
 import type { z } from "zod";
 import {
   cbcActivityCreateSchema,
@@ -7,8 +12,7 @@ import {
   cbcLearningOutcomeRecordCreateSchema,
 } from "@uganda-cbc-sms/shared";
 import { query, tenantContext } from "../../config/db";
-import { aggregateTermCompetencyLevel } from "../../services/cbcCompetencyAggregation";
-import { dualWriteFromCompetencyRatingIds } from "../../utils/cbcRatingWrite";
+import { dualWriteFromLetterGrade } from "../../utils/cbcRatingWrite";
 import { HttpError } from "../../utils/httpError";
 import { fireCompetencyOverrideNotification } from "../../services/notifications/notificationHooks";
 
@@ -89,31 +93,42 @@ export async function bulkInsertCompetencyRatings(input: RatingsBulkIn, teacherI
   let saved = 0;
 
   for (const item of input.ratings) {
+    const letterGrade = item.letterGrade.toUpperCase() as CbcRatingType;
     const { rowCount } = await query(
       `INSERT INTO competency_ratings (
-        student_id, assessment_activity_id, competency_id, strand_id, competency_level
+        student_id, assessment_activity_id, competency_id, strand_id, letter_grade
       ) VALUES ($1,$2,$3,$4,$5)
       ON CONFLICT (student_id, assessment_activity_id, competency_id) DO UPDATE SET
-        competency_level = EXCLUDED.competency_level,
+        letter_grade = EXCLUDED.letter_grade,
         strand_id = EXCLUDED.strand_id`,
       [
         item.studentId,
         input.assessmentActivityId,
         item.competencyId,
         item.strandId,
-        item.competencyLevel,
+        letterGrade,
       ],
     );
     if (rowCount && rowCount > 0) saved += 1;
 
-    await dualWriteFromCompetencyRatingIds({
+    const { rows: meta } = await query<{ competency_name: string; strand_name: string }>(
+      `SELECT cc.name AS competency_name, COALESCE(cs.name, cs.strand_name, 'General') AS strand_name
+       FROM cbc_competencies cc
+       JOIN cbc_strands cs ON cs.id = cc.strand_id
+       WHERE cc.id = $1 AND cs.id = $2`,
+      [item.competencyId, item.strandId],
+    );
+    const row = meta[0];
+    if (!row) continue;
+
+    await dualWriteFromLetterGrade({
       studentId: item.studentId,
-      competencyId: item.competencyId,
-      strandId: item.strandId,
-      competencyLevel: item.competencyLevel,
       subjectId: activity.subject_id,
+      strandName: row.strand_name,
+      competencyName: row.competency_name,
+      letterGrade,
       termId: activity.term_id,
-      academicYearId: activity.academic_year_id,
+      yearId: activity.academic_year_id,
       teacherId,
     });
   }
@@ -148,18 +163,22 @@ type SummaryRow = {
   subject_id: string;
   competency_id: string;
   term_id: string;
-  aggregated_level: CompetencyLevel;
+  aggregated_grade: CbcRatingType;
   aggregation_method: string;
   is_teacher_override: boolean;
-  overridden_level: CompetencyLevel | null;
+  overridden_grade: CbcRatingType | null;
   override_justification: string | null;
   overridden_by: string | null;
   overridden_at: string | null;
   created_at: string;
   updated_at: string;
   competency_name: string;
-  effective_level: CompetencyLevel;
+  effective_grade: CbcRatingType;
 };
+
+function letterFromRow(letter: string | null): CbcRatingType | null {
+  return letter ? parseCbcRating(letter) : null;
+}
 
 export async function computeAndCacheTermSummaries(
   studentId: string,
@@ -179,8 +198,8 @@ export async function computeAndCacheTermSummaries(
   const summaries: SummaryRow[] = [];
 
   for (const { competency_id: competencyId } of competencyGroups) {
-    const { rows: ratingRows } = await query<{ competency_level: CompetencyLevel }>(
-      `SELECT cr.competency_level
+    const { rows: ratingRows } = await query<{ letter_grade: string | null }>(
+      `SELECT cr.letter_grade
        FROM competency_ratings cr
        JOIN assessment_activities aa ON aa.id = cr.assessment_activity_id
        WHERE cr.student_id = $1
@@ -192,17 +211,21 @@ export async function computeAndCacheTermSummaries(
 
     if (ratingRows.length === 0) continue;
 
-    const { level, method } = aggregateTermCompetencyLevel(
-      ratingRows.map((r) => r.competency_level),
-    );
+    const letters = ratingRows
+      .map((r) => letterFromRow(r.letter_grade))
+      .filter((g): g is CbcRatingType => g != null);
+
+    if (letters.length === 0) continue;
+
+    const { grade, method } = aggregateTermLetterGrade(letters);
 
     const { rows } = await query<SummaryRow>(
       `INSERT INTO term_competency_summary (
         student_id, subject_id, competency_id, term_id,
-        aggregated_level, aggregation_method, updated_at
+        aggregated_grade, aggregation_method, updated_at
       ) VALUES ($1,$2,$3,$4,$5,$6,NOW())
       ON CONFLICT (student_id, subject_id, competency_id, term_id) DO UPDATE SET
-        aggregated_level = EXCLUDED.aggregated_level,
+        aggregated_grade = EXCLUDED.aggregated_grade,
         aggregation_method = EXCLUDED.aggregation_method,
         updated_at = NOW()
       RETURNING
@@ -211,29 +234,42 @@ export async function computeAndCacheTermSummaries(
         term_competency_summary.subject_id,
         term_competency_summary.competency_id,
         term_competency_summary.term_id,
-        term_competency_summary.aggregated_level,
+        term_competency_summary.aggregated_grade,
         term_competency_summary.aggregation_method,
         term_competency_summary.is_teacher_override,
-        term_competency_summary.overridden_level,
+        term_competency_summary.overridden_grade,
         term_competency_summary.override_justification,
         term_competency_summary.overridden_by,
         term_competency_summary.overridden_at,
         term_competency_summary.created_at,
         term_competency_summary.updated_at`,
-      [studentId, subjectId, competencyId, termId, level, method],
+      [studentId, subjectId, competencyId, termId, grade, method],
     );
 
     if (!rows[0]) continue;
 
     const { rows: enriched } = await query<SummaryRow>(
       `SELECT
-        tcs.*,
+        tcs.id,
+        tcs.student_id,
+        tcs.subject_id,
+        tcs.competency_id,
+        tcs.term_id,
+        tcs.aggregated_grade,
+        tcs.aggregation_method,
+        tcs.is_teacher_override,
+        tcs.overridden_grade,
+        tcs.override_justification,
+        tcs.overridden_by,
+        tcs.overridden_at,
+        tcs.created_at,
+        tcs.updated_at,
         cc.name AS competency_name,
         CASE
-          WHEN tcs.is_teacher_override AND tcs.overridden_level IS NOT NULL
-          THEN tcs.overridden_level
-          ELSE tcs.aggregated_level
-        END AS effective_level
+          WHEN tcs.is_teacher_override AND tcs.overridden_grade IS NOT NULL
+          THEN tcs.overridden_grade
+          ELSE tcs.aggregated_grade
+        END AS effective_grade
        FROM term_competency_summary tcs
        JOIN cbc_competencies cc ON cc.id = tcs.competency_id
        WHERE tcs.id = $1`,
@@ -248,24 +284,37 @@ export async function computeAndCacheTermSummaries(
 
 export async function overrideTermSummary(
   summaryId: string,
-  overriddenLevel: CompetencyLevel,
+  overriddenGrade: CbcRatingType,
   overrideJustification: string,
   headteacherId: string,
 ) {
   const { rows } = await query<SummaryRow>(
     `UPDATE term_competency_summary
      SET is_teacher_override = true,
-         overridden_level = $2,
+         overridden_grade = $2,
          override_justification = $3,
          overridden_by = $4,
          overridden_at = NOW(),
          updated_at = NOW()
      WHERE id = $1
      RETURNING
-       term_competency_summary.*,
+       term_competency_summary.id,
+       term_competency_summary.student_id,
+       term_competency_summary.subject_id,
+       term_competency_summary.competency_id,
+       term_competency_summary.term_id,
+       term_competency_summary.aggregated_grade,
+       term_competency_summary.aggregation_method,
+       term_competency_summary.is_teacher_override,
+       term_competency_summary.overridden_grade,
+       term_competency_summary.override_justification,
+       term_competency_summary.overridden_by,
+       term_competency_summary.overridden_at,
+       term_competency_summary.created_at,
+       term_competency_summary.updated_at,
        (SELECT name FROM cbc_competencies WHERE id = term_competency_summary.competency_id) AS competency_name,
-       $2::competency_level AS effective_level`,
-    [summaryId, overriddenLevel, overrideJustification, headteacherId],
+       $2::char(1) AS effective_grade`,
+    [summaryId, overriddenGrade, overrideJustification, headteacherId],
   );
 
   if (!rows[0]) throw new HttpError(404, "Term competency summary not found");
@@ -299,10 +348,15 @@ export async function createLearningOutcomeRecord(input: LearningOutcomeRecordIn
 
   const { rows } = await query(
     `INSERT INTO learning_outcome_records (
-      student_id, learning_outcome_id, achievement_level, remark
+      student_id, learning_outcome_id, achievement_grade, remark
     ) VALUES ($1,$2,$3,$4)
     RETURNING *`,
-    [input.studentId, input.learningOutcomeId, input.achievementLevel, input.remark ?? null],
+    [
+      input.studentId,
+      input.learningOutcomeId,
+      input.achievementGrade,
+      input.remark ?? null,
+    ],
   );
   return rows[0];
 }

@@ -74,7 +74,7 @@ export async function patchCbcTermSummaryOverride(req: Request, res: Response) {
   const body = cbcTermSummaryOverrideSchema.parse(req.body);
   const row = await svc.overrideTermSummary(
     req.params["id"]!,
-    body.overriddenLevel,
+    body.overriddenGrade,
     body.overrideJustification,
     req.user!.id,
   );

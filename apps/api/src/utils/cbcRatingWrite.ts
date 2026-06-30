@@ -1,8 +1,4 @@
-import type { CompetencyLevel, CbcRating } from "@uganda-cbc-sms/shared";
-import {
-  competencyLevelToLegacyRating,
-  legacyRatingToCompetencyLevel,
-} from "@uganda-cbc-sms/shared";
+import type { CbcRating } from "@uganda-cbc-sms/shared";
 import { query } from "../config/db";
 
 export type AssessmentsCbcRow = {
@@ -11,7 +7,6 @@ export type AssessmentsCbcRow = {
   strand: string;
   competency: string;
   rating: CbcRating;
-  competencyLevel?: CompetencyLevel;
   termId: string;
   yearId: string;
   teacherId: string;
@@ -23,26 +18,9 @@ export type CbcScoresRow = {
   strandId: string;
   competency: string;
   rating: CbcRating;
-  competencyLevel?: CompetencyLevel;
   termId: string;
   teacherId: string;
 };
-
-function resolvePair(row: { rating: CbcRating; competencyLevel?: CompetencyLevel }): {
-  rating: CbcRating;
-  competencyLevel: CompetencyLevel;
-} {
-  if (row.competencyLevel) {
-    return {
-      competencyLevel: row.competencyLevel,
-      rating: competencyLevelToLegacyRating(row.competencyLevel),
-    };
-  }
-  return {
-    rating: row.rating,
-    competencyLevel: legacyRatingToCompetencyLevel(row.rating),
-  };
-}
 
 async function resolveStrandId(subjectId: string, strandName: string): Promise<string | null> {
   const { rows } = await query<{ id: string }>(
@@ -79,15 +57,12 @@ export async function syncAssessmentsCbcToLegacy(row: AssessmentsCbcRow): Promis
   const strandId = await resolveStrandId(row.subjectId, row.strand);
   if (!strandId) return;
 
-  const { rating, competencyLevel } = resolvePair(row);
-
   await query(
     `INSERT INTO cbc_scores (
-      student_id, subject_id, strand_id, term_id, competency, rating, competency_level, teacher_id, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      student_id, subject_id, strand_id, term_id, competency, rating, teacher_id, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
     ON CONFLICT (student_id, subject_id, strand_id, competency, term_id) DO UPDATE SET
       rating = EXCLUDED.rating,
-      competency_level = EXCLUDED.competency_level,
       teacher_id = EXCLUDED.teacher_id,
       updated_at = NOW()`,
     [
@@ -96,8 +71,7 @@ export async function syncAssessmentsCbcToLegacy(row: AssessmentsCbcRow): Promis
       strandId,
       row.termId,
       row.competency,
-      rating,
-      competencyLevel,
+      row.rating,
       row.teacherId,
     ],
   );
@@ -109,16 +83,13 @@ export async function syncLegacyCbcToAssessments(row: CbcScoresRow): Promise<voi
   const yearId = await resolveYearIdForTerm(row.termId);
   if (!strandName || !yearId) return;
 
-  const { rating, competencyLevel } = resolvePair(row);
-
   await query(
     `INSERT INTO assessments_cbc (
-      student_id, subject_id, strand, competency, rating, competency_level,
+      student_id, subject_id, strand, competency, rating,
       term_id, academic_year_id, teacher_id, is_locked, updated_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,false,NOW())
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,false,NOW())
     ON CONFLICT (student_id, subject_id, strand, competency, term_id, academic_year_id) DO UPDATE SET
       rating = EXCLUDED.rating,
-      competency_level = EXCLUDED.competency_level,
       teacher_id = EXCLUDED.teacher_id,
       updated_at = NOW()`,
     [
@@ -126,8 +97,7 @@ export async function syncLegacyCbcToAssessments(row: CbcScoresRow): Promise<voi
       row.subjectId,
       strandName,
       row.competency,
-      rating,
-      competencyLevel,
+      row.rating,
       row.termId,
       yearId,
       row.teacherId,
@@ -135,31 +105,24 @@ export async function syncLegacyCbcToAssessments(row: CbcScoresRow): Promise<voi
   );
 }
 
-/**
- * Dual-write legacy assessments_cbc + cbc_scores from an NCDC competency_level
- * (source of truth). Legacy `rating` is derived via competencyLevelToLegacyRating —
- * a deliberate lossy shim for reportCompiler / olevelCaLoader during transition.
- */
-export async function dualWriteFromCompetencyLevel(input: {
+/** Dual-write legacy assessments_cbc + cbc_scores from authoritative UNEB letter grade. */
+export async function dualWriteFromLetterGrade(input: {
   studentId: string;
   subjectId: string;
   strandName: string;
   competencyName: string;
-  competencyLevel: CompetencyLevel;
+  letterGrade: CbcRating;
   termId: string;
   yearId: string;
   teacherId: string;
 }): Promise<void> {
-  const rating = competencyLevelToLegacyRating(input.competencyLevel);
-
   await query(
     `INSERT INTO assessments_cbc (
-      student_id, subject_id, strand, competency, rating, competency_level,
+      student_id, subject_id, strand, competency, rating,
       term_id, academic_year_id, teacher_id, is_locked, updated_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,false,NOW())
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,false,NOW())
     ON CONFLICT (student_id, subject_id, strand, competency, term_id, academic_year_id) DO UPDATE SET
       rating = EXCLUDED.rating,
-      competency_level = EXCLUDED.competency_level,
       teacher_id = EXCLUDED.teacher_id,
       updated_at = NOW()`,
     [
@@ -167,8 +130,7 @@ export async function dualWriteFromCompetencyLevel(input: {
       input.subjectId,
       input.strandName,
       input.competencyName,
-      rating,
-      input.competencyLevel,
+      input.letterGrade,
       input.termId,
       input.yearId,
       input.teacherId,
@@ -180,43 +142,9 @@ export async function dualWriteFromCompetencyLevel(input: {
     subjectId: input.subjectId,
     strand: input.strandName,
     competency: input.competencyName,
-    rating,
-    competencyLevel: input.competencyLevel,
+    rating: input.letterGrade,
     termId: input.termId,
     yearId: input.yearId,
-    teacherId: input.teacherId,
-  });
-}
-
-/** Resolve strand/competency labels then dual-write legacy tables after competency_ratings insert. */
-export async function dualWriteFromCompetencyRatingIds(input: {
-  studentId: string;
-  competencyId: string;
-  strandId: string;
-  competencyLevel: CompetencyLevel;
-  subjectId: string;
-  termId: string;
-  academicYearId: string;
-  teacherId: string;
-}): Promise<void> {
-  const { rows } = await query<{ competency_name: string; strand_name: string }>(
-    `SELECT cc.name AS competency_name, COALESCE(cs.name, cs.strand_name, 'General') AS strand_name
-     FROM cbc_competencies cc
-     JOIN cbc_strands cs ON cs.id = cc.strand_id
-     WHERE cc.id = $1 AND cs.id = $2`,
-    [input.competencyId, input.strandId],
-  );
-  const meta = rows[0];
-  if (!meta) return;
-
-  await dualWriteFromCompetencyLevel({
-    studentId: input.studentId,
-    subjectId: input.subjectId,
-    strandName: meta.strand_name,
-    competencyName: meta.competency_name,
-    competencyLevel: input.competencyLevel,
-    termId: input.termId,
-    yearId: input.academicYearId,
     teacherId: input.teacherId,
   });
 }

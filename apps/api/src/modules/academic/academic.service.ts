@@ -3,7 +3,7 @@ import { HttpError } from "../../utils/httpError";
 import { syncHomeroomOnClass } from "../../utils/classTeacherAssignments";
 import { teacherEligibilitySql, TEACHING_ASSIGNMENT_ROLES } from "../../utils/teacherTeachingAccess";
 import { validateGradingScaleRows } from "../../utils/gradingScales";
-import { DEFAULT_ASSESSMENT_GRADING_SCALES } from "@uganda-cbc-sms/shared";
+import { DEFAULT_ASSESSMENT_GRADING_SCALES, CBC_RATINGS } from "@uganda-cbc-sms/shared";
 import * as sharedSchemas from "@uganda-cbc-sms/shared";
 import type { z } from "zod";
 
@@ -1831,6 +1831,18 @@ export async function replaceGradingScale(input: GradingScaleUpsertIn) {
     })),
   );
   if (validationError) throw new HttpError(400, validationError);
+
+  if (input.level === "O_LEVEL") {
+    for (const row of rows) {
+      const grade = row.grade.toUpperCase();
+      if (!CBC_RATINGS.includes(grade as (typeof CBC_RATINGS)[number])) {
+        throw new HttpError(
+          400,
+          `O-Level grading scale only allows UNEB letters A–E (invalid grade: ${row.grade}).`,
+        );
+      }
+    }
+  }
 
   await query("BEGIN");
   try {
