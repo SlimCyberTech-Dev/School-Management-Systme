@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "async_hooks";
 import pg from "pg";
-import "./env-bootstrap.js";
+import "../env-bootstrap.js";
 import { setTenantLocal } from "./tenant.js";
 
 /** Active tenant for the current request (set by middleware). */
