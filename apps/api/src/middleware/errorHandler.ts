@@ -112,12 +112,15 @@ export function errorHandler(
       ? String((err as { code?: string }).code)
       : null;
 
-  if (pgCode === "42703" && !isProd) {
+  if (pgCode === "42703" || pgCode === "42P01") {
+    const hint =
+      pgCode === "42P01"
+        ? "Database schema is out of date (missing table). Run: npm run migrate -w @uganda-cbc-sms/api — then restart the API."
+        : "Database schema is out of date. Run: npm run migrate -w @uganda-cbc-sms/api — then restart the API.";
     void logHttpError(req, 500, message, "SCHEMA_MISMATCH");
     res.status(500).json({
       success: false,
-      error:
-        "Database schema is out of date. Run: npm run migrate -w @uganda-cbc-sms/api — then restart the API.",
+      error: hint,
       code: "SCHEMA_MISMATCH",
     });
     return;

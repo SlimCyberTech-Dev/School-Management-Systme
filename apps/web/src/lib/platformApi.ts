@@ -1,9 +1,10 @@
 import axios from "axios";
+import { resolveApiBaseUrl } from "@/lib/apiBaseUrl";
 import { getPlatformTokenFromCookie } from "@/lib/cookies";
 import { isValidPlatformToken } from "@/lib/platformSession";
 import { usePlatformStore } from "@/store/platformStore";
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const baseURL = resolveApiBaseUrl();
 
 /** @deprecated Use cookie via getPlatformTokenFromCookie — kept for legacy localStorage cleanup. */
 export const PLATFORM_TOKEN_KEY = "sms_platform_token";

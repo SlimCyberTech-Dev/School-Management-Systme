@@ -38,6 +38,8 @@ const envSchema = z.object({
   WEB_APP_URL: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
+  RESEND_FROM_DOMAIN: z.string().optional(),
+  EMAIL_FROM_DOMAIN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -80,6 +82,8 @@ export function loadEnv(): Env {
     WEB_APP_URL: process.env.WEB_APP_URL,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     EMAIL_FROM: process.env.EMAIL_FROM,
+    RESEND_FROM_DOMAIN: process.env.RESEND_FROM_DOMAIN,
+    EMAIL_FROM_DOMAIN: process.env.EMAIL_FROM_DOMAIN,
   });
 
   if (!parsed.success) {

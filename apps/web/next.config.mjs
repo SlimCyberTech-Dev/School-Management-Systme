@@ -1,8 +1,24 @@
 /** @type {import('next').NextConfig} */
-const apiOrigin = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api").replace(/\/api\/?$/, "");
+function normalizeApiBaseUrl(raw) {
+  const trimmed = (raw ?? "http://localhost:5000/api").trim();
+  if (!trimmed) return "http://localhost:5000/api";
+  if (trimmed.startsWith("/")) {
+    const path = trimmed.replace(/\/+$/, "");
+    return /\/api$/i.test(path) ? path : `${path}/api`;
+  }
+  const withoutTrailing = trimmed.replace(/\/+$/, "");
+  if (/\/api$/i.test(withoutTrailing)) return withoutTrailing;
+  return `${withoutTrailing}/api`;
+}
+
+const publicApiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const apiBase = normalizeApiBaseUrl(publicApiUrl);
+const apiOrigin = apiBase.replace(/\/api\/?$/i, "");
+const internalOrigin = process.env.API_INTERNAL_ORIGIN?.trim();
+
 let uploadHostname = "localhost";
 try {
-  uploadHostname = new URL(apiOrigin).hostname;
+  uploadHostname = new URL(apiOrigin.startsWith("http") ? apiOrigin : `http://${apiOrigin}`).hostname;
 } catch {
   /* keep default */
 }
@@ -29,6 +45,12 @@ const nextConfig = {
         pathname: "/uploads/**",
       },
     ],
+  },
+  async rewrites() {
+    // Same-origin API: browser calls /api/* on the web host; proxy to the API service.
+    if (!publicApiUrl.trim().startsWith("/") || !internalOrigin) return [];
+    const target = internalOrigin.replace(/\/+$/, "");
+    return [{ source: "/api/:path*", destination: `${target}/api/:path*` }];
   },
 };
 

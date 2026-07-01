@@ -6,6 +6,7 @@ import {
   setSmsTokenCookie,
 } from "@/lib/cookies";
 import { jwtCookieMaxAge } from "@/lib/jwtPayload";
+import { resolveApiBaseUrl } from "@/lib/apiBaseUrl";
 import { getApiTenantSlug } from "@/lib/tenantHost";
 
 export type AuthUser = {
@@ -49,7 +50,7 @@ type AuthState = {
   hasRole: (role: Role | Role[]) => boolean;
 };
 
-const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const baseUrl = resolveApiBaseUrl();
 
 function parseUser(data: unknown): AuthUser | null {
   if (!data || typeof data !== "object") return null;

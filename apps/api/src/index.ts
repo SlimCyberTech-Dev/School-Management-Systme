@@ -1,13 +1,9 @@
-import dotenv from "dotenv";
-import path from "path";
+import "./env-bootstrap.js";
 import { assertSchoolDbRoleEnforcesRls } from "./config/dbRlsCheck.js";
 import { loadEnv } from "./config/env.js";
 import { createApp } from "./createApp.js";
 import { startBillingScheduler } from "./modules/billing/billingScheduler.js";
 import { verifyMailConfigAtStartup } from "./services/mail/verifyMailConfig.js";
-
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
-dotenv.config({ path: path.resolve(process.cwd(), "../../.env"), override: true });
 
 const env = loadEnv();
 const app = createApp();

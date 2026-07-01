@@ -1,10 +1,11 @@
 import axios, { isAxiosError, type AxiosError, type AxiosResponse } from "axios";
 import { billingPageForRole } from "@/lib/billingPaths";
+import { resolveApiBaseUrl } from "@/lib/apiBaseUrl";
 import { getSmsTokenFromCookie } from "@/lib/cookies";
 import { useAuthStore } from "@/store/authStore";
 import { getApiTenantSlug } from "@/lib/tenantHost";
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const baseURL = resolveApiBaseUrl();
 
 export const api = axios.create({
   baseURL,

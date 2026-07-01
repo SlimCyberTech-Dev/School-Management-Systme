@@ -5,6 +5,7 @@ import {
   setPlatformTokenCookie,
 } from "@/lib/cookies";
 import { jwtCookieMaxAge } from "@/lib/jwtPayload";
+import { resolveApiBaseUrl } from "@/lib/apiBaseUrl";
 import { isValidPlatformToken } from "@/lib/platformSession";
 import { sessionInactivityMs } from "@/lib/sessionConfig";
 
@@ -36,7 +37,7 @@ type PlatformState = {
   updateAdmin: (patch: Partial<PlatformAdmin>) => void;
 };
 
-const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+const baseUrl = resolveApiBaseUrl();
 
 function idleDeadlineFromSession(session?: PlatformSessionInfo): number | null {
   if (!session?.idleExpiresAt) return null;

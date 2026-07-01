@@ -1,14 +1,10 @@
-import dotenv from "dotenv";
+import "../src/env-bootstrap.js";
 import { readdir, readFile } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import pg from "pg";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootEnv = path.resolve(__dirname, "../../../.env");
-const apiEnv = path.resolve(__dirname, "../.env");
-dotenv.config({ path: rootEnv, override: true });
-dotenv.config({ path: apiEnv, override: true });
 
 const { Pool } = pg;
 const migrateUrl =

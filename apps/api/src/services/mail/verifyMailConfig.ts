@@ -92,7 +92,7 @@ export async function verifyMailConfigAtStartup(): Promise<void> {
   }
 
   const explicitDomain =
-    process.env.RESEND_FROM_DOMAIN?.trim() ?? process.env.EMAIL_FROM_DOMAIN?.trim();
+    env.RESEND_FROM_DOMAIN?.trim() ?? env.EMAIL_FROM_DOMAIN?.trim();
   if (explicitDomain && domainIsVerifiedForFrom(explicitDomain, verified)) {
     resolvedFromOverride = rewriteEmailFromDomain(from, explicitDomain);
     console.warn(

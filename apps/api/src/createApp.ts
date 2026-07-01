@@ -36,6 +36,7 @@ import { onboardingRouter } from "./modules/onboarding/onboarding.routes.js";
 import { platformRouter } from "./modules/platform/platform.routes.js";
 import { billingRouter, requireActiveSubscription } from "./modules/billing/billing.routes.js";
 import { notificationsRouter } from "./modules/notifications/notifications.routes.js";
+import { getMailHealthStatus } from "./services/mail/mailHealth.js";
 import { requireAuth } from "./middleware/jwtGuard.js";
 import { requestDbMiddleware } from "./middleware/requestDb.js";
 import { resolveTenant } from "./middleware/resolveTenant.js";
@@ -80,7 +81,17 @@ export function createApp(): Express {
   app.use("/uploads", express.static(path.resolve(process.cwd(), uploadRoot)));
 
   app.get("/api/health", (_req, res) => {
-    res.json({ success: true, data: { status: "ok" } });
+    const mail = getMailHealthStatus();
+    res.json({
+      success: true,
+      data: {
+        status: "ok",
+        features: {
+          notifications: true,
+        },
+        mail,
+      },
+    });
   });
 
   app.use("/api/platform", platformRouter);

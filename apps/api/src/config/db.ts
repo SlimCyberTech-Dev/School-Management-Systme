@@ -1,7 +1,6 @@
 import { AsyncLocalStorage } from "async_hooks";
 import pg from "pg";
-import dotenv from "dotenv";
-import path from "path";
+import "./env-bootstrap.js";
 import { setTenantLocal } from "./tenant.js";
 
 /** Active tenant for the current request (set by middleware). */
@@ -15,11 +14,6 @@ export const requestDbStorage = new AsyncLocalStorage<RequestDbStore>();
 export function getRequestDbClient(): pg.PoolClient | null {
   return requestDbStorage.getStore()?.client ?? null;
 }
-
-const cwdEnvPath = path.resolve(process.cwd(), ".env");
-const rootEnvPath = path.resolve(process.cwd(), "../../.env");
-dotenv.config({ path: cwdEnvPath });
-dotenv.config({ path: rootEnvPath });
 
 const { Pool } = pg;
 
